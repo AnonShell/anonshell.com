@@ -1,0 +1,1164 @@
+<h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+    <span class="text-gray-500">#</span> Lab Requirements & Setup
+</h1>
+
+<div class="terminal-alert not-prose mb-8">
+    <div class="terminal-alert-header">
+        <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Critical: Do NOT Use Cloud/VPS Providers Without Authorization</h3>
+    </div>
+    <div class="terminal-alert-content space-y-3">
+        <p><strong>Using cloud servers (AWS, Azure, DigitalOcean, Linode, Vultr) or VPS providers for security testing is EXTREMELY DANGEROUS without explicit written authorization.</strong></p>
+        <p>Offensive activities (port scanning, exploit testing, brute-force attempts) and even defensive activities (running IDS, honeypots, analyzing malware samples) can trigger automatic abuse detection systems. This will result in:</p>
+        <ul class="list-disc list-inside space-y-1 ml-4">
+            <li>Immediate account suspension</li>
+            <li>IP blacklisting across multiple providers</li>
+            <li>Legal action from the provider or third parties</li>
+            <li>Loss of all data and services</li>
+            <li>Being permanently banned from the platform</li>
+        </ul>
+        <p class="mb-0"><strong>Solution: Build a home lab.</strong> Use dedicated hardware you own, on a network you control. This guide assumes you're building a home lab environment.</p>
+    </div>
+</div>
+
+<h2>Home Lab Philosophy</h2>
+
+<p>A home lab provides a safe, isolated environment where you can break things, test exploits, simulate attacks, and learn without consequences. You have full control over the network, can snapshot and restore systems instantly, and won't trigger abuse complaints.</p>
+
+<p><strong>Recommended approach:</strong> Use an old computer as a dedicated home lab server. This centralizes all your VMs in one place, keeps them isolated from your daily-use machines, and provides a realistic environment for testing network security concepts.</p>
+
+<h2>Minimum Hardware Requirements</h2>
+
+<h3>Option 1: Dedicated Home Lab Server (Recommended)</h3>
+
+<p><strong>Best for:</strong> Completing all circles, running multiple VMs simultaneously, realistic network testing</p>
+
+<div class="bg-shell-panel border border-shell-border rounded-lg p-5 my-6">
+    <h4 class="text-shell-accent mt-0 mb-3">Minimum Specifications:</h4>
+    <ul class="space-y-2 text-gray-300">
+        <li><strong>CPU:</strong> Quad-core (Intel i5/i7 4th gen or newer, AMD Ryzen 3/5/7)</li>
+        <li><strong>RAM:</strong> 16GB minimum, 32GB recommended</li>
+        <li><strong>Storage:</strong> 500GB SSD (1TB preferred)</li>
+        <li><strong>Network:</strong> Gigabit Ethernet</li>
+        <li><strong>Virtualization:</strong> CPU with VT-x/AMD-V support (check BIOS)</li>
+    </ul>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Why These Specs?</h4>
+    <ul class="space-y-2 text-gray-300">
+        <li><strong>RAM:</strong> Each VM needs 2-4GB. You'll run 4-6 VMs simultaneously for network testing</li>
+        <li><strong>Storage:</strong> Base OS images (20-40GB each) + snapshots (10-20GB each) + log data</li>
+        <li><strong>CPU:</strong> Virtualization overhead + running security tools (IDS, SIEM) is CPU-intensive</li>
+        <li><strong>SSD:</strong> Dramatically improves VM performance and snapshot operations</li>
+    </ul>
+</div>
+
+<h3>Option 2: Your Daily-Use Computer</h3>
+
+<p><strong>Best for:</strong> Circles 1-3 only, single VM testing, learning basics</p>
+
+<div class="bg-shell-panel border border-shell-border rounded-lg p-5 my-6">
+    <h4 class="text-shell-accent mt-0 mb-3">Minimum Specifications:</h4>
+    <ul class="space-y-2 text-gray-300">
+        <li><strong>CPU:</strong> Dual-core with VT-x/AMD-V</li>
+        <li><strong>RAM:</strong> 8GB minimum (16GB to run VMs comfortably)</li>
+        <li><strong>Storage:</strong> 200GB free space</li>
+        <li><strong>OS:</strong> Windows 10/11, macOS, or Linux with virtualization support</li>
+    </ul>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Limitations:</h4>
+    <ul class="space-y-2 text-gray-300">
+        <li>Cannot run multiple VMs simultaneously for network security testing</li>
+        <li>Performance impact on daily tasks when VMs are running</li>
+        <li>Limited ability to create isolated networks</li>
+        <li>Not suitable for Circles 4+ (Network Security, Blue Team, Red Team)</li>
+    </ul>
+</div>
+
+<h2>Virtualization Platform</h2>
+
+<p>Choose one based on your host operating system:</p>
+
+<div class="space-y-4 my-6">
+    <div class="bg-shell-panel border border-shell-border rounded-lg p-4">
+        <h4 class="text-shell-accent mt-0 mb-2">VirtualBox (Free, Cross-Platform)</h4>
+        <p class="text-gray-300 mb-2"><strong>Best for:</strong> Beginners, single-user labs, Circles 1-3</p>
+        <p class="text-gray-300 text-sm">Easy to use, good documentation, supports snapshots and virtual networks. Limited performance compared to Type-1 hypervisors.</p>
+    </div>
+    
+    <div class="bg-shell-panel border border-shell-border rounded-lg p-4">
+        <h4 class="text-shell-accent mt-0 mb-2">VMware Workstation Pro / Fusion (Paid, Cross-Platform)</h4>
+        <p class="text-gray-300 mb-2"><strong>Best for:</strong> Advanced users, better performance, Circles 1-4</p>
+        <p class="text-gray-300 text-sm">Superior performance, advanced networking, better snapshot management. Costs $200-300 but offers professional features.</p>
+    </div>
+    
+    <div class="bg-shell-panel border border-shell-border rounded-lg p-4">
+        <h4 class="text-shell-accent mt-0 mb-2">Proxmox VE (Free, Linux-based)</h4>
+        <p class="text-gray-300 mb-2"><strong>Best for:</strong> Dedicated home lab server, all circles, production-like environment</p>
+        <p class="text-gray-300 text-sm">Type-1 hypervisor (bare metal), web-based management, enterprise features. Requires dedicated hardware. Steep learning curve but most realistic.</p>
+    </div>
+    
+    <div class="bg-shell-panel border border-shell-border rounded-lg p-4">
+        <h4 class="text-shell-accent mt-0 mb-2">KVM/QEMU (Free, Linux)</h4>
+        <p class="text-gray-300 mb-2"><strong>Best for:</strong> Linux power users, command-line preference</p>
+        <p class="text-gray-300 text-sm">Native Linux virtualization, excellent performance, full control. Requires Linux host and comfort with command-line management.</p>
+    </div>
+</div>
+
+<h2>Complete Lab Builds by Circle</h2>
+
+<div class="terminal-info not-prose mb-6">
+    <div class="terminal-info-header">
+        <i data-lucide="info" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">About These Lab Configurations</h3>
+    </div>
+    <p class="terminal-info-content">
+        Each circle includes COMPLETE network topology, VM specifications, VLAN configuration, and IP addressing. These labs are designed to provide everything you need to practice and master all concepts in that circle before advancing. Create snapshots before major changes.
+    </p>
+</div>
+
+<h3>Circle 1-2: Understanding & Personal Practice</h3>
+
+<p><strong>Goal:</strong> Learn OpSec concepts, threat modeling, digital hygiene, encrypted communication</p>
+<p><strong>Complexity:</strong> Beginner - Single VM, no networking complexity</p>
+
+<div class="bg-shell-dark border border-shell-accent/30 rounded-lg p-5 my-4">
+    <h4 class="text-shell-accent mt-0 mb-3">Network Topology</h4>
+    
+    <div class="bg-shell-black p-4 rounded mb-4">
+        <p class="text-gray-300 mb-3">Host Computer</p>
+        <p class="text-gray-400 ml-4">↓</p>
+        <div class="ml-4 mt-3">
+            <div class="border-l-2 border-shell-accent/50 pl-4">
+                <p class="text-shell-accent"><strong>NAT Network</strong> (192.168.122.0/24)</p>
+                <ul class="text-gray-300 text-sm mt-1 ml-4">
+                    <li>→ 192.168.122.10 - Practice Desktop VM <span class="text-gray-500">(Debian 12 | 2 vCPU | 4GB RAM | 40GB disk)</span></li>
+                    <li>→ Internet access via host</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Network Configuration</h4>
+    <table class="w-full text-sm mb-4">
+        <thead>
+            <tr class="border-b border-shell-border">
+                <th class="text-left py-2 text-shell-accent">Network</th>
+                <th class="text-left py-2 text-shell-accent">Type</th>
+                <th class="text-left py-2 text-shell-accent">Subnet</th>
+                <th class="text-left py-2 text-shell-accent">Purpose</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">NAT</td>
+                <td class="py-2 text-gray-300">NAT</td>
+                <td class="py-2 text-gray-300">Auto (typically 192.168.122.0/24)</td>
+                <td class="py-2 text-gray-300">Internet access for downloads and updates</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Virtual Machine: Practice-Desktop</h4>
+    <table class="w-full text-sm mb-4">
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400 w-32">Hostname</td>
+                <td class="py-2 text-gray-300">practice-desktop</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Operating System</td>
+                <td class="py-2 text-gray-300">Ubuntu 24.04 LTS Desktop</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">vCPU Cores</td>
+                <td class="py-2 text-gray-300">2</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">RAM</td>
+                <td class="py-2 text-gray-300">4GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Disk Space</td>
+                <td class="py-2 text-gray-300">50GB (thin provisioned)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Network Adapter</td>
+                <td class="py-2 text-gray-300">NAT (virtio/vmxnet3)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">IP Address</td>
+                <td class="py-2 text-gray-300">DHCP (auto-assigned)</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="mt-4 p-3 bg-shell-black/50 border border-shell-accent/20 rounded">
+        <p class="text-sm text-gray-300 mb-2"><strong>Software to Install & Practice:</strong></p>
+        <ul class="text-sm text-gray-300 space-y-1 ml-4">
+            <li>Password manager: KeePassXC or Bitwarden desktop</li>
+            <li>Encrypted messaging: Signal Desktop</li>
+            <li>Browser: Firefox with uBlock Origin, HTTPS Everywhere, Privacy Badger</li>
+            <li>Email: Thunderbird with PGP (Enigmail replacement)</li>
+            <li>File encryption: VeraCrypt for practicing container creation</li>
+            <li>Tor Browser (download and test)</li>
+            <li>Basic command line tools: gpg, ssh-keygen, openssl</li>
+        </ul>
+    </div>
+    
+    <div class="mt-4 p-3 bg-shell-black/50 border border-shell-accent/20 rounded">
+        <p class="text-sm text-gray-300 mb-2"><strong>Practice Exercises:</strong></p>
+        <ul class="text-sm text-gray-300 space-y-1 ml-4">
+            <li>Create threat model for a fictional persona</li>
+            <li>Set up password database with strong master password</li>
+            <li>Configure Firefox with privacy extensions and test fingerprinting resistance</li>
+            <li>Generate PGP keypair and practice encrypting/decrypting messages</li>
+            <li>Create SSH keypair and understand public/private key concepts</li>
+            <li>Practice compartmentalization: separate browser profiles for different identities</li>
+        </ul>
+    </div>
+</div>
+
+<p><strong>Total Lab Requirements:</strong> 1 VM, 4GB RAM, 50GB disk</p>
+<p><strong>Can Run On:</strong> Any computer with 8GB+ total RAM</p>
+
+<h3>Circle 3: Hardware Security (Operating Systems)</h3>
+
+<p><strong>Goal:</strong> Master OS hardening, firewall configuration, service lockdown, mandatory access control</p>
+<p><strong>Complexity:</strong> Intermediate - Multiple VMs (not simultaneous), basic networking</p>
+
+<div class="bg-shell-dark border border-shell-accent/30 rounded-lg p-5 my-4">
+    <h4 class="text-shell-accent mt-0 mb-3">Network Topology</h4>
+    
+    <div class="bg-shell-black p-4 rounded mb-4">
+        <p class="text-gray-300 mb-3">Host Computer</p>
+        <p class="text-gray-400 ml-4">↓</p>
+        <div class="ml-4 mt-3 space-y-3">
+            <div class="border-l-2 border-shell-accent/50 pl-4">
+                <p class="text-shell-accent"><strong>NAT Network</strong> (192.168.122.0/24)</p>
+                <ul class="text-gray-300 text-sm mt-1 ml-4">
+                    <li>→ 192.168.122.11 - Linux Hardening VM <span class="text-gray-500">(Debian 12 | 2 vCPU | 4GB RAM | 50GB disk)</span></li>
+                    <li>→ 192.168.122.12 - Windows Hardening VM <span class="text-gray-500">(Windows 10/11 Pro | 2 vCPU | 8GB RAM | 80GB disk)</span></li>
+                </ul>
+                <p class="text-yellow-500 text-xs mt-2 ml-4">⚠ Run one VM at a time (not simultaneously)</p>
+            </div>
+        </div>
+    </div>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Network Configuration</h4>
+    <table class="w-full text-sm mb-4">
+        <thead>
+            <tr class="border-b border-shell-border">
+                <th class="text-left py-2 text-shell-accent">Network</th>
+                <th class="text-left py-2 text-shell-accent">Type</th>
+                <th class="text-left py-2 text-shell-accent">Subnet</th>
+                <th class="text-left py-2 text-shell-accent">Purpose</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">NAT</td>
+                <td class="py-2 text-gray-300">NAT</td>
+                <td class="py-2 text-gray-300">Auto (typically 192.168.122.0/24)</td>
+                <td class="py-2 text-gray-300">Internet access for OS updates and tool downloads</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Virtual Machine 1: Linux-Hardening</h4>
+    <table class="w-full text-sm mb-4">
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400 w-32">Hostname</td>
+                <td class="py-2 text-gray-300">linux-hardening</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Operating System</td>
+                <td class="py-2 text-gray-300">Debian 12 or Ubuntu Server 24.04 LTS</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">vCPU Cores</td>
+                <td class="py-2 text-gray-300">2</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">RAM</td>
+                <td class="py-2 text-gray-300">4GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Disk Space</td>
+                <td class="py-2 text-gray-300">50GB (thin provisioned)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Network Adapter</td>
+                <td class="py-2 text-gray-300">NAT (virtio/vmxnet3)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">IP Address</td>
+                <td class="py-2 text-gray-300">DHCP or static 192.168.122.11</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="mt-4 p-3 bg-shell-black/50 border border-shell-accent/20 rounded">
+        <p class="text-sm text-gray-300 mb-2"><strong>Linux Hardening Practice:</strong></p>
+        <ul class="text-sm text-gray-300 space-y-1 ml-4">
+            <li>UFW firewall configuration and rule testing</li>
+            <li>SSH hardening (disable root, key-only auth, custom port)</li>
+            <li>Service auditing with systemctl and disabling unnecessary services</li>
+            <li>SELinux (RHEL/CentOS) or AppArmor (Debian/Ubuntu) configuration</li>
+            <li>Kernel hardening (sysctl parameters)</li>
+            <li>Automatic security updates configuration</li>
+            <li>Fail2Ban for intrusion prevention</li>
+            <li>AIDE file integrity monitoring setup</li>
+            <li>Auditd system call monitoring</li>
+        </ul>
+    </div>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Virtual Machine 2: Windows-Hardening</h4>
+    <table class="w-full text-sm mb-4">
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400 w-32">Hostname</td>
+                <td class="py-2 text-gray-300">windows-hardening</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Operating System</td>
+                <td class="py-2 text-gray-300">Windows 10/11 Pro (evaluation ISO)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">vCPU Cores</td>
+                <td class="py-2 text-gray-300">2</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">RAM</td>
+                <td class="py-2 text-gray-300">8GB (Windows 11 requirement)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Disk Space</td>
+                <td class="py-2 text-gray-300">80GB (thin provisioned)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Network Adapter</td>
+                <td class="py-2 text-gray-300">NAT (vmxnet3/E1000)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">IP Address</td>
+                <td class="py-2 text-gray-300">DHCP or static 192.168.122.12</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">TPM</td>
+                <td class="py-2 text-gray-300">Enable vTPM 2.0 (for Windows 11)</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="mt-4 p-3 bg-shell-black/50 border border-shell-accent/20 rounded">
+        <p class="text-sm text-gray-300 mb-2"><strong>Windows Hardening Practice:</strong></p>
+        <ul class="text-sm text-gray-300 space-y-1 ml-4">
+            <li>Disable telemetry and data collection (O&O ShutUp10++)</li>
+            <li>Windows Defender hardening and exclusion management</li>
+            <li>Windows Firewall with Advanced Security rules</li>
+            <li>Disable unnecessary services (Print Spooler, Remote Registry, etc.)</li>
+            <li>AppLocker or Windows Defender Application Control</li>
+            <li>BitLocker drive encryption configuration</li>
+            <li>Group Policy hardening (Local Security Policy)</li>
+            <li>Disable SMBv1 and legacy protocols</li>
+            <li>Windows Update configuration and WSUS offline updates</li>
+        </ul>
+    </div>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Virtual Machine 3 (Optional): macOS-Hardening</h4>
+    <p class="text-sm text-gray-300 mb-2"><strong>Note:</strong> Practice on physical Mac hardware. macOS virtualization requires:</p>
+    <ul class="text-sm text-gray-300 space-y-1 ml-4 mb-4">
+        <li>Apple hardware (macOS can only be virtualized on Mac)</li>
+        <li>VMware Fusion or Parallels Desktop</li>
+        <li>macOS installer from App Store</li>
+    </ul>
+    
+    <div class="mt-4 p-3 bg-shell-black/50 border border-shell-accent/20 rounded">
+        <p class="text-sm text-gray-300 mb-2"><strong>Snapshot Strategy for Circle 3:</strong></p>
+        <ul class="text-sm text-gray-300 space-y-1 ml-4">
+            <li><strong>Fresh Install:</strong> After OS installation, before any changes</li>
+            <li><strong>Updated:</strong> After applying all OS updates</li>
+            <li><strong>Basic Hardening:</strong> After firewall and service lockdown</li>
+            <li><strong>Advanced Hardening:</strong> After SELinux/AppArmor and kernel hardening</li>
+            <li><strong>Fully Hardened:</strong> Final working configuration</li>
+        </ul>
+    </div>
+</div>
+
+<p><strong>Total Lab Requirements:</strong> 2 VMs (run one at a time), 8GB RAM, 130GB disk</p>
+<p><strong>Can Run On:</strong> Any computer with 12GB+ total RAM</p>
+
+<h3>Circle 4: Environmental Defense (Network Security)</h3>
+
+<p><strong>Goal:</strong> Build realistic network topology, practice network segmentation, deploy IDS/HIDS, centralized logging, incident response</p>
+<p><strong>Complexity:</strong> Advanced - Multiple VMs running simultaneously, complex networking with VLANs</p>
+
+<div class="terminal-alert not-prose mb-4">
+    <div class="terminal-alert-header">
+        <i data-lucide="alert-circle" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Hardware Reality Check</h3>
+    </div>
+    <p class="terminal-alert-content">
+        This circle requires running 7 VMs simultaneously. You need a dedicated home lab server with 24GB+ RAM and 300GB+ disk. This is NOT optional for completing Circle 4. If you have less than 16GB RAM, complete Parts 1-2 (VPN, Tor) in a single VM using NAT, then acquire proper hardware before continuing.
+    </p>
+</div>
+
+<div class="bg-shell-dark border border-shell-accent/30 rounded-lg p-5 my-4">
+    <h4 class="text-shell-accent mt-0 mb-3">Network Topology</h4>
+    
+    <div class="bg-shell-black p-4 rounded mb-4">
+        <p class="text-gray-300 mb-3">Internet (NAT)</p>
+        <p class="text-gray-400 ml-4">↓</p>
+        <p class="text-shell-accent ml-4 mb-3"><strong>pfSense Firewall</strong> (192.168.1.1 WAN)</p>
+        <p class="text-gray-400 ml-4">↓ (4 VLANs)</p>
+        
+        <div class="ml-4 mt-3 space-y-3">
+            <div class="border-l-2 border-shell-accent/50 pl-4">
+                <p class="text-shell-accent"><strong>VLAN 10 - LAN (Trusted)</strong> - 192.168.10.0/24</p>
+                <ul class="text-gray-300 text-sm mt-1 ml-4">
+                    <li>→ 192.168.10.1 - Gateway <span class="text-gray-500">(pfSense | 2 vCPU | 4GB RAM | 25GB disk)</span></li>
+                    <li>→ 192.168.10.10 - Security Monitor <span class="text-gray-500">(Debian 12 | 4 vCPU | 8GB RAM | 100GB disk)</span></li>
+                    <li>→ 192.168.10.20 - Admin Workstation <span class="text-gray-500">(Ubuntu 24.04 | 2 vCPU | 4GB RAM | 50GB disk)</span></li>
+                    <li>→ 192.168.10.30 - User Workstation <span class="text-gray-500">(Ubuntu 24.04 | 2 vCPU | 2GB RAM | 40GB disk)</span></li>
+                </ul>
+            </div>
+            
+            <div class="border-l-2 border-yellow-500/50 pl-4">
+                <p class="text-yellow-500"><strong>VLAN 20 - DMZ (Services)</strong> - 192.168.20.0/24</p>
+                <ul class="text-gray-300 text-sm mt-1 ml-4">
+                    <li>→ 192.168.20.1 - Gateway <span class="text-gray-500">(pfSense)</span></li>
+                    <li>→ 192.168.20.10 - Web Server <span class="text-gray-500">(Debian 12 | 2 vCPU | 2GB RAM | 30GB disk)</span></li>
+                </ul>
+            </div>
+            
+            <div class="border-l-2 border-blue-500/50 pl-4">
+                <p class="text-blue-500"><strong>VLAN 30 - IoT (Isolated)</strong> - 192.168.30.0/24</p>
+                <ul class="text-gray-300 text-sm mt-1 ml-4">
+                    <li>→ 192.168.30.1 - Gateway <span class="text-gray-500">(pfSense)</span></li>
+                    <li>→ 192.168.30.10 - IoT Device <span class="text-gray-500">(Ubuntu Server | 1 vCPU | 1GB RAM | 15GB disk)</span></li>
+                </ul>
+            </div>
+            
+            <div class="border-l-2 border-red-500/50 pl-4">
+                <p class="text-red-500"><strong>VLAN 99 - Test Network (NO INTERNET)</strong> - 192.168.99.0/24</p>
+                <ul class="text-gray-300 text-sm mt-1 ml-4">
+                    <li>→ 192.168.99.1 - Gateway <span class="text-gray-500">(pfSense)</span></li>
+                    <li>→ 192.168.99.50 - Attacker VM <span class="text-gray-500">(Kali Linux | 2 vCPU | 4GB RAM | 65GB disk)</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">VLAN Configuration</h4>
+    <table class="w-full text-sm mb-4">
+        <thead>
+            <tr class="border-b border-shell-border">
+                <th class="text-left py-2 text-shell-accent">VLAN</th>
+                <th class="text-left py-2 text-shell-accent">Name</th>
+                <th class="text-left py-2 text-shell-accent">Subnet</th>
+                <th class="text-left py-2 text-shell-accent">Gateway</th>
+                <th class="text-left py-2 text-shell-accent">Trust Level</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">-</td>
+                <td class="py-2 text-gray-300">WAN</td>
+                <td class="py-2 text-gray-300">DHCP from NAT</td>
+                <td class="py-2 text-gray-300">Auto</td>
+                <td class="py-2 text-gray-300">External (untrusted)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">10</td>
+                <td class="py-2 text-gray-300">LAN (Trusted)</td>
+                <td class="py-2 text-gray-300">192.168.10.0/24</td>
+                <td class="py-2 text-gray-300">192.168.10.1</td>
+                <td class="py-2 text-gray-300">Trusted - Admin access</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">20</td>
+                <td class="py-2 text-gray-300">DMZ (Services)</td>
+                <td class="py-2 text-gray-300">192.168.20.0/24</td>
+                <td class="py-2 text-gray-300">192.168.20.1</td>
+                <td class="py-2 text-gray-300">Semi-trusted - Public services</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">30</td>
+                <td class="py-2 text-gray-300">IoT (Isolated)</td>
+                <td class="py-2 text-gray-300">192.168.30.0/24</td>
+                <td class="py-2 text-gray-300">192.168.30.1</td>
+                <td class="py-2 text-gray-300">Untrusted - IoT devices only</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">99</td>
+                <td class="py-2 text-gray-300">Test (Isolated)</td>
+                <td class="py-2 text-gray-300">192.168.99.0/24</td>
+                <td class="py-2 text-gray-300">192.168.99.1</td>
+                <td class="py-2 text-gray-300">Isolated - No internet, attack testing</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Firewall Rules Summary</h4>
+    <table class="w-full text-sm mb-4">
+        <thead>
+            <tr class="border-b border-shell-border">
+                <th class="text-left py-2 text-shell-accent">From</th>
+                <th class="text-left py-2 text-shell-accent">To</th>
+                <th class="text-left py-2 text-shell-accent">Allowed Services</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">LAN</td>
+                <td class="py-2 text-gray-300">Internet</td>
+                <td class="py-2 text-gray-300">All (full access)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">LAN</td>
+                <td class="py-2 text-gray-300">DMZ</td>
+                <td class="py-2 text-gray-300">SSH (22), HTTP (80), HTTPS (443)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">LAN</td>
+                <td class="py-2 text-gray-300">IoT</td>
+                <td class="py-2 text-gray-300">SSH (22) admin only</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">DMZ</td>
+                <td class="py-2 text-gray-300">Internet</td>
+                <td class="py-2 text-gray-300">HTTP (80), HTTPS (443), DNS (53)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">DMZ</td>
+                <td class="py-2 text-gray-300">LAN</td>
+                <td class="py-2 text-gray-300">Syslog (514) to monitoring server only</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">DMZ</td>
+                <td class="py-2 text-gray-300">IoT</td>
+                <td class="py-2 text-gray-300">BLOCKED (deny all)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">IoT</td>
+                <td class="py-2 text-gray-300">Internet</td>
+                <td class="py-2 text-gray-300">HTTP (80), HTTPS (443) only</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">IoT</td>
+                <td class="py-2 text-gray-300">LAN/DMZ</td>
+                <td class="py-2 text-gray-300">BLOCKED (deny all)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">Test</td>
+                <td class="py-2 text-gray-300">Any</td>
+                <td class="py-2 text-gray-300">BLOCKED (completely isolated)</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Virtual Machine 1: pfSense-Firewall</h4>
+    <table class="w-full text-sm mb-4">
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400 w-32">Hostname</td>
+                <td class="py-2 text-gray-300">pfsense-fw</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Operating System</td>
+                <td class="py-2 text-gray-300">pfSense CE 2.7+ (latest)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">vCPU Cores</td>
+                <td class="py-2 text-gray-300">2</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">RAM</td>
+                <td class="py-2 text-gray-300">2GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Disk Space</td>
+                <td class="py-2 text-gray-300">20GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Network Adapters</td>
+                <td class="py-2 text-gray-300">
+                    <strong>NIC 1:</strong> WAN (NAT) - DHCP from host<br>
+                    <strong>NIC 2:</strong> LAN (Internal) - 192.168.10.1/24<br>
+                    <strong>NIC 3:</strong> DMZ (Internal) - 192.168.20.1/24<br>
+                    <strong>NIC 4:</strong> IoT (Internal) - 192.168.30.1/24<br>
+                    <strong>NIC 5:</strong> Test (Internal) - 192.168.99.1/24
+                </td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Role</td>
+                <td class="py-2 text-gray-300">Network gateway, firewall, VLAN router, WireGuard VPN server, DNS forwarder</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="mt-4 p-3 bg-shell-black/50 border border-shell-accent/20 rounded text-sm">
+        <p class="text-gray-300 mb-1"><strong>Configuration Tasks:</strong></p>
+        <ul class="text-gray-300 space-y-1 ml-4">
+            <li>Configure 5 network interfaces (WAN + 4 internal networks)</li>
+            <li>Set up firewall rules for each VLAN</li>
+            <li>Install WireGuard package for VPN server (Part 4)</li>
+            <li>Configure port forwarding for VPN access</li>
+            <li>Enable traffic logging to Syslog</li>
+        </ul>
+    </div>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Virtual Machine 2: Security-Monitor</h4>
+    <table class="w-full text-sm mb-4">
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400 w-32">Hostname</td>
+                <td class="py-2 text-gray-300">security-monitor</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Operating System</td>
+                <td class="py-2 text-gray-300">Debian 12 Server</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">vCPU Cores</td>
+                <td class="py-2 text-gray-300">4</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">RAM</td>
+                <td class="py-2 text-gray-300">8GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Disk Space</td>
+                <td class="py-2 text-gray-300">120GB (needs space for logs)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Network Adapter</td>
+                <td class="py-2 text-gray-300">LAN (Internal VLAN 10)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">IP Address</td>
+                <td class="py-2 text-gray-300">192.168.10.10/24 (static)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Gateway</td>
+                <td class="py-2 text-gray-300">192.168.10.1 (pfSense)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">DNS</td>
+                <td class="py-2 text-gray-300">192.168.10.1</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Role</td>
+                <td class="py-2 text-gray-300">Suricata NIDS, Wazuh manager, Syslog-ng server, centralized logging</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="mt-4 p-3 bg-shell-black/50 border border-shell-accent/20 rounded text-sm">
+        <p class="text-gray-300 mb-1"><strong>Software to Install:</strong></p>
+        <ul class="text-gray-300 space-y-1 ml-4">
+            <li>Suricata IDS (network intrusion detection - Part 5)</li>
+            <li>Wazuh manager (HIDS coordinator - Part 5)</li>
+            <li>Syslog-ng (centralized log collection - Part 6)</li>
+            <li>AIDE (file integrity monitoring - Part 5)</li>
+            <li>Auditd (system call auditing - Part 5)</li>
+        </ul>
+    </div>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Virtual Machine 3: Admin-Workstation</h4>
+    <table class="w-full text-sm mb-4">
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400 w-32">Hostname</td>
+                <td class="py-2 text-gray-300">admin-workstation</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Operating System</td>
+                <td class="py-2 text-gray-300">Ubuntu 24.04 Desktop</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">vCPU Cores</td>
+                <td class="py-2 text-gray-300">2</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">RAM</td>
+                <td class="py-2 text-gray-300">4GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Disk Space</td>
+                <td class="py-2 text-gray-300">50GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Network Adapter</td>
+                <td class="py-2 text-gray-300">LAN (Internal VLAN 10)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">IP Address</td>
+                <td class="py-2 text-gray-300">192.168.10.20/24 (static)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Gateway</td>
+                <td class="py-2 text-gray-300">192.168.10.1</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">DNS</td>
+                <td class="py-2 text-gray-300">192.168.10.1</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Role</td>
+                <td class="py-2 text-gray-300">Administrative workstation, SSH bastion, monitoring dashboards, VPN client testing</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="mt-4 p-3 bg-shell-black/50 border border-shell-accent/20 rounded text-sm">
+        <p class="text-gray-300 mb-1"><strong>Configuration Tasks:</strong></p>
+        <ul class="text-gray-300 space-y-1 ml-4">
+            <li>SSH key generation for bastion access</li>
+            <li>WireGuard client configuration (Part 1 & Part 4)</li>
+            <li>Tor Browser installation (Part 2)</li>
+            <li>Access monitoring server web interfaces</li>
+            <li>Wireshark for traffic analysis (future circles)</li>
+        </ul>
+    </div>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Virtual Machine 4: Web-Server-DMZ</h4>
+    <table class="w-full text-sm mb-4">
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400 w-32">Hostname</td>
+                <td class="py-2 text-gray-300">web-dmz</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Operating System</td>
+                <td class="py-2 text-gray-300">Debian 12 Server</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">vCPU Cores</td>
+                <td class="py-2 text-gray-300">2</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">RAM</td>
+                <td class="py-2 text-gray-300">2GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Disk Space</td>
+                <td class="py-2 text-gray-300">30GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Network Adapter</td>
+                <td class="py-2 text-gray-300">DMZ (Internal VLAN 20)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">IP Address</td>
+                <td class="py-2 text-gray-300">192.168.20.10/24 (static)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Gateway</td>
+                <td class="py-2 text-gray-300">192.168.20.1</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">DNS</td>
+                <td class="py-2 text-gray-300">192.168.20.1</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Role</td>
+                <td class="py-2 text-gray-300">Public-facing web server, test target for firewall rules, IDS alert generation</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="mt-4 p-3 bg-shell-black/50 border border-shell-accent/20 rounded text-sm">
+        <p class="text-gray-300 mb-1"><strong>Software to Install:</strong></p>
+        <ul class="text-gray-300 space-y-1 ml-4">
+            <li>Nginx web server (basic site for testing)</li>
+            <li>Wazuh agent (sends logs/alerts to monitoring server)</li>
+            <li>SSH server (hardened configuration - Part 4)</li>
+            <li>Fail2Ban (brute-force protection - Part 4)</li>
+        </ul>
+    </div>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Virtual Machine 5: App-Server-DMZ</h4>
+    <table class="w-full text-sm mb-4">
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400 w-32">Hostname</td>
+                <td class="py-2 text-gray-300">app-dmz</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Operating System</td>
+                <td class="py-2 text-gray-300">Debian 12 Server</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">vCPU Cores</td>
+                <td class="py-2 text-gray-300">2</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">RAM</td>
+                <td class="py-2 text-gray-300">2GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Disk Space</td>
+                <td class="py-2 text-gray-300">30GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Network Adapter</td>
+                <td class="py-2 text-gray-300">DMZ (Internal VLAN 20)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">IP Address</td>
+                <td class="py-2 text-gray-300">192.168.20.20/24 (static)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Gateway</td>
+                <td class="py-2 text-gray-300">192.168.20.1</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">DNS</td>
+                <td class="py-2 text-gray-300">192.168.20.1</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Role</td>
+                <td class="py-2 text-gray-300">Application/API server, second DMZ target for testing segmentation</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="mt-4 p-3 bg-shell-black/50 border border-shell-accent/20 rounded text-sm">
+        <p class="text-gray-300 mb-1"><strong>Purpose:</strong></p>
+        <ul class="text-gray-300 space-y-1 ml-4">
+            <li>Practice DMZ-to-DMZ communication rules</li>
+            <li>Test application-level firewall rules</li>
+            <li>Generate varied traffic patterns for IDS</li>
+        </ul>
+    </div>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Virtual Machine 6: IoT-Device</h4>
+    <table class="w-full text-sm mb-4">
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400 w-32">Hostname</td>
+                <td class="py-2 text-gray-300">iot-device</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Operating System</td>
+                <td class="py-2 text-gray-300">Ubuntu Server 24.04 (minimal)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">vCPU Cores</td>
+                <td class="py-2 text-gray-300">1</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">RAM</td>
+                <td class="py-2 text-gray-300">1GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Disk Space</td>
+                <td class="py-2 text-gray-300">15GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Network Adapter</td>
+                <td class="py-2 text-gray-300">IoT (Internal VLAN 30)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">IP Address</td>
+                <td class="py-2 text-gray-300">192.168.30.10/24 (static)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Gateway</td>
+                <td class="py-2 text-gray-300">192.168.30.1</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">DNS</td>
+                <td class="py-2 text-gray-300">192.168.30.1</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Role</td>
+                <td class="py-2 text-gray-300">Simulated IoT device, test target for network isolation rules</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="mt-4 p-3 bg-shell-black/50 border border-shell-accent/20 rounded text-sm">
+        <p class="text-gray-300 mb-1"><strong>Testing Scenarios:</strong></p>
+        <ul class="text-gray-300 space-y-1 ml-4">
+            <li>Verify IoT cannot reach LAN or DMZ</li>
+            <li>Test internet-only access (HTTP/HTTPS)</li>
+            <li>Practice admin SSH access from LAN only</li>
+            <li>Generate IDS alerts from suspicious IoT behavior</li>
+        </ul>
+    </div>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Virtual Machine 7: Attacker-VM</h4>
+    <table class="w-full text-sm mb-4">
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400 w-32">Hostname</td>
+                <td class="py-2 text-gray-300">kali-attacker</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Operating System</td>
+                <td class="py-2 text-gray-300">Kali Linux (latest)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">vCPU Cores</td>
+                <td class="py-2 text-gray-300">2</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">RAM</td>
+                <td class="py-2 text-gray-300">4GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Disk Space</td>
+                <td class="py-2 text-gray-300">60GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Network Adapter</td>
+                <td class="py-2 text-gray-300">Test (Internal VLAN 99) - <strong>NO INTERNET</strong></td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">IP Address</td>
+                <td class="py-2 text-gray-300">192.168.99.50/24 (static)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Gateway</td>
+                <td class="py-2 text-gray-300">192.168.99.1 (blocked at firewall)</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">DNS</td>
+                <td class="py-2 text-gray-300">192.168.99.1</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-400">Role</td>
+                <td class="py-2 text-gray-300">Attack simulation, IDS rule testing, firewall validation (isolated - no internet)</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="mt-4 p-3 bg-shell-black/50 border border-shell-accent/20 rounded text-sm">
+        <p class="text-gray-300 mb-1"><strong>Testing Scenarios:</strong></p>
+        <ul class="text-gray-300 space-y-1 ml-4">
+            <li>Generate port scans to test IDS alerts (nmap)</li>
+            <li>Simulate SSH brute-force attacks to verify Fail2Ban</li>
+            <li>Test firewall rules (should be completely isolated)</li>
+            <li>Practice packet crafting for advanced testing</li>
+            <li><strong>WARNING:</strong> This VM has NO internet access intentionally. Never connect it to production networks.</li>
+        </ul>
+    </div>
+    
+    <h4 class="text-shell-accent mt-6 mb-3">Complete Lab Summary</h4>
+    <table class="w-full text-sm mb-4">
+        <thead>
+            <tr class="border-b border-shell-border">
+                <th class="text-left py-2 text-shell-accent">VM</th>
+                <th class="text-left py-2 text-shell-accent">VLAN</th>
+                <th class="text-left py-2 text-shell-accent">IP</th>
+                <th class="text-left py-2 text-shell-accent">vCPU</th>
+                <th class="text-left py-2 text-shell-accent">RAM</th>
+                <th class="text-left py-2 text-shell-accent">Disk</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">pfSense-FW</td>
+                <td class="py-2 text-gray-300">All</td>
+                <td class="py-2 text-gray-300">*.1 (gateway)</td>
+                <td class="py-2 text-gray-300">2</td>
+                <td class="py-2 text-gray-300">2GB</td>
+                <td class="py-2 text-gray-300">20GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">Security-Monitor</td>
+                <td class="py-2 text-gray-300">10 (LAN)</td>
+                <td class="py-2 text-gray-300">192.168.10.10</td>
+                <td class="py-2 text-gray-300">4</td>
+                <td class="py-2 text-gray-300">8GB</td>
+                <td class="py-2 text-gray-300">120GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">Admin-Workstation</td>
+                <td class="py-2 text-gray-300">10 (LAN)</td>
+                <td class="py-2 text-gray-300">192.168.10.20</td>
+                <td class="py-2 text-gray-300">2</td>
+                <td class="py-2 text-gray-300">4GB</td>
+                <td class="py-2 text-gray-300">50GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">Web-Server-DMZ</td>
+                <td class="py-2 text-gray-300">20 (DMZ)</td>
+                <td class="py-2 text-gray-300">192.168.20.10</td>
+                <td class="py-2 text-gray-300">2</td>
+                <td class="py-2 text-gray-300">2GB</td>
+                <td class="py-2 text-gray-300">30GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">App-Server-DMZ</td>
+                <td class="py-2 text-gray-300">20 (DMZ)</td>
+                <td class="py-2 text-gray-300">192.168.20.20</td>
+                <td class="py-2 text-gray-300">2</td>
+                <td class="py-2 text-gray-300">2GB</td>
+                <td class="py-2 text-gray-300">30GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">IoT-Device</td>
+                <td class="py-2 text-gray-300">30 (IoT)</td>
+                <td class="py-2 text-gray-300">192.168.30.10</td>
+                <td class="py-2 text-gray-300">1</td>
+                <td class="py-2 text-gray-300">1GB</td>
+                <td class="py-2 text-gray-300">15GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50">
+                <td class="py-2 text-gray-300">Attacker-VM</td>
+                <td class="py-2 text-gray-300">99 (Test)</td>
+                <td class="py-2 text-gray-300">192.168.99.50</td>
+                <td class="py-2 text-gray-300">2</td>
+                <td class="py-2 text-gray-300">4GB</td>
+                <td class="py-2 text-gray-300">60GB</td>
+            </tr>
+            <tr class="border-b border-shell-border/50 font-bold">
+                <td class="py-2 text-shell-accent" colspan="3">TOTAL REQUIREMENTS:</td>
+                <td class="py-2 text-shell-accent">15 vCPU</td>
+                <td class="py-2 text-shell-accent">23GB RAM</td>
+                <td class="py-2 text-shell-accent">325GB Disk</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="mt-4 p-3 bg-shell-black/50 border border-shell-accent/20 rounded">
+        <p class="text-sm text-gray-300 mb-2"><strong>Complete Circle 4 Learning Outcomes:</strong></p>
+        <ul class="text-sm text-gray-300 space-y-1 ml-4">
+            <li><strong>Part 1:</strong> VPN configuration (WireGuard on pfSense)</li>
+            <li><strong>Part 2:</strong> Tor Browser usage and VPN+Tor configurations</li>
+            <li><strong>Part 3:</strong> Network segmentation with VLANs and firewall rules</li>
+            <li><strong>Part 4:</strong> Secure remote access (WireGuard, SSH hardening, bastion hosts)</li>
+            <li><strong>Part 5:</strong> IDS deployment (Suricata NIDS, Wazuh HIDS, AIDE, Auditd)</li>
+            <li><strong>Part 6:</strong> Security monitoring (Syslog-ng, automated alerting, incident response)</li>
+        </ul>
+    </div>
+    
+    <div class="mt-4 p-3 bg-red-950/50 border border-red-600/50 rounded">
+        <p class="text-sm text-red-300 mb-2"><strong>⚠️ Snapshot Strategy for Circle 4:</strong></p>
+        <ul class="text-sm text-red-300 space-y-1 ml-4">
+            <li><strong>Base Build:</strong> All VMs installed, network configured, can ping each other</li>
+            <li><strong>Before Part 3:</strong> Before configuring VLANs and firewall rules</li>
+            <li><strong>After Part 3:</strong> Working segmentation, can revert if rules break connectivity</li>
+            <li><strong>Before Part 5:</strong> Before IDS installation (clean baseline)</li>
+            <li><strong>After Part 6:</strong> Complete working lab with monitoring</li>
+            <li><strong>Budget 150-200GB for snapshots</strong> on top of base VM disk requirements</li>
+        </ul>
+    </div>
+</div>
+
+<p><strong>Total Lab Requirements:</strong> 7 VMs running simultaneously, 24GB RAM (32GB recommended), 325GB disk + 150GB snapshots = 475GB total</p>
+<p><strong>Requires:</strong> Dedicated home lab server with 32GB RAM minimum</p>
+            <li>IDS deployment and alert tuning (Suricata)</li>
+            <li>Centralized logging (Syslog-ng)</li>
+            <li>Security monitoring and incident response</li>
+            <li>Testing attacks safely in isolated environment</li>
+        </ul>
+    </div>
+</div>
+
+<p><strong>Total Lab Requirements:</strong> 6 VMs running simultaneously, 23GB RAM minimum (32GB recommended), 250GB disk</p>
+
+<div class="terminal-success not-prose mt-6">
+    <div class="terminal-success-header">
+        <i data-lucide="lightbulb" class="terminal-success-icon"></i>
+        <h3 class="terminal-success-title">Cost-Effective Hardware Sourcing</h3>
+    </div>
+    <div class="terminal-success-content space-y-2">
+        <p><strong>Used Business Workstations:</strong> Dell Optiplex, HP EliteDesk, Lenovo ThinkCentre from 2015-2018 (i5/i7, 16-32GB RAM) sell for $100-300 on eBay/Craigslist. Perfect for home labs.</p>
+        <p><strong>RAM Upgrades:</strong> DDR3/DDR4 is cheap used. Upgrade to 32GB for $50-100.</p>
+        <p class="mb-0"><strong>Used Servers:</strong> Dell PowerEdge R620/R720 with dual CPUs and 64GB+ RAM can be found for $200-500. Loud and power-hungry, but perfect for serious labs.</p>
+    </div>
+</div>
+
+<h2>Storage & Snapshot Strategy</h2>
+
+<p>Snapshots are critical for security training. You'll break things. A lot. Snapshots let you revert instantly.</p>
+
+<div class="bg-shell-panel border border-shell-border rounded-lg p-5 my-6">
+    <h4 class="text-shell-accent mt-0 mb-3">Recommended Snapshot Workflow:</h4>
+    <ol class="space-y-3 text-gray-300">
+        <li><strong>Baseline Snapshot:</strong> After initial OS installation and updates. Label: "Fresh Install"</li>
+        <li><strong>Pre-Configuration Snapshot:</strong> Before starting each guide. Label: "Before Part X"</li>
+        <li><strong>Working Snapshot:</strong> After major configuration milestones. Label: "Part X - Working Config"</li>
+        <li><strong>Broken Snapshot:</strong> When something breaks (don't delete!). Label: "Part X - Debugging [issue]"</li>
+    </ol>
+    
+    <p class="text-gray-300 mt-4 mb-0"><strong>Storage Impact:</strong> Each snapshot uses 10-30% of VM disk size initially, growing as changes accumulate. Budget 2-3x the base VM size for snapshot storage.</p>
+</div>
+
+<h2>Software & Tools Installation</h2>
+
+<p>Most tools are installed during the guides, but you'll need these on your host system:</p>
+
+<div class="space-y-3 my-6">
+    <div class="bg-shell-panel border border-shell-border rounded-lg p-4">
+        <h4 class="text-shell-accent mt-0 mb-2">Essential Host Tools:</h4>
+        <ul class="text-gray-300 space-y-1">
+            <li><strong>SSH Client:</strong> Built-in on Linux/Mac, PuTTY or Windows Terminal on Windows</li>
+            <li><strong>Text Editor:</strong> VS Code, Sublime Text, or vim for config file editing</li>
+            <li><strong>Network Tools:</strong> Wireshark (packet analysis), nmap (network scanning)</li>
+            <li><strong>File Transfer:</strong> SCP/SFTP client (FileZilla, WinSCP, or command-line)</li>
+        </ul>
+    </div>
+</div>
+
+<h2>Network Configuration Tips</h2>
+
+<div class="bg-shell-panel border border-shell-border rounded-lg p-5 my-6">
+    <h4 class="text-shell-accent mt-0 mb-3">Virtual Network Types:</h4>
+    
+    <ul class="space-y-3 text-gray-300">
+        <li>
+            <strong>NAT (Network Address Translation):</strong> VM gets internet access through host. Use for: VMs that need internet but don't need to talk to each other. Single VM setups.
+        </li>
+        <li>
+            <strong>Bridged:</strong> VM gets IP on your physical network. Use for: VMs that need to be accessible from other physical devices. <strong>Warning:</strong> Exposes VM to your LAN - not recommended for attacker VMs.
+        </li>
+        <li>
+            <strong>Internal/Host-Only:</strong> VMs can talk to each other and host, but not internet. Use for: Isolated test networks, security monitoring networks, attacker VMs. This is your primary network type for Circle 4+.
+        </li>
+    </ul>
+</div>
+
+<h2>Budget-Based Recommendations</h2>
+
+<div class="space-y-4 my-6">
+    <div class="bg-shell-panel border border-shell-accent/50 rounded-lg p-4">
+        <h4 class="text-shell-accent mt-0 mb-2">Budget: $0 (Use What You Have)</h4>
+        <p class="text-gray-300 text-sm"><strong>Setup:</strong> VirtualBox on your daily computer (8GB+ RAM)</p>
+        <p class="text-gray-300 text-sm"><strong>Circles:</strong> 1-2 fully, 3 partially (one OS at a time)</p>
+        <p class="text-gray-300 text-sm"><strong>Limitations:</strong> Cannot complete network security (Circle 4)</p>
+    </div>
+    
+    <div class="bg-shell-panel border border-shell-accent/50 rounded-lg p-4">
+        <h4 class="text-shell-accent mt-0 mb-2">Budget: $100-300 (Used Business PC)</h4>
+        <p class="text-gray-300 text-sm"><strong>Setup:</strong> Used Dell/HP/Lenovo with 16GB RAM, install Proxmox or Linux + KVM</p>
+        <p class="text-gray-300 text-sm"><strong>Circles:</strong> 1-4 fully with some compromises (fewer simultaneous VMs)</p>
+        <p class="text-gray-300 text-sm"><strong>Sweet Spot:</strong> Best value for money. Can complete all current content.</p>
+    </div>
+    
+    <div class="bg-shell-panel border border-shell-accent/50 rounded-lg p-4">
+        <h4 class="text-shell-accent mt-0 mb-2">Budget: $400-800 (New/Recent Hardware)</h4>
+        <p class="text-gray-300 text-sm"><strong>Setup:</strong> Modern desktop with 32GB RAM, NVMe SSD, Proxmox or VMware</p>
+        <p class="text-gray-300 text-sm"><strong>Circles:</strong> All circles, full network topologies, comfortable performance</p>
+        <p class="text-gray-300 text-sm"><strong>Future-Proof:</strong> Ready for Blue Team/Red Team operations when released</p>
+    </div>
+</div>
+
+<div class="terminal-info not-prose mt-8">
+    <div class="terminal-info-header">
+        <i data-lucide="bookmark" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">Start Small, Scale Up</h3>
+    </div>
+    <p class="terminal-info-content">
+        Don't let hardware limitations stop you from starting. Complete Circles 1-2 on any computer. Learn the concepts. Build skills. Save up for better hardware as you progress. Many security professionals started with a single VM on an old laptop. The important part is starting and learning consistently.
+    </p>
+</div>
+
+<blockquote>
+    "Security is learned through practice, not theory. Break things in your lab so you know how to fix them in production. Every misconfiguration you debug makes you more competent. Every failed command teaches troubleshooting. Build your lab, break it, rebuild it better."
+</blockquote>

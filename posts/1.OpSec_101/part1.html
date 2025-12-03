@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>1. Understanding the basics</title>
+</head>
+<body>
+    <article>
+        <h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+            <span class="text-gray-500">#</span> 1. Understanding the basics
+        </h1>
+
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">Personal Observation</h3>
+            </div>
+            <p class="terminal-alert-content">
+                Personally, I consider Windows the least secure mainstream operating system. Microsoft has acknowledged that more than 30% of Windows 11’s code now ships via AI-assisted generation. That is a lot of opaque logic running on your machine. The platform increasingly behaves like spyware masquerading as an OS.
+            </p>
+            <ul class="terminal-alert-content">
+                <li>Windows 11 “Copilot” is being wired into the shell, clipboard, and browser to collect your activity so it can “assist.” Opting out is difficult and updates re-enable it for many users.</li>
+                <li>Fresh installs now force a Microsoft account just to sign in locally, funneling telemetry and your device metadata straight to Microsoft’s cloud. Breaking that dependency requires registry hacks or enterprise policy.</li>
+            </ul>
+            <p class="terminal-alert-content">
+                I highly suggest that you will do your own research about the risks of Windows 11 and Copilot and learn for yourself the dangers of using Windows.
+            </p>
+        </div>
+
+        <p class="text-xl text-shell-accent/90 leading-relaxed">
+            Think of this as advice I would give a good friend over coffee. The headlines can feel overwhelming, but small, consistent steps make a huge difference. Use these ideas to stay out of the easy-target pool.
+        </p>
+
+        <h2>1. Lock Down Your Accounts</h2>
+        <p>
+            Remember when the LinkedIn breach dropped 164 million passwords in 2012? Or when Equifax exposed 147 million Social Security numbers in 2017 because of a single missing patch? Those leaks still fuel credential stuffing attacks today. The only reliable defense is to make every password unique and completely random so one breach cannot domino through the rest of your life. A password manager remembers the boring stuff so you can focus on using one master passphrase and safeguarding it. Pair that with multi-factor authentication (MFA) so even a leaked password is worthless without the second factor. Finally, make sure account recovery emails and phone numbers are up to date and private; if an attacker resets your account, nothing else matters.
+        </p>
+        
+        <p><strong>Why This Matters:</strong> Credential stuffing uses automated tools to test billions of leaked username/password combinations across thousands of websites. If you reuse "MyDog2019!" across Gmail, Amazon, and your bank, one breach exposes all three. Password managers generate cryptographically random passwords (128+ bits of entropy) that are impossible to guess. MFA adds a second factor: something you have (phone, hardware key) in addition to something you know (password). Even if attackers steal your password via phishing or keylogger, they can't access your account without the second factor.</p>
+        
+        <p><strong>Security Impact:</strong> The 2020 Twitter hack succeeded because attackers bypassed weak password policies and targeted employees without hardware-based MFA. SMS-based MFA is vulnerable to SIM swapping attacks where attackers convince your phone carrier to transfer your number to their SIM card. Time-based One-Time Passwords (TOTP) apps like Aegis or FreeOTP generate codes locally, eliminating the SIM swap risk. Hardware security keys (FIDO2/U2F) provide the strongest protection: they're phishing-resistant because the key verifies the website's domain before responding.</p>
+        
+        <p><strong>Practical Steps:</strong></p>
+        <pre data-lang="bash"><code class="language-bash"># Check if your email appeared in known breaches
+# Visit: https://haveibeenpwned.com/
+# This service aggregates breach databases (LinkedIn, Adobe, Yahoo, etc.)
+# Shows which breaches exposed your email and what data was compromised
+#
+# Or use API (requires free API key from haveibeenpwned.com/API/Key):
+curl "https://haveibeenpwned.com/api/v3/breachedaccount/your@email.com" \
+  -H "hibp-api-key: YOUR_API_KEY"
+# Output shows breach name, date, and compromised data types (passwords, emails, SSNs)
+# If found: change passwords immediately on affected sites
+
+# Install KeePassXC (Linux)
+# KeePassXC = cross-platform, open-source password manager
+# Stores passwords in encrypted database file (.kdbx)
+# Uses AES-256 encryption with master password
+sudo apt install keepassxc
+
+# Create encrypted password database
+# Creates new .kdbx file protected by master password
+# Master password = only password you need to remember
+# Use strong passphrase: 5+ random words or 20+ character mix
+# Example: "correct-horse-battery-staple-mountain"
+keepassxc-cli db-create ~/Passwords/master.kdbx
+# Prompts for master password (memorize this!)
+# Store backup of .kdbx file on USB drive or encrypted cloud
+
+# Generate strong password (32 characters, mixed case, numbers, symbols)
+# -L 32 = length 32 characters
+# -l = include lowercase (a-z)
+# -u = include uppercase (A-Z)
+# -n = include numbers (0-9)
+# -s = include symbols (!@#$%^&*)
+# Generates cryptographically random password
+# Output example: "xK9$mP2nQ#vL8wR@tY4jF6hN1sA5cD7g"
+keepassxc-cli generate -L 32 -l -u -n -s
+
+# Add entry for website
+# Stores login credentials for GitHub in your database
+keepassxc-cli add ~/Passwords/master.kdbx GitHub \
+  --username your_username \
+  --url https://github.com \
+  --generate --length 32
+# Prompts for master password to unlock database
+# --generate creates random password automatically
+# --length 32 makes 32-character password for this entry
+# Each site gets unique password (breach on one site doesn't affect others)
+
+# Enable TOTP in KeePassXC for 2FA codes
+# TOTP = Time-based One-Time Password (6-digit codes that change every 30 seconds)
+# Stores 2FA codes in same database as passwords (one-stop security vault)
+# Setup:
+# 1. Open KeePassXC GUI
+# 2. Settings > Security > Enable KeePassXC-Browser integration
+# 3. Right-click any entry > TOTP > Set up TOTP
+# 4. Scan QR code from website's 2FA setup page
+# 5. KeePassXC now generates 2FA codes alongside passwords
+# Benefit: No need for separate authenticator app on phone
+
+# Bitwarden CLI for cloud sync
+# Bitwarden = cloud-based password manager (encrypted vault stored on Bitwarden servers)
+# Zero-knowledge encryption: Bitwarden never sees your master password or decrypted data
+# CLI useful for scripting, server management, automation
+# Requires Node.js and npm (JavaScript package manager)
+npm install -g @bitwarden/cli
+# -g installs globally (available system-wide)
+
+# Login to Bitwarden account
+bw login
+# Prompts for email and master password
+# Returns session key (use BW_SESSION env variable for subsequent commands)
+# Example: export BW_SESSION="sessionkey"
+
+# Sync local vault with cloud
+bw sync
+# Downloads latest vault data from Bitwarden servers
+# Run after making changes on phone/browser to get updates
+# Ensures you have latest passwords across all devices
+
+# Generate strong random password
+bw generate --length 32 --uppercase --lowercase --number --special
+# Creates 32-character password with all character types
+# Output example: "T8#kL3@pN9$wM5%xR2&qC7!vB4^jF6"
+# Copy output and paste when creating new account
+
+# gopass for command-line GPG-based password store
+# gopass = terminal-friendly password manager using GPG encryption
+# Stores each password as separate GPG-encrypted file
+# Git integration: sync passwords across machines via Git repo
+# Perfect for DevOps, sysadmins, terminal enthusiasts
+#
+# Install
+sudo apt install gopass
+
+# Initialize password store
+# Links passwords to your GPG key (must have GPG key first)
+# If no GPG key: gpg --full-generate-key
+gopass init your@email.com
+# Creates ~/.password-store/ directory
+# your@email.com = GPG key ID (creates encrypted files only you can decrypt)
+
+# Add password for website
+# Prompts to enter password (type or paste)
+# Stores as encrypted file: ~/.password-store/websites/github.com/username.gpg
+gopass insert websites/github.com/username
+# Hierarchical structure: organize by websites/apps/servers
+# Example paths:
+#   websites/github.com/username
+#   servers/production/root
+#   databases/mysql/admin
+
+# Retrieve password
+# Decrypts and displays password (prompts for GPG passphrase)
+gopass show websites/github.com/username
+# Copies to clipboard automatically (clears after 45 seconds)
+# Use -c flag to copy without displaying: gopass -c websites/github.com/username
+# Use in scripts: PASSWORD=$(gopass show -o websites/github.com/username)</code></pre>
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="check-circle" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Password Manager Picks</h3>
+            </div>
+            <ul class="terminal-success-content">
+                <li><a href="https://keepassxc.org" rel="noopener" target="_blank">KeePassXC</a>: audited, open-source, stores passwords and OTP tokens in one encrypted vault file you can sync anywhere.</li>
+                <li><a href="https://bitwarden.com" rel="noopener" target="_blank">Bitwarden</a>: open-source cloud vault with independent audits, family sharing, and optional self-hosting.</li>
+                <li><a href="https://www.gopass.pw" rel="noopener" target="_blank">gopass</a>: command-line, GPG-based store for terminal lovers; integrates with Git for team sharing.</li>
+                <li><a href="https://www.passwordstore.org" rel="noopener" target="_blank">pass</a>: the standard Unix password manager using GPG and Git.</li>
+                <li><a href="https://psono.com" rel="noopener" target="_blank">Psono</a>: open-source, self-hostable password manager with team features.</li>
+            </ul>
+        </div>
+        <div class="terminal-info not-prose">
+            <div class="terminal-info-header">
+                <i data-lucide="info" class="terminal-info-icon"></i>
+                <h3 class="terminal-info-title">MFA Tips</h3>
+            </div>
+            <ul class="terminal-info-content">
+                <li>Prefer app codes (TOTP) or hardware keys like <a href="https://www.yubico.com" rel="noopener" target="_blank">YubiKey</a> over SMS texts.</li>
+                <li>Hardware key alternatives: <a href="https://solokeys.com" rel="noopener" target="_blank">SoloKeys</a>, <a href="https://www.nitrokey.com" rel="noopener" target="_blank">Nitrokey</a>, <a href="https://www.onlykey.io" rel="noopener" target="_blank">OnlyKey</a>.</li>
+                <li>TOTP apps: <a href="https://getaegis.app" rel="noopener" target="_blank">Aegis Authenticator</a> (Android), <a href="https://freeotp.github.io" rel="noopener" target="_blank">FreeOTP</a> (iOS/Android), <a href="https://github.com/andOTP/andOTP" rel="noopener" target="_blank">andOTP</a>.</li>
+                <li>Store backup codes in your password manager or print and lock them away.</li>
+                <li>If KeePassXC is your vault, enable the TOTP plugin so passwords and codes stay together securely.</li>
+            </ul>
+        </div>
+
+        <h2>2. Spot Phishing Before It Hooks You</h2>
+        <p>
+            Phishing emails and messages try to trick you into clicking malicious links or typing passwords into fake websites. We have seen devastating examples: in 2014 a single spear-phish let attackers into Sony Pictures; in 2020, Twitter employees were duped via phone and internal Slack messages, leading to high-profile account takeovers. The pattern is the same: create panic, urgency, or curiosity so you click first and think later. Whenever possible, open a new tab and type the site address yourself instead of following whatever link they hand you.
+        </p>
+        
+        <p><strong>Why This Matters:</strong> Phishing is the #1 initial attack vector. According to Verizon's 2023 Data Breach Investigations Report, 36% of breaches involved phishing. Modern phishing uses legitimate-looking domains (paypаl.com with a Cyrillic 'а'), cloned websites pixel-perfect copies of real login pages, and even compromised legitimate email accounts to send "internal" phishing. Once you enter credentials on a fake site, attackers have immediate access to your real account.</p>
+        
+        <p><strong>Security Impact:</strong> Spear-phishing targets specific individuals with personalized content (your name, job title, recent activity). Attackers research victims on LinkedIn, Facebook, and corporate websites. Business Email Compromise (BEC) scams impersonate executives requesting wire transfers—FBI reports $43 billion in losses from 2016-2021. Even security-aware individuals fall for sophisticated phishing that exploits trust (messages from compromised colleague accounts) or authority (fake legal notices).</p>
+        
+        <p><strong>Practical Defense:</strong></p>
+        <pre data-lang="bash"><code class="language-bash"># Check URL reputation before clicking
+# NEVER click suspicious links directly
+# These tools check if URL is known malicious
+#
+# VirusTotal URL scanner
+# Checks URL against 70+ antivirus engines and blacklists
+# Free API key from virustotal.com (requires account)
+curl -X POST 'https://www.virustotal.com/vtapi/v2/url/scan' \
+  --form 'apikey=YOUR_API_KEY' \
+  --form 'url=https://suspicious-link.com'
+# Returns detection ratio: "5/70 engines flagged as malicious"
+# Alternative: paste URL at virustotal.com (no API key needed)
+
+# URLhaus API (abuse.ch) - check if URL is known malicious
+# Database of malware distribution sites (updated by security researchers)
+# Free, no API key required
+curl "https://urlhaus-api.abuse.ch/v1/url/" \
+  -d "url=https://suspicious-link.com"
+# Response shows:
+#   - online/offline status
+#   - threat type (malware, phishing, exploit kit)
+#   - first seen date
+#   - hosting country
+# "query_status": "ok" = URL in database (MALICIOUS)
+# "query_status": "no_results" = not in database (might be safe)
+
+# Phishing domain detection tools
+# Install PhishTank checker
+# PhishTank = community-driven phishing URL database
+pip3 install phishtank
+# Checks URL against submitted phishing reports
+phishtank-check "https://suspicious-link.com"
+# Output: "Phishing URL" or "Not found in database"
+# Not found ≠ safe (might be new phishing site not yet reported)
+
+# Email header analysis for spoofing detection
+# Email headers contain authentication results
+# View full headers:
+#   Gmail: 3 dots > Show original
+#   Outlook: File > Properties > Internet headers
+#   Thunderbird: View > Message Source
+#
+# Check for these authentication results:
+# - SPF: PASS (sending server authorized by domain owner)
+# - DKIM: PASS (email signature valid, not tampered)
+# - DMARC: PASS (SPF/DKIM passed AND aligned with From: domain)
+#
+# If SPF/DKIM/DMARC FAIL = likely spoofed/forged email
+# Example from real email:
+#   Authentication-Results: spf=pass dkim=pass dmarc=pass
+
+# Example: Check SPF record for domain
+# SPF record lists authorized mail servers for domain
+dig TXT gmail.com | grep spf
+# Output shows which IPs can send email for @gmail.com
+# Example: "v=spf1 include:_spf.google.com ~all"
+# Attackers can't fake SPF if they don't control domain's DNS
+
+# Suspicious attachment analysis (NEVER open directly)
+# ⚠️  Opening malicious attachments = instant infection
+# Analyze files WITHOUT opening them
+#
+# Get file hash (unique fingerprint)
+# SHA-256 hash = 64-character hexadecimal string that uniquely identifies file
+# Same file = same hash, even 1 byte change = completely different hash
+sha256sum suspicious_file.pdf
+# Output example: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+# Copy this hash to check against malware databases
+
+# Check hash on VirusTotal
+# Searches VirusTotal database for files with matching hash
+# If file was previously uploaded, shows malware scan results
+curl "https://www.virustotal.com/vtapi/v2/file/report?apikey=YOUR_KEY&resource=FILE_HASH"
+# Replace FILE_HASH with output from sha256sum
+# Response shows:
+#   - Detection ratio: "45/70 antivirus engines detected malware"
+#   - Malware names: "Trojan.GenericKD.12345"
+#   - First submission date
+# If hash not found: file hasn't been uploaded yet (upload it yourself)
+# Alternative: paste hash at virustotal.com/gui/home/search
+
+# Safe attachment preview with Dangerzone
+# Dangerzone converts potentially malicious documents to safe PDFs
+# How it works:
+#   1. Opens file in isolated disposable container (like VM)
+#   2. Converts to images (pixel by pixel - can't contain code)
+#   3. Creates new PDF from images (safe, no embedded malware)
+# Install from GitHub (uses Docker/Podman containers)
+sudo apt install dangerzone
+
+# Convert suspicious PDF to safe PDF
+dangerzone-cli suspicious.pdf safe_output.pdf
+# Removes:
+#   - Embedded JavaScript
+#   - Malicious macros
+#   - Exploit code targeting PDF reader vulnerabilities
+# Output file safe_output.pdf is sanitized (visual content only)
+# Drawback: loses interactive features (forms, links, copy/paste)
+# Perfect for: tax documents, invoices, contracts from unknown senders
+
+# Link preview without clicking (safe expansion)
+# Download webpage HTML without executing JavaScript
+# -s = silent (no progress bar)
+# -L = follow redirects (if URL redirects to different domain)
+curl -sL "https://suspicious-link.com" | grep -i "&lt;title&gt;"
+# Extracts page title to see what site claims to be
+# Example output: "<title>PayPal Login - Definitely Not Phishing</title>"
+# Check if title matches expected site
+# ⚠️  This DOES load the page (triggers visit counter)
+# ⚠️  Your IP is logged on their server
+# Safer: use online tools that proxy the request
+# Or use: https://www.urlvoid.com/ (checks URL without visiting)</code></pre>
+        <div class="terminal-warning not-prose">
+            <div class="terminal-warning-header">
+                <i data-lucide="alert-circle" class="terminal-warning-icon"></i>
+                <h3 class="terminal-warning-title">Red Flags</h3>
+            </div>
+            <ul class="terminal-warning-content">
+                <li>Sender address doesn’t match the display name or official domain. Example: <code>no-reply@paypaI.com</code> (with capital i) instead of <code>no-reply@paypal.com</code>.</li>
+                <li>Spelling mistakes, unusual grammar, or generic greetings (“Dear Customer”). Attackers often translate scripts and miss cultural cues.</li>
+                <li>Links that claim to go to your bank but actually point to look-alike domains (hover to check before clicking).</li>
+                <li>Attachments you did not request, especially <code>.html</code>, <code>.zip</code>, or macro-enabled Office files that claim to be invoices.</li>
+                <li>Urgency tactics: "Account will be closed in 24 hours", "Verify immediately".</li>
+                <li>Requests for passwords, SSN, or payment via email (legitimate companies never do this).</li>
+            </ul>
+        </div>
+        
+        <p><strong>Additional Tools:</strong></p>
+        <ul class="list-disc pl-5 text-gray-400">
+            <li><a href="https://github.com/freedomofpress/dangerzone" rel="noopener" target="_blank">Dangerzone</a>: Safe PDF viewer.</li>
+            <li><a href="https://www.phishtank.com" rel="noopener" target="_blank">PhishTank</a>: Phishing URL database.</li>
+            <li><a href="https://gophish.com" rel="noopener" target="_blank">Gophish</a>: Phishing awareness training.</li>
+        </ul>
+        
+        <p>
+            If you are unsure, call the company using a number from its official website, not the one provided in the email. Report suspicious messages using your provider’s “Report phishing” button or forward them to <a href="mailto:reportphishing@apwg.org">reportphishing@apwg.org</a>. The more examples security teams collect, the faster filters catch the next wave.
+        </p>
+
+        <h2>3. Stay Patched</h2>
+        <p>
+            Updates fix known vulnerabilities. Attackers scan the internet for outdated software because it is easier than inventing new tricks. Enable automatic updates for your operating system, browsers, and apps, and restart at least weekly so patches actually install.
+        </p>
+        
+        <p><strong>Why This Matters:</strong> The 2017 WannaCry ransomware exploited EternalBlue (CVE-2017-0144), a Windows vulnerability patched two months earlier. Organizations that delayed patching lost an estimated $4 billion. Automated exploit scanners like Shodan and Masscan constantly probe the internet for unpatched systems. Zero-day exploits are rare and expensive; attackers prefer known vulnerabilities because millions of systems remain unpatched.</p>
+        
+        <p><strong>Security Impact:</strong> Unpatched software provides reliable entry points. The 2017 Equifax breach exploited Apache Struts (CVE-2017-5638), patched two months before the attack. Critical vulnerabilities often have public exploit code within days of disclosure. Automatic updates close the window of exposure from months to hours. Weekly restarts ensure pending updates fully apply and clear malware from memory.</p>
+        
+        <p><strong>Practical Defense:</strong></p>
+        <pre data-lang="bash"><code class="language-bash"># Linux package updates (Debian/Ubuntu)
+# apt update = refresh package lists from repositories
+# apt upgrade = install newer versions of installed packages
+# -y = automatically answer "yes" to prompts (unattended)
+# && = only run second command if first succeeds
+sudo apt update && sudo apt upgrade -y
+# Output shows:
+#   - Number of packages to upgrade
+#   - Security updates (marked with "security")
+#   - Packages held back (require manual intervention)
+# Run weekly minimum, daily for servers
+
+# Enable automatic security updates
+# Installs critical security patches automatically (no manual intervention)
+# Only security updates installed (not feature updates)
+sudo apt install unattended-upgrades
+# Configure automatic updates
+sudo dpkg-reconfigure --priority=low unattended-upgrades
+# Prompts: "Automatically download and install stable updates?" → Yes
+# Creates /etc/apt/apt.conf.d/20auto-upgrades
+# Updates installed daily at 6 AM (configurable)
+# Email notifications sent if configured
+
+# Check which packages need updates
+# Lists all packages with available updates
+apt list --upgradable
+# Output example:
+#   nginx/stable 1.18.0-6+deb11u3 amd64 [upgradable from: 1.18.0-6+deb11u2]
+#   openssl/stable 1.1.1n-0+deb11u3 amd64 [upgradable from: 1.1.1n-0+deb11u2]
+# Shows current version vs. available version
+# Look for security updates (often have "security" in version string)
+
+# Fedora/RHEL (Red Hat family distributions)
+# dnf = next-gen package manager (replaces yum)
+# --refresh forces repository metadata update
+sudo dnf upgrade --refresh
+# Downloads and installs all available updates
+# Includes kernel updates (requires reboot)
+
+# Enable automatic updates on Fedora/RHEL
+# dnf-automatic = automated update installation
+sudo dnf install dnf-automatic
+# Configure: /etc/dnf/automatic.conf
+# Options:
+#   apply_updates = yes (auto-install)
+#   download_updates = yes (download only)
+# Enable timer (runs daily)
+sudo systemctl enable --now dnf-automatic-install.timer
+# --now starts timer immediately
+# Check status: systemctl status dnf-automatic-install.timer
+
+# Arch Linux (rolling release - always latest)
+# -S = sync packages from repos
+# -y = refresh package database
+# -u = upgrade all packages
+sudo pacman -Syu
+# Arch updates can be breaking (test on non-critical systems first)
+# Partial upgrades not supported (must update everything)
+# Read arch-announce mailing list before major updates
+
+# Check for pending kernel updates (requires reboot)
+# Debian/Ubuntu creates this file when kernel is updated
+# Kernel runs in memory - reboot needed to load new kernel
+if [ -f /var/run/reboot-required ]; then
+  echo "System reboot required for kernel update"
+  # Lists packages that triggered reboot requirement
+  cat /var/run/reboot-required.pkgs
+fi
+# Output example:
+#   linux-image-5.10.0-20-amd64
+#   linux-base
+# Schedule reboot during maintenance window
+# Active connections survive with 'kexec' (faster reboot)
+
+# macOS updates
+# List available updates without installing
+softwareupdate --list
+# Shows:
+#   - macOS version updates (major/minor releases)
+#   - Security updates
+#   - Safari updates
+#   - System firmware updates
+
+# Install all available updates
+sudo softwareupdate --install --all
+# --all installs everything (OS + apps + security)
+# Requires admin password (sudo)
+# Major OS updates may require restart
+# Check "Restart Required: Yes" in output
+
+# Enable automatic updates
+# Automatically downloads and installs:
+#   - Security updates
+#   - System data files
+#   - macOS updates (configurable)
+sudo softwareupdate --schedule on
+# Configure in System Preferences > Software Update
+# Recommendation: enable "Install security updates automatically"
+
+# Browser update status (Firefox)
+# Check currently installed Firefox version
+firefox --version
+# Output: "Mozilla Firefox 120.0"
+# Compare with latest version at mozilla.org/firefox/releases
+# Firefox auto-updates when restarted (if enabled)
+# Check: Preferences > General > Firefox Updates
+
+# Chrome version check
+google-chrome --version
+# Output: "Google Chrome 120.0.6099.109"
+# Chrome auto-updates silently in background
+# Check: chrome://settings/help
+# Enterprise tip: disable auto-update for testing, then deploy
+
+# Check installed software versions
+# Find outdated packages
+#
+# Python packages (pip)
+pip3 list --outdated
+# Shows packages with available updates
+# Output:
+#   Package    Version  Latest   Type
+#   requests   2.25.1   2.31.0   wheel
+# Update with: pip3 install --upgrade requests
+# Update all: pip3 list --outdated | cut -d' ' -f1 | xargs pip3 install --upgrade
+
+# Node.js global packages
+npm outdated -g
+# -g = global packages (installed with npm install -g)
+# Output shows current vs wanted vs latest versions
+# Update with: npm update -g <package>
+# Update all: npm update -g
+
+# Vulnerability scanning
+# Install Lynis (security auditing tool)
+# Lynis = comprehensive system security scanner
+# Checks: patches, permissions, configs, hardening, compliance
+sudo apt install lynis
+
+# Run full system security audit
+sudo lynis audit system
+# Scans:
+#   - Missing security updates
+#   - Weak file permissions
+#   - Open ports
+#   - Running services
+#   - Kernel hardening
+#   - Firewall config
+# Generates report: /var/log/lynis-report.dat
+# Hardening index: 65/100 (shows security score)
+# Follow "Suggestions" to improve score
+# Run monthly to track security posture
+
+# Check for known vulnerabilities in installed packages
+# Install debsecan (Debian/Ubuntu)
+# Checks installed packages against CVE database
+sudo apt install debsecan
+
+# Scan for vulnerabilities
+# $(lsb_release -cs) gets Ubuntu/Debian version codename (e.g., "bookworm")
+debsecan --suite $(lsb_release -cs) --format detail
+# Output shows:
+#   - CVE ID (e.g., CVE-2023-12345)
+#   - Affected package
+#   - Severity (low/medium/high/critical)
+#   - Fixed version
+# Example:
+#   CVE-2023-4567 (high urgency)
+#   Package: openssl
+#   Fixed: 1.1.1n-0+deb11u3
+# Install updates immediately if "high" or "critical"
+
+# Schedule automatic restarts (weekly Sunday 3 AM)
+# Ensures pending updates are fully applied
+# Edit root's crontab
+sudo crontab -e
+# Add this line:
+# 0 3 * * 0 /sbin/shutdown -r +5
+#
+# Cron format: minute hour day month weekday command
+# 0 3 * * 0 = 0 minutes, 3 AM, any day, any month, Sunday
+# +5 = 5 minute warning before reboot (users can save work)
+# Logs broadcast message: "System reboot in 5 minutes"
+# Cancel pending reboot: shutdown -c</code></pre>
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="check-circle" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Update Checklist</h3>
+            </div>
+            <ul class="terminal-success-content">
+                <li>Turn on auto-update for Windows Update, macOS Software Update, Linux package managers (APT, DNF, pacman, etc.), iOS, and Android.</li>
+                <li>Let Chrome, Firefox, and Brave auto-update in the background and restart browsers weekly.</li>
+                <li>Remove apps you no longer use; abandoned software is unpatched software.</li>
+                <li>Use <a href="https://cisofy.com/lynis/" rel="noopener" target="_blank">Lynis</a> for security auditing and patch status.</li>
+                <li>Monitor CVE feeds: <a href="https://nvd.nist.gov" rel="noopener" target="_blank">NVD</a>, <a href="https://vuldb.com" rel="noopener" target="_blank">VulDB</a>.</li>
+                <li>Check firmware updates for router, NAS, IoT devices monthly.</li>
+                <li>Monitor CVE feeds for software you use: <a href="https://nvd.nist.gov" rel="noopener" target="_blank">NVD</a>, <a href="https://vuldb.com" rel="noopener" target="_blank">VulDB</a>.</li>
+                <li>Check firmware updates for router, NAS, IoT devices monthly.</li>
+            </ul>
+        </div>
+
+        <h2>4. Browse with Privacy</h2>
+        <p>
+            Your browser is the front door to the internet. Stick with maintained browsers, limit extensions, and block trackers that follow you from site to site. Separate profiles for work, personal, and risky browsing keep cookies and logins compartmentalized.
+        </p>
+        <div class="terminal-info not-prose">
+            <div class="terminal-info-header">
+                <i data-lucide="info" class="terminal-info-icon"></i>
+                <h3 class="terminal-info-title">Tools to Install</h3>
+            </div>
+            <ul class="terminal-info-content">
+                <li><a href="https://www.mozilla.org/firefox/" rel="noopener" target="_blank">Firefox</a> + <a href="https://ublockorigin.com" rel="noopener" target="_blank">uBlock Origin</a> and <a href="https://privacybadger.org" rel="noopener" target="_blank">Privacy Badger</a> for tracker blocking.</li>
+                <li><a href="https://brave.com" rel="noopener" target="_blank">Brave Browser</a> for built-in aggressive tracker and ad blocking.</li>
+                <li>Use <a href="https://noscript.net" rel="noopener" target="_blank">NoScript</a> or Firefox’s “Enhanced Tracking Protection” strict mode when visiting unknown sites.</li>
+            </ul>
+        </div>
+
+        <h2>5. Guard Your Personal Data</h2>
+        <p>
+            Oversharing gives attackers the answers to security questions. When forms request information, question whether they truly need it. For throwaway signups, use email aliasing tools to protect your real inbox.
+        </p>
+        <div class="terminal-warning not-prose">
+            <div class="terminal-warning-header">
+                <i data-lucide="alert-circle" class="terminal-warning-icon"></i>
+                <h3 class="terminal-warning-title">Personal Info Minimization</h3>
+            </div>
+            <ul class="terminal-warning-content">
+                <li><a href="https://simplelogin.io" rel="noopener" target="_blank">SimpleLogin</a> or <a href="https://anonaddy.com" rel="noopener" target="_blank">AnonAddy</a> create unique email aliases that forward to you.</li>
+                <li>Use truthful-but-unpublished answers for security questions (“What is your first car?” can be a random phrase stored in your password manager).</li>
+                <li>Lock down social media privacy settings; limit what strangers can see by default.</li>
+            </ul>
+        </div>
+
+        <h2>6. Secure the Devices in Your Hands</h2>
+        <p>
+            Phones and laptops carry photos, chats, and saved logins. Protect them with strong unlock methods, encryption, and the ability to wipe them remotely if lost.
+        </p>
+        <ul class="list-disc pl-5 text-gray-400">
+            <li>Enable device encryption: BitLocker (Windows Pro), FileVault (macOS), LUKS/dm-crypt (Linux), and built-in encryption on iOS/Android.</li>
+            <li>Turn on “Find My Device” (Apple, Google, Microsoft) and practice triggering a remote lock from another device.</li>
+            <li>Configure automatic screen locks after a short period of inactivity.</li>
+        </ul>
+
+        <h2>7. Secure Cloud Storage</h2>
+        <p>
+            Sync services keep files accessible but cloud providers can technically access unencrypted data. Add your own encryption layer so only you control the keys.
+        </p>
+        <div class="terminal-info not-prose">
+            <div class="terminal-info-header">
+                <i data-lucide="info" class="terminal-info-icon"></i>
+                <h3 class="terminal-info-title">Encrypt Before Sync</h3>
+            </div>
+            <ul class="terminal-info-content">
+                <li><a href="https://cryptomator.org" rel="noopener" target="_blank">Cryptomator</a>: audited, open-source vaults that sit on top of Dropbox, Google Drive, OneDrive, or iCloud.</li>
+                <li><a href="https://rclone.org/crypt/" rel="noopener" target="_blank">rclone crypt</a>: command-line tool to encrypt directories before uploading to almost any cloud provider.</li>
+                <li>Choose providers offering zero-knowledge encryption like <a href="https://proton.me/drive" rel="noopener" target="_blank">Proton Drive</a> or <a href="https://tresorit.com" rel="noopener" target="_blank">Tresorit</a> when possible.</li>
+            </ul>
+        </div>
+
+        <h2>8. Public Wi-Fi Survival</h2>
+        <p>
+            Open hotspots are convenient but easy to spoof. Avoid accessing sensitive accounts on public Wi-Fi. If you must connect, use your phone as a hotspot or route traffic through a trusted VPN provider with independent audits.</p>
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">Audited VPN Options</h3>
+            </div>
+            <ul class="terminal-alert-content">
+                <li><a href="https://mullvad.net" rel="noopener" target="_blank">Mullvad VPN</a>: no personal info required, open-source apps, multiple audits.</li>
+                <li><a href="https://ivpn.net" rel="noopener" target="_blank">IVPN</a>: transparent ownership, open-source clients, ongoing audits.</li>
+                <li>If you only need occasional secure access, tether to your mobile data instead of public Wi-Fi.</li>
+            </ul>
+        </div>
+
+        <h2>9. Spot Scams Quickly</h2>
+        <p>
+            Scammers prefer pressure tactics: rushed deadlines, threats, or promises of big prizes. They might pretend to be tech support or government agents. Slow down, verify independently, and never pay with gift cards or crypto on demand.
+        </p>
+        <div class="terminal-warning not-prose">
+            <div class="terminal-warning-header">
+                <i data-lucide="alert-circle" class="terminal-warning-icon"></i>
+                <h3 class="terminal-warning-title">Defensive Moves</h3>
+            </div>
+            <ul class="terminal-warning-content">
+                <li>Hang up on unsolicited callers and call back using official numbers from the company’s website.</li>
+                <li>Never install remote-control software unless you initiated the support session with a trusted company.</li>
+                <li>Teach family members to question urgent money requests sent via email, text, or social media.</li>
+            </ul>
+        </div>
+
+        <h2>10. Mobile Privacy Hygiene</h2>
+        <p>
+            Smartphones know where you go, who you talk to, and what you photograph. Audit permissions regularly so apps access only what they truly need.
+        </p>
+        <div class="terminal-info not-prose">
+            <div class="terminal-info-header">
+                <i data-lucide="info" class="terminal-info-icon"></i>
+                <h3 class="terminal-info-title">Apps Worth Installing</h3>
+            </div>
+            <ul class="terminal-info-content">
+                <li><a href="https://signal.org" rel="noopener" target="_blank">Signal</a> for end-to-end encrypted messaging and calls.</li>
+                <li>Use your phone’s built-in privacy dashboard (Android Privacy Dashboard or iOS App Privacy Report) to see which apps access sensors and data.</li>
+                <li>On Android, consider <a href="https://github.com/GrapheneOS/Auditor" rel="noopener" target="_blank">GrapheneOS Auditor</a> or <a href="https://www.guardianproject.info/apps/orbot/" rel="noopener" target="_blank">Orbot</a> when you need Tor-based browsing.</li>
+            </ul>
+        </div>
+
+        <h2>11. Backups Save the Day</h2>
+        <p>
+            Ransomware, theft, and hardware failure all end the same way without backups: lost memories and expensive downtime. Automate backups so they happen even when you forget.
+        </p>
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="check-circle" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Backup Strategy</h3>
+            </div>
+            <ul class="terminal-success-content">
+                <li><a href="https://restic.net" rel="noopener" target="_blank">restic</a>: command-line, encrypted backups to local drives or cloud buckets.</li>
+                <li><a href="https://www.duplicati.com" rel="noopener" target="_blank">Duplicati</a>: user-friendly, open-source backups with encryption and scheduling.</li>
+                <li>Test restores quarterly: pick a random file and recover it to prove the backup works.</li>
+            </ul>
+        </div>
+
+        <h2>12. Keep Learning</h2>
+        <p>
+            Security isn’t a one-time project. Schedule a quarterly “digital tune-up”: review passwords, remove old apps, check device settings, and update your recovery contacts. Stay sharp with approachable sources like <a href="https://krebsonsecurity.com" rel="noopener" target="_blank">Krebs on Security</a>, <a href="https://safestack.io/blog" rel="noopener" target="_blank">SafeStack blog</a>, or <a href="https://www.schneier.com" rel="noopener" target="_blank">Schneier on Security</a>.
+        </p>
+
+        <blockquote>
+            "Security is not a product, but a process."<br>&mdash; Bruce Schneier
+        </blockquote>
+        <br>
+        <p>
+            Build one new habit each week and share what you learn with friends and family. The goal isn't perfection; it's forcing attackers to move on to easier targets.
+        </p>
+
+<div class="flex justify-between mt-12 pt-6 border-t border-shell-border">
+    <a href="#/posts/toc.html" class="text-gray-500 hover:underline">← Table of Contents</a>
+    <a href="#/posts/1.OpSec_101/part2.html" class="text-shell-accent hover:underline">Part 2: The Advanced Privacy Guide →</a>
+</div>
+    </article>
+</body>
+</html>

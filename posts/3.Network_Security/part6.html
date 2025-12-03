@@ -1,0 +1,1075 @@
+<h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+    <span class="text-gray-500">#</span> 6. Monitoring & Incident Response
+</h1>
+
+<div class="terminal-alert not-prose">
+    <div class="terminal-alert-header">
+        <i data-lucide="shield-alert" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Prerequisites</h3>
+    </div>
+    <p class="terminal-alert-content">
+        Complete Part 5 (Intrusion Detection Systems) before this guide. You should have Suricata (NIDS), Wazuh (HIDS), AIDE (file integrity), and Auditd (system call monitoring) configured and generating alerts. This guide covers aggregating, analyzing, and responding to those alerts.
+    </p>
+</div>
+
+<h2>From Detection to Action</h2>
+
+<p>Intrusion detection systems generate alerts. Security monitoring turns those alerts into actionable intelligence. Without centralized logging, correlation, and automated response, you're drowning in noise while real threats go unnoticed.</p>
+
+<p><strong>Security monitoring pipeline:</strong></p>
+<ul>
+    <li>IDS/HIDS generate alerts → Logs collected centrally → Patterns analyzed → Critical events trigger alerts → Automated or manual response → Post-incident analysis</li>
+</ul>
+
+<h2>Centralized Logging with Syslog-ng</h2>
+
+<p>Implementing centralized logging with syslog-ng creates a unified repository for all security events across your network infrastructure, enabling correlation analysis that can detect sophisticated attacks spanning multiple systems that would be invisible when examining individual device logs in isolation. Without centralized logging, an attacker compromising your IoT device, pivoting to a workstation, and exfiltrating data from your server appears as unrelated events when viewed separately, but when aggregated chronologically on a central log server, the pattern of lateral movement becomes obvious. Syslog-ng acts as the collection hub receiving log streams from firewalls reporting blocked connections, IDS systems alerting on suspicious traffic patterns, host-based agents detecting file modifications, authentication servers logging failed login attempts, and application servers recording access attempts, then parsing, filtering, and storing these diverse log formats in a structured way that supports efficient searching and analysis. This centralized approach also provides tamper resistance because even if an attacker compromises a system and tries to delete local logs to hide their tracks, the logs have already been transmitted to the remote log server where the attacker may not have access, preserving forensic evidence of the intrusion.</p>
+
+<h3>Log Server Setup</h3>
+
+<p>Setting up the syslog-ng server establishes the central collection point that will receive, parse, and store logs from all devices across your network, requiring sufficient disk space to accommodate high log volumes (plan for 10-50GB minimum depending on number of devices and retention period), network connectivity to all logging clients, and hardened security since this system will contain sensitive information about your entire infrastructure. The server configuration defines sources (where logs come from - UDP/TCP network sockets, local system logs, named pipes), destinations (where logs are stored - files organized by hostname and date, remote SIEM systems, databases), and filters/parsers that normalize different log formats into consistent structures for analysis. Proper setup ensures reliable log delivery even during network congestion or attacks, implements log rotation to prevent disk exhaustion, and maintains accurate timestamps synchronized across all systems using NTP to enable precise event correlation across the distributed infrastructure.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Install syslog-ng on dedicated log server
+# syslog-ng = next-generation syslog daemon (more powerful than rsyslog)
+# sudo apt update = refresh package lists
+sudo apt update
+# Expected output: Package lists updated from repositories
+# Why: Ensure latest syslog-ng version available
+
+# sudo apt install = install package
+# syslog-ng = centralized log collection daemon
+sudo apt install syslog-ng
+# Expected output: Installs syslog-ng and dependencies
+# Why: Central log server to aggregate logs from all network devices
+# Use when: Setting up dedicated security monitoring infrastructure
+# Note: Dedicated log server best practice (separate from production)
+# Disk space: Plan for 10-50GB+ depending on log volume/retention
+
+# Configure server to receive logs from network
+# sudo vi = edit with root privileges
+# /etc/syslog-ng/syslog-ng.conf = main configuration file
+sudo vi /etc/syslog-ng/syslog-ng.conf
+# Expected output: Opens syslog-ng.conf in vi editor
+# Why: Configure sources (where logs come from) and destinations (where logs go)
+# Use when: Initial setup of centralized logging</code></pre>
+
+<pre data-lang="c"><code class="language-c"># Syslog-ng Configuration for Centralized Log Server
+
+@version: 4.0
+# Why: Declares configuration syntax version (required)
+
+# === SOURCES (log inputs) ===
+# source = where logs originate
+
+# s_local = logs from local system
+source s_local {
+    system();      # Why: Collect from /proc/kmsg (kernel messages)
+    internal();    # Why: syslog-ng's own logs
+};
+# Use: Always include local logs on log server itself
+
+# s_network = logs from remote network clients
+source s_network {
+    # TCP source (reliable, connection-oriented)
+    tcp(
+        ip(0.0.0.0)             # Listen on all interfaces
+        port(514)               # Standard syslog port (can change for security)
+        max-connections(256)    # Allow up to 256 simultaneous clients
+        keep-alive(yes)         # Keep connections alive (reduces overhead)
+    );
+    # Why TCP: Reliable delivery, connection tracking, harder to spoof
+    # Use when: Critical logs that cannot be lost (authentication, firewall)
+    
+    # UDP source (fire-and-forget, lower overhead)
+    udp(
+        ip(0.0.0.0)             # Listen on all interfaces
+        port(514)               # Standard syslog port
+    );
+    # Why UDP: Lower overhead, widely compatible, stateless
+    # Trade-off: No delivery guarantee (packets can be lost)
+    # Use when: High-volume non-critical logs (debug messages)
+};
+# Security: Firewall must allow port 514 from trusted networks only!
+# Note: Both TCP and UDP enabled for compatibility
+
+# === DESTINATIONS (where logs are stored) ===
+# destination = where logs are written
+
+# d_all = all logs from each host
+destination d_all {
+    file("/var/log/remote/${HOST}/${YEAR}-${MONTH}-${DAY}.log"
+        # ${HOST} = source hostname (creates per-host directories)
+        # ${YEAR}-${MONTH}-${DAY} = date-based log files (automatic rotation)
+        # Why: Organize by host and date for easy analysis
+        # Example: /var/log/remote/webserver1/2024-02-15.log
+        
+        create-dirs(yes)        # Automatically create host directories
+        dir-perm(0755)          # Directory permissions (rwxr-xr-x)
+        perm(0644)              # File permissions (rw-r--r--)
+        owner(root)             # Files owned by root
+        group(adm)              # Group 'adm' can read logs
+    );
+};
+# Why: Central repository of all logs per host
+# Use: First place to look when investigating incidents
+
+# d_ids = IDS/IPS logs (Suricata, Snort)
+destination d_ids {
+    file("/var/log/remote/${HOST}/ids/${YEAR}-${MONTH}-${DAY}.log"
+        create-dirs(yes)
+    );
+};
+# Why: Separate IDS logs for focused analysis
+# Use: High-volume alerts need dedicated storage/retention
+
+# d_auth = authentication logs (SSH, sudo, login)
+destination d_auth {
+    file("/var/log/remote/${HOST}/auth/${YEAR}-${MONTH}-${DAY}.log"
+        create-dirs(yes)
+    );
+};
+# Why: Authentication logs critical for security (unauthorized access)
+# Use: Compliance requirements (PCI-DSS, HIPAA) mandate auth logging
+# Note: Longer retention period than general logs
+
+# d_firewall = firewall logs (iptables, pfSense, OpenWrt)
+destination d_firewall {
+    file("/var/log/remote/${HOST}/firewall/${YEAR}-${MONTH}-${DAY}.log"
+        create-dirs(yes)
+    );
+};
+# Why: Firewall logs show network attacks, port scans, blocked traffic
+# Use: Identify attack patterns, tune firewall rules
+# Note: Can be very high volume (consider rate limiting)
+
+# === FILTERS (categorize logs by source/content) ===
+# filter = conditional logic to match specific logs
+
+# f_suricata = match Suricata IDS logs
+filter f_suricata {
+    program("suricata");    # Match program name "suricata"
+};
+# Why: Route IDS alerts to dedicated storage
+# Use: Suricata generates high-volume alerts
+
+# f_wazuh = match Wazuh HIDS logs
+filter f_wazuh {
+    program("ossec");       # Match program name "ossec" (Wazuh uses OSSEC agent)
+};
+# Why: Wazuh logs include rootkit detection, file integrity, vulnerability scans
+# Use: Critical host-based security alerts
+
+# f_auth = match authentication facility logs
+filter f_auth {
+    facility(auth, authpriv);  # Match syslog facilities auth and authpriv
+};
+# Why: Auth facility = login attempts, sudo, SSH, user changes
+# Use: Most important logs for detecting unauthorized access
+
+filter f_firewall {
+    program("ufw") or program("iptables");
+};
+
+# Log paths - connect sources, filters, destinations
+log {
+    source(s_local);
+    source(s_network);
+    destination(d_all);
+};
+
+log {
+    source(s_network);
+    filter(f_suricata);
+    filter(f_wazuh);
+    destination(d_ids);
+};
+
+log {
+    source(s_network);
+    filter(f_auth);
+    destination(d_auth);
+};
+
+log {
+    source(s_network);
+    filter(f_firewall);
+    destination(d_firewall);
+};</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Restart syslog-ng to apply configuration changes
+# Reloads config files and reopens log file handles
+# Expected output: None (silent success)
+# Why: Config changes don't take effect until service restart
+# Warning: Brief logging interruption (1-2 seconds) during restart
+sudo systemctl restart syslog-ng
+
+# Enable syslog-ng to start automatically on system boot
+# Ensures centralized logging survives reboots
+# Why: Log server downtime = blind spots across entire infrastructure
+sudo systemctl enable syslog-ng
+
+# Allow syslog traffic through firewall from trusted network
+# port 514 proto tcp = Standard syslog over TCP (reliable delivery)
+# from 192.168.10.0/24 = Only allow logs from internal trusted VLAN
+# comment = Adds description visible in ufw status
+# Expected output: "Rule added" for TCP rule
+# Why: TCP ensures reliable log delivery (UDP can lose packets)
+# Security: RESTRICT to internal networks only - exposing 514 to internet invites attacks
+sudo ufw allow from 192.168.10.0/24 to any port 514 proto tcp comment 'Syslog TCP'
+
+# Allow UDP syslog (optional, for legacy devices)
+# proto udp = Connectionless syslog (faster but can lose logs)
+# Expected output: "Rule added" for UDP rule
+# Why: Some network devices only support UDP syslog
+# Warning: UDP logs can be lost during network congestion - prefer TCP
+sudo ufw allow from 192.168.10.0/24 to any port 514 proto udp comment 'Syslog UDP'
+
+# Verify syslog-ng is listening on port 514
+# netstat -tulpn = Show TCP/UDP listening ports with program names
+# grep 514 = Filter for syslog port
+# Expected output: "tcp  0  0.0.0.0:514  LISTEN  syslog-ng"
+# Why: Confirms server is actually accepting log connections
+# Troubleshooting: If not listening, check syslog-ng.conf source s_network configuration
+sudo netstat -tulpn | grep 514</code></pre>
+
+<h3>Client Configuration</h3>
+
+<p>After configuring the central log server to receive logs, each network device must be configured to forward its logs to the central server, establishing the distributed logging infrastructure where all security events flow to a single collection point for correlation and analysis.</p>
+
+<pre data-lang="bash"><code class="language-bash"># On each client (servers, workstations, firewall)
+sudo vi /etc/syslog-ng/syslog-ng.conf</code></pre>
+
+<pre data-lang="yaml"><code class="language-yaml"># Add remote destination
+destination d_logserver {
+    tcp(
+        "192.168.10.50"  # Log server IP
+        port(514)
+    );
+};
+
+# Send all logs to central server
+log {
+    source(s_src);
+    destination(d_logserver);
+};</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Restart syslog-ng on client to apply remote logging
+# Begins forwarding all local logs to central log server
+# Expected output: None (silent success)
+# Why: Config changes don't take effect until restart
+# Warning: If log server unreachable, logs queue locally (check disk space)
+sudo systemctl restart syslog-ng
+
+# Send test message to syslog to verify forwarding
+# logger = Command-line tool to write to syslog
+# -t TEST = Tag message with "TEST" identifier for easy filtering
+# Message includes hostname for identifying source
+# Expected output: None locally (message sent to remote server)
+# Why: Confirms log forwarding path works end-to-end
+# Use when: Testing new client configuration or troubleshooting log gaps
+logger -t TEST "Test message from $(hostname)"
+
+# On log server: Verify log was received from client
+# tail = Display last lines of file
+# /var/log/remote/$(hostname) = Client-specific log directory
+# $(date +%Y-%m-%d).log = Today's date-based log file
+# grep TEST = Filter for our test message
+# Expected output: Line containing "TEST: Test message from [hostname]"
+# Why: Proves logs successfully traverse network and reach central server
+# Troubleshooting: If not found, check firewall rules, syslog-ng config, network connectivity
+sudo tail /var/log/remote/$(hostname)/$(date +%Y-%m-%d).log | grep TEST</code></pre>
+
+<h2>Automated Alerting</h2>
+
+<h3>Email Alerts for Critical Events</h3>
+
+<p>Email alerting transforms passive log collection into active threat notification, immediately informing administrators when critical security events occur rather than requiring constant log monitoring, enabling rapid response to attacks, system failures, or policy violations.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Install mail utilities on log server
+sudo apt install mailutils postfix
+
+# Configure postfix (select "Internet Site")
+sudo dpkg-reconfigure postfix
+
+# Create security alert script
+sudo vi /usr/local/bin/security-alert.sh</code></pre>
+
+<pre data-lang="bash"><code class="language-bash">#!/bin/bash
+# Send email alert for security events
+
+SUBJECT="$1"
+MESSAGE="$2"
+EMAIL="your-email@example.com"
+HOSTNAME=$(hostname)
+
+cat &lt;&lt;EOF | mail -s "[SECURITY] $HOSTNAME: $SUBJECT" "$EMAIL"
+Security Alert from $HOSTNAME
+
+Time: $(date '+%Y-%m-%d %H:%M:%S %Z')
+Severity: CRITICAL
+Event: $SUBJECT
+
+Details:
+$MESSAGE
+
+---
+This is an automated security alert.
+Review logs immediately: ssh root@$HOSTNAME
+EOF</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Make security alert script executable
+# chmod +x = Adds execute permission
+# Expected output: None (silent success)
+# Why: Scripts must be executable to run as commands or from cron/systemd
+# Security: Script owned by root, only writable by root - prevents tampering
+sudo chmod +x /usr/local/bin/security-alert.sh
+
+# Test email alerting system with dummy alert
+# Sends test email to verify mail relay, SMTP config, recipient address
+# Expected output: None from command, but email should arrive within 1 minute
+# Why: Verifies alert pipeline works BEFORE real security event occurs
+# Troubleshooting: Check /var/log/mail.log if email not received
+# Note: Requires postfix or other MTA configured - see "apt install mailutils" step
+sudo /usr/local/bin/security-alert.sh "Test Alert" "This is a test security alert from monitoring system"</code></pre>
+
+<h3>Automated IP Blocking</h3>
+
+<p>Beyond just alerting, automated response takes defensive action by immediately blocking attacking IP addresses when malicious patterns are detected, stopping brute-force attacks, preventing exploitation attempts, and reducing attack surface without waiting for manual administrator intervention.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Create automated attacker blocking script
+# This script blocks IP addresses automatically when threats detected
+# sudo vi = edit with root privileges
+# /usr/local/bin/block-attacker.sh = custom script location
+sudo vi /usr/local/bin/block-attacker.sh
+# Expected output: Opens vi editor for new script
+# Why: Automated defensive response (block attackers immediately)
+# Use when: IDS/monitoring detects malicious activity
+# Security: Script validates IPs, prevents blocking local network</code></pre>
+
+<pre data-lang="bash"><code class="language-bash">#!/bin/bash
+# Automated IP Blocking Script for Security Incidents
+# Usage: block-attacker.sh <IP_ADDRESS> <REASON>
+
+# Command-line arguments
+IP="$1"          # IP address to block
+REASON="$2"      # Reason for blocking (logged and emailed)
+HOSTNAME=$(hostname)
+
+# === INPUT VALIDATION ===
+# Validate IP address format using regex
+# ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ = IPv4 format
+if ! [[ "$IP" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+    echo "Invalid IP address: $IP"
+    exit 1
+fi
+# Why: Prevent script errors from invalid input
+# Note: This doesn't validate octets are 0-255 (e.g., 999.999.999.999 passes)
+# Production: Use ipcalc or more robust validation
+
+# === SAFETY CHECK: Don't block private networks ===
+# Prevents accidental lockout from own infrastructure
+# ^192\.168\. = Match 192.168.x.x (private class C)
+# ^10\. = Match 10.x.x.x (private class A)
+# ^172\.(1[6-9]|2[0-9]|3[01])\. = Match 172.16.x.x - 172.31.x.x (private class B)
+if [[ "$IP" =~ ^192\.168\. ]] || [[ "$IP" =~ ^10\. ]] || [[ "$IP" =~ ^172\.(1[6-9]|2[0-9]|3[01])\. ]]; then
+    echo "Refusing to block local IP: $IP"
+    # Alert admin that automation tried to block internal IP (potential bug/misconfiguration)
+    /usr/local/bin/security-alert.sh "Blocked Local IP Attempt" "Automated system tried to block $IP. Reason: $REASON"
+    exit 1
+fi
+# Why: Prevent catastrophic lockout of internal servers/admin workstation
+# Use: Safety net against bugs in calling scripts
+# Production: Also whitelist known admin IPs, VPN endpoints
+
+# === FIREWALL BLOCK ===
+# Insert firewall rule at position 1 (top of ruleset, highest priority)
+# ufw insert 1 = insert at beginning (evaluated first)
+# deny from "$IP" = block all traffic from this IP
+# to any = to any destination
+# comment = attach reason (visible in ufw status)
+sudo ufw insert 1 deny from "$IP" to any comment "AUTO-BLOCK: $REASON"
+# Why: Insert at top ensures rule evaluated before allow rules
+# Note: Permanent block (persists across reboots)
+# Alternative: iptables -I INPUT 1 -s $IP -j DROP (more direct)
+
+# === LOGGING ===
+# Log to syslog with custom tag for easy filtering
+# logger -t SECURITY = tag with "SECURITY" (appears in /var/log/syslog)
+logger -t SECURITY "Automatically blocked IP $IP - Reason: $REASON"
+# Why: Centralized audit trail of automated blocks
+# Use: Analyze blocked IPs, tune detection thresholds
+# Note: Log sent to central syslog server if configured
+
+# === EMAIL ALERT ===
+# Send email notification to admin
+/usr/local/bin/security-alert.sh "IP Blocked: $IP" "Reason: $REASON
+
+Blocked IP: $IP
+Action: Firewall rule inserted
+Duration: Permanent (manual review required)
+
+To unblock:
+sudo ufw delete deny from $IP to any"
+# Why: Human notification (verify automation acting correctly)
+# Use: Admin can review and unblock false positives
+
+echo "Blocked $IP - Reason: $REASON"</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Make IP blocking script executable
+# chmod +x = Adds execute permission for automated response
+# Expected output: None (silent success)
+# Why: Enables automated defensive actions without manual intervention
+# Security: Only root can execute - prevents non-admin from blocking IPs
+sudo chmod +x /usr/local/bin/block-attacker.sh
+
+# Test IP blocking with non-existent test IP (RFC 5737 TEST-NET-1)
+# 203.0.113.1 = Reserved test IP that won't affect real traffic
+# Expected output: "Blocked 203.0.113.1 - Reason: Test block" + email alert
+# Why: Verifies blocking logic works without accidentally blocking legitimate IPs
+# Check block with: sudo ufw status | grep 203.0.113.1
+# Remove test block: sudo ufw delete deny from 203.0.113.1 to any
+# Warning: NEVER test with production IPs or internal network addresses
+sudo /usr/local/bin/block-attacker.sh "203.0.113.1" "Test block"</code></pre>
+
+<h2>Real-Time Threat Monitoring</h2>
+
+<h3>SSH Brute-Force Detection</h3>
+
+<p>Real-time monitoring of SSH authentication logs allows immediate detection of brute-force password guessing attacks, with this script continuously watching auth logs and triggering alerts when multiple failed login attempts from the same source indicate an active credential stuffing or password spraying campaign.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Create real-time SSH attack monitoring script
+# This script monitors /var/log/auth.log and automatically blocks brute-force attempts
+# sudo vi = edit with root privileges
+# /usr/local/bin/monitor-ssh-attacks.sh = custom monitoring script
+sudo vi /usr/local/bin/monitor-ssh-attacks.sh
+# Expected output: Opens vi editor for new script
+# Why: Real-time detection and automated response to SSH attacks
+# Use when: Want active defense beyond Fail2Ban (custom logic, faster response)
+# Note: This complements Fail2Ban (not replacement)</code></pre>
+
+<pre data-lang="bash"><code class="language-bash">#!/bin/bash
+# Monitor SSH authentication attempts and block brute-force attacks
+
+THRESHOLD=5  # Failed attempts before blocking
+WINDOW=300   # Time window in seconds (5 minutes)
+LOG_FILE="/var/log/auth.log"
+
+# Track failed attempts
+declare -A failed_attempts
+declare -A first_attempt_time
+
+tail -F "$LOG_FILE" | while read -r line; do
+    # Detect failed SSH password attempts
+    if echo "$line" | grep -q "Failed password"; then
+        IP=$(echo "$line" | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' | head -1)
+        CURRENT_TIME=$(date +%s)
+        
+        # Initialize if first seen
+        if [ -z "${failed_attempts[$IP]}" ]; then
+            failed_attempts[$IP]=1
+            first_attempt_time[$IP]=$CURRENT_TIME
+        else
+            # Check if within time window
+            TIME_DIFF=$((CURRENT_TIME - first_attempt_time[$IP]))
+            
+            if [ $TIME_DIFF -le $WINDOW ]; then
+                failed_attempts[$IP]=$((failed_attempts[$IP] + 1))
+                
+                # Block if threshold exceeded
+                if [ ${failed_attempts[$IP]} -ge $THRESHOLD ]; then
+                    /usr/local/bin/block-attacker.sh "$IP" "SSH brute-force: ${failed_attempts[$IP]} failed attempts in ${TIME_DIFF}s"
+                    
+                    # Reset counter
+                    unset failed_attempts[$IP]
+                    unset first_attempt_time[$IP]
+                fi
+            else
+                # Reset if outside time window
+                failed_attempts[$IP]=1
+                first_attempt_time[$IP]=$CURRENT_TIME
+            fi
+        fi
+    fi
+    
+    # Alert on successful root login (should never happen if properly configured)
+    if echo "$line" | grep -q "Accepted .* for root"; then
+        IP=$(echo "$line" | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' | head -1)
+        /usr/local/bin/security-alert.sh "ROOT LOGIN DETECTED" "IP $IP successfully logged in as root!
+
+This should be IMPOSSIBLE if SSH is properly configured.
+Investigate immediately: possible SSH misconfiguration or backdoor.
+
+Log entry:
+$line"
+    fi
+done</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Make SSH monitoring script executable
+# Required for systemd service to run script as daemon
+# Expected output: None (silent success)
+# Why: Script must be executable to function as background monitor
+sudo chmod +x /usr/local/bin/monitor-ssh-attacks.sh</code></pre>
+
+<h3>IDS Alert Monitoring</h3>
+
+<p>Monitoring IDS alerts in real-time ensures network-level threats detected by Suricata are immediately brought to administrator attention, with this monitoring script parsing IDS alert logs and notifying security teams when signatures match known exploits, malware communications, or suspicious traffic patterns.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Create Suricata alert monitor
+sudo vi /usr/local/bin/monitor-ids-alerts.sh</code></pre>
+
+<pre data-lang="bash"><code class="language-bash">#!/bin/bash
+# Monitor Suricata IDS alerts and escalate critical events
+
+SURICATA_EVE="/var/log/suricata/eve.json"
+
+# Critical alert patterns (regex)
+CRITICAL_PATTERNS=(
+    "ET EXPLOIT"
+    "ET MALWARE"
+    "ET SHELLCODE"
+    "EXPLOIT.*Remote Code Execution"
+    "Ransomware"
+    "Cryptocurrency Mining"
+)
+
+tail -F "$SURICATA_EVE" | while read -r line; do
+    # Check if line contains alert
+    if echo "$line" | jq -e 'select(.event_type=="alert")' > /dev/null 2>&1; then
+        ALERT_MSG=$(echo "$line" | jq -r '.alert.signature')
+        SRC_IP=$(echo "$line" | jq -r '.src_ip')
+        DEST_IP=$(echo "$line" | jq -r '.dest_ip')
+        SEVERITY=$(echo "$line" | jq -r '.alert.severity')
+        
+        # Check if critical
+        IS_CRITICAL=false
+        for pattern in "${CRITICAL_PATTERNS[@]}"; do
+            if echo "$ALERT_MSG" | grep -qi "$pattern"; then
+                IS_CRITICAL=true
+                break
+            fi
+        done
+        
+        if [ "$IS_CRITICAL" = true ]; then
+            /usr/local/bin/security-alert.sh "CRITICAL IDS ALERT" "Suricata detected critical threat:
+
+Alert: $ALERT_MSG
+Source IP: $SRC_IP
+Destination IP: $DEST_IP
+Severity: $SEVERITY
+
+Full details:
+$line"
+            
+            # Consider blocking external attacker
+            if ! [[ "$SRC_IP" =~ ^192\.168\. ]] && ! [[ "$SRC_IP" =~ ^10\. ]]; then
+                /usr/local/bin/block-attacker.sh "$SRC_IP" "IDS: $ALERT_MSG"
+            fi
+        fi
+    fi
+done</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Make IDS alert monitoring script executable  
+# Enables script to run as systemd service monitoring Suricata alerts
+# Expected output: None (silent success)
+# Why: Provides real-time response to critical IDS alerts
+sudo chmod +x /usr/local/bin/monitor-ids-alerts.sh</code></pre>
+
+<h3>File Integrity Alert Monitoring</h3>
+
+<p>Continuous monitoring of file integrity alerts from Wazuh or AIDE catches unauthorized modifications to system files, configuration changes, or backdoor installations as they happen, with this script parsing file integrity monitoring logs and immediately alerting when checksums change on critical files.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Create AIDE/Wazuh file integrity monitor
+sudo vi /usr/local/bin/monitor-file-integrity.sh</code></pre>
+
+<pre data-lang="bash"><code class="language-bash">#!/bin/bash
+# Monitor Wazuh/OSSEC alerts for file integrity violations
+
+OSSEC_ALERTS="/var/ossec/logs/alerts/alerts.log"
+
+# Critical files that should NEVER change
+CRITICAL_FILES=(
+    "/etc/passwd"
+    "/etc/shadow"
+    "/etc/sudoers"
+    "/etc/ssh/sshd_config"
+    "/root/.ssh/authorized_keys"
+)
+
+tail -F "$OSSEC_ALERTS" | while read -r line; do
+    # Detect file integrity alerts
+    if echo "$line" | grep -q "File.*modified\|File.*added\|File.*deleted"; then
+        ALERT_FILE=$(echo "$line" | grep -oP '(?<=File: ).*?(?=\s|$)' | head -1)
+        
+        # Check if critical file
+        IS_CRITICAL=false
+        for file in "${CRITICAL_FILES[@]}"; do
+            if echo "$ALERT_FILE" | grep -q "$file"; then
+                IS_CRITICAL=true
+                break
+            fi
+        done
+        
+        if [ "$IS_CRITICAL" = true ]; then
+            /usr/local/bin/security-alert.sh "CRITICAL FILE MODIFIED" "File integrity alert for critical system file:
+
+File: $ALERT_FILE
+Action: MODIFIED/ADDED/DELETED
+
+This file should NEVER change during normal operation.
+Possible indicators:
+- Backdoor installation
+- Privilege escalation
+- Rootkit
+- Unauthorized access
+
+Investigate immediately:
+1. Review /var/ossec/logs/alerts/alerts.log
+2. Check recent user activity: last, lastlog
+3. Review auth.log for suspicious logins
+4. Run rootkit scanner: rkhunter --check"
+        fi
+    fi
+done</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Make file integrity monitoring script executable
+# Enables script to run as systemd service watching Wazuh/OSSEC alerts
+# Expected output: None (silent success)  
+# Why: Provides immediate alerting for critical file modifications
+sudo chmod +x /usr/local/bin/monitor-file-integrity.sh</code></pre>
+
+<h2>Running Monitors as Services</h2>
+
+<h3>Create Systemd Services</h3>
+
+<pre data-lang="bash"><code class="language-bash"># SSH monitor service
+sudo vi /etc/systemd/system/monitor-ssh.service</code></pre>
+
+<pre data-lang="ini"><code class="language-ini">[Unit]
+Description=SSH Brute-Force Monitor
+After=network.target syslog.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/monitor-ssh-attacks.sh
+Restart=always
+RestartSec=10
+User=root
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># IDS monitor service
+sudo vi /etc/systemd/system/monitor-ids.service</code></pre>
+
+<pre data-lang="ini"><code class="language-ini">[Unit]
+Description=IDS Alert Monitor
+After=network.target suricata.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/monitor-ids-alerts.sh
+Restart=always
+RestartSec=10
+User=root
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># File integrity monitor service
+sudo vi /etc/systemd/system/monitor-files.service</code></pre>
+
+<pre data-lang="ini"><code class="language-ini">[Unit]
+Description=File Integrity Monitor
+After=network.target wazuh-agent.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/monitor-file-integrity.sh
+Restart=always
+RestartSec=10
+User=root
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+<h3>Enable and Start Services</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Reload systemd daemon to recognize new service files
+# Required after creating/modifying .service files in /etc/systemd/system/
+# Expected output: None (silent success)
+# Why: Systemd caches service definitions - must reload to see changes
+# Use when: After creating new services or editing existing .service files
+sudo systemctl daemon-reload
+
+# Enable monitoring services to start automatically on boot
+# Creates symlinks in /etc/systemd/system/multi-user.target.wants/
+# Expected output: "Created symlink..." for each service
+# Why: Ensures security monitoring survives reboots - no gaps in coverage
+# Note: Services won't start until "systemctl start" command or reboot
+sudo systemctl enable monitor-ssh monitor-ids monitor-files
+
+# Start all monitoring services immediately (without rebooting)
+# Spawns three background processes monitoring SSH, IDS, and file integrity
+# Expected output: None (silent success)
+# Why: Activates real-time security monitoring and automated response
+# Warning: High CPU usage normal for first few seconds while scripts initialize
+sudo systemctl start monitor-ssh monitor-ids monitor-files
+
+# Check status of all three monitoring services
+# Shows: Active/inactive state, PID, memory, recent log entries
+# Expected output: All three show "active (running)" in green
+# Why: Verifies services started successfully and are processing events
+# Troubleshooting: If "failed", check logs with journalctl -u [service-name] -n 50
+# Tip: Add -l flag for full log lines without truncation
+sudo systemctl status monitor-ssh monitor-ids monitor-files</code></pre>
+
+<h2>Log Analysis and Forensics</h2>
+
+<h3>Centralized Log Queries</h3>
+
+<pre data-lang="bash"><code class="language-bash"># On log server: analyze aggregated logs from all infrastructure
+
+# Find all failed SSH attempts across entire infrastructure
+# grep -r = Recursive search through all subdirectories
+# "Failed password" = Standard SSH auth failure message in auth.log
+# awk '{print $1, $NF}' = Extract first field (log file) and last field (IP)
+# sort | uniq -c = Count unique occurrences
+# sort -nr = Numerical reverse sort (highest count first)
+# Expected output: List of IPs with failed login counts across all hosts
+# Why: Identifies distributed brute-force attacks targeting multiple servers
+# Use when: Hunting for coordinated attacks or prioritizing IP blocks
+grep -r "Failed password" /var/log/remote/*/auth/ | awk '{print $1, $NF}' | sort | uniq -c | sort -nr
+
+# Find attacking IPs targeting multiple hosts (coordinated attack indicator)
+# grep -oE = Extract only matching IP addresses using regex
+# sort | uniq -c = Count how many times each IP appears
+# sort -nr = Sort by count (highest first)
+# Expected output: IPs with counts > 1 indicate multi-host attacks
+# Why: Single-host attacks might be mistakes; multi-host attacks are intentional
+# Use when: Prioritizing response - block IPs attacking multiple systems first
+grep -r "Failed password" /var/log/remote/*/auth/ | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' | sort | uniq -c | sort -nr
+
+# Count critical (Priority 1) Suricata IDS alerts across infrastructure
+# find = Locate log files matching pattern
+# -path "*/suricata/*" = Only Suricata log directories
+# -exec grep "Priority: 1" {} + = Search for critical priority in found files
+# wc -l = Count matching lines
+# Expected output: Total number of critical IDS alerts
+# Why: Quantifies threat level - high counts indicate active attack campaigns
+# Use when: Security metrics, incident prioritization, trend analysis
+find /var/log/remote -name "*.log" -path "*/suricata/*" -exec grep "Priority: 1" {} + | wc -l
+
+# Correlate: Find IPs with both failed SSH AND IDS alerts (sophisticated attacker)
+# First: Extract all IPs with failed SSH attempts
+# Then: Check if each IP also appears in IDS logs
+# Expected output: IPs appearing in both (reconnaissance + exploitation attempts)
+# Why: Indicates advanced attacker performing recon then exploitation
+# Use when: Prioritizing incident response - these are active threats, not just scanners
+# Note: This pattern suggests attacker progression through kill chain
+ATTACKING_IPS=$(grep -r "Failed password" /var/log/remote/*/auth/ | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' | sort -u)
+for ip in $ATTACKING_IPS; do
+    if grep -r "$ip" /var/log/remote/*/ids/ > /dev/null; then
+        echo "IP $ip: SSH brute-force AND IDS alerts (coordinated attack?)"
+    fi
+done</code></pre>
+
+<h3>Timeline Reconstruction</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Reconstruct attack timeline for specific IP
+sudo vi /usr/local/bin/timeline-ip.sh</code></pre>
+
+<pre data-lang="bash"><code class="language-bash">#!/bin/bash
+# Create timeline of all events for given IP
+
+IP="$1"
+if [ -z "$IP" ]; then
+    echo "Usage: $0 <ip_address>"
+    exit 1
+fi
+
+echo "=== Timeline for $IP ==="
+echo ""
+
+# Search all logs
+grep -r "$IP" /var/log/remote/ | sort -t: -k2 | while read -r line; do
+    FILE=$(echo "$line" | cut -d: -f1)
+    TIMESTAMP=$(echo "$line" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
+    HOST=$(echo "$FILE" | cut -d/ -f5)
+    
+    echo "[$TIMESTAMP] $HOST: $line"
+done
+
+echo ""
+echo "=== Summary ==="
+echo "Total events: $(grep -r "$IP" /var/log/remote/ | wc -l)"
+echo "Hosts targeted: $(grep -r "$IP" /var/log/remote/ | cut -d/ -f5 | sort -u | wc -l)"
+echo "Hosts: $(grep -r "$IP" /var/log/remote/ | cut -d/ -f5 | sort -u | tr '\n' ', ')"</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Make timeline analysis script executable
+# Enables script to reconstruct attack timelines for investigation
+# Expected output: None (silent success)
+# Why: Provides incident response capability to trace attacker activity
+sudo chmod +x /usr/local/bin/timeline-ip.sh
+
+# Use timeline script to analyze specific IP address
+# Searches ALL centralized logs for any mention of target IP
+# Generates chronological timeline of attacker activity
+# Expected output: Sorted timeline showing: date, host, event description
+# Why: Reconstructs attack sequence - what attacker did, when, which systems hit
+# Use when: Incident response, threat hunting, post-incident forensics
+# Example output shows: Initial recon, exploitation attempts, successful access, lateral movement
+# Note: Replace 203.0.113.50 with actual attacker IP from alerts
+sudo /usr/local/bin/timeline-ip.sh 203.0.113.50</code></pre>
+
+<h2>Incident Response Procedures</h2>
+
+<h3>Incident Response Checklist</h3>
+
+<p><strong>When critical alert triggers:</strong></p>
+
+<ol>
+    <li><strong>CONTAIN (Minutes 0-5):</strong>
+        <ul>
+            <li>Isolate affected system: <code>sudo ufw deny in; sudo ufw deny out</code></li>
+            <li>Or disconnect network: <code>sudo ifconfig eth0 down</code></li>
+            <li>Preserve volatile memory: <code>sudo dd if=/dev/mem of=/mnt/usb/memory.img</code></li>
+            <li>Take system snapshot if VM: <code>virsh snapshot-create-as</code></li>
+        </ul>
+    </li>
+    
+    <li><strong>DOCUMENT (Minutes 5-15):</strong>
+        <ul>
+            <li>Screenshot all alerts</li>
+            <li>Save logs: <code>sudo tar -czf /mnt/usb/logs-$(date +%Y%m%d-%H%M%S).tar.gz /var/log/</code></li>
+            <li>Note timestamps, IPs, affected systems</li>
+            <li>Photograph screen if system unresponsive</li>
+        </ul>
+    </li>
+    
+    <li><strong>ANALYZE (Minutes 15-60):</strong>
+        <ul>
+            <li>Review IDS/HIDS alerts</li>
+            <li>Check file integrity: <code>sudo aide --check</code></li>
+            <li>List active processes: <code>ps aux; sudo lsof -i</code></li>
+            <li>Check for rootkits: <code>sudo rkhunter --check</code></li>
+            <li>Examine network connections: <code>sudo netstat -tulpn</code></li>
+            <li>Review recently modified files: <code>find / -mtime -1 -ls</code></li>
+            <li>Check user accounts: <code>cat /etc/passwd; lastlog</code></li>
+        </ul>
+    </li>
+    
+    <li><strong>ERADICATE (Hours 1-4):</strong>
+        <ul>
+            <li>Remove malware/backdoors</li>
+            <li>Kill malicious processes</li>
+            <li>Delete unauthorized users</li>
+            <li>Patch vulnerabilities exploited</li>
+            <li>Change all credentials (assume compromised)</li>
+            <li>Rebuild from known-good backup if heavily compromised</li>
+        </ul>
+    </li>
+    
+    <li><strong>RECOVER (Hours 4-24):</strong>
+        <ul>
+            <li>Restore from clean backup if needed</li>
+            <li>Verify file integrity</li>
+            <li>Test all services</li>
+            <li>Monitor for 24-48 hours before declaring clean</li>
+            <li>Gradually restore network access</li>
+        </ul>
+    </li>
+    
+    <li><strong>POST-MORTEM (Days 1-7):</strong>
+        <ul>
+            <li>Document attack vector and timeline</li>
+            <li>Update IDS signatures for detected threat</li>
+            <li>Implement additional controls to prevent recurrence</li>
+            <li>Share indicators of compromise (IOCs) with team</li>
+            <li>Report to relevant authorities if required</li>
+        </ul>
+    </li>
+</ol>
+
+<h3>Incident Response Toolkit</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Create incident response script
+sudo vi /usr/local/bin/incident-response.sh</code></pre>
+
+<pre data-lang="bash"><code class="language-bash">#!/bin/bash
+# Emergency incident response script
+
+INCIDENT_DIR="/var/security/incidents/$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$INCIDENT_DIR"
+
+echo "=== INCIDENT RESPONSE INITIATED ==="
+echo "Time: $(date)"
+echo "Output dir: $INCIDENT_DIR"
+echo ""
+
+# Capture system state
+echo "[1/8] Capturing process list..."
+ps aux > "$INCIDENT_DIR/processes.txt"
+
+echo "[2/8] Capturing network connections..."
+netstat -tulpn > "$INCIDENT_DIR/netstat.txt"
+ss -tulpn > "$INCIDENT_DIR/ss.txt"
+sudo lsof -i > "$INCIDENT_DIR/lsof.txt"
+
+echo "[3/8] Capturing user information..."
+cat /etc/passwd > "$INCIDENT_DIR/passwd.txt"
+cat /etc/shadow > "$INCIDENT_DIR/shadow.txt"
+lastlog > "$INCIDENT_DIR/lastlog.txt"
+last > "$INCIDENT_DIR/last.txt"
+
+echo "[4/8] Capturing file system information..."
+find / -mtime -1 -ls > "$INCIDENT_DIR/recent-files.txt" 2>/dev/null
+
+echo "[5/8] Checking for rootkits..."
+rkhunter --check --skip-keypress --report-warnings-only > "$INCIDENT_DIR/rkhunter.txt"
+
+echo "[6/8] Copying logs..."
+cp -r /var/log "$INCIDENT_DIR/logs/"
+
+echo "[7/8] Running file integrity check..."
+aide --check > "$INCIDENT_DIR/aide-check.txt"
+
+echo "[8/8] Capturing memory image (if possible)..."
+if [ -r /dev/mem ]; then
+    dd if=/dev/mem of="$INCIDENT_DIR/memory.img" bs=1M 2>/dev/null
+fi
+
+echo ""
+echo "=== EVIDENCE COLLECTED ==="
+echo "Location: $INCIDENT_DIR"
+echo ""
+echo "Next steps:"
+echo "1. Review collected evidence"
+echo "2. Isolate system if not already done"
+echo "3. Follow incident response checklist"
+echo ""
+
+# Alert security team
+/usr/local/bin/security-alert.sh "INCIDENT RESPONSE INITIATED" "Evidence collection complete. Review: $INCIDENT_DIR"</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Make incident response script executable
+# chmod +x = Adds execute permission for emergency use
+# Expected output: None (silent success)
+# Why: Enables rapid evidence collection during security incidents
+# Security: Keep this script handy - minutes matter during active compromise
+# Use when: Critical alerts trigger or suspected breach detected
+sudo chmod +x /usr/local/bin/incident-response.sh</code></pre>
+
+<h2>Performance and Retention</h2>
+
+<h3>Log Rotation for Centralized Logs</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Configure log rotation for centralized server
+sudo vi /etc/logrotate.d/centralized-logs</code></pre>
+
+<pre data-lang="bash"><code class="language-bash">/var/log/remote/*/*.log {
+    daily
+    rotate 90
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root adm
+    sharedscripts
+    postrotate
+        /usr/bin/killall -HUP syslog-ng
+    endscript
+}
+
+/var/log/remote/*/ids/*.log {
+    daily
+    rotate 365
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root adm
+}
+
+/var/log/remote/*/auth/*.log {
+    daily
+    rotate 365
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root adm
+}</code></pre>
+
+<h3>Disk Space Monitoring</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Create disk space monitor
+sudo vi /usr/local/bin/monitor-disk-space.sh</code></pre>
+
+<pre data-lang="bash"><code class="language-bash">#!/bin/bash
+# Alert when log partition approaches capacity
+
+THRESHOLD=80
+PARTITION="/var/log"
+
+USAGE=$(df "$PARTITION" | awk 'NR==2 {print $5}' | sed 's/%//')
+
+if [ "$USAGE" -gt "$THRESHOLD" ]; then
+    /usr/local/bin/security-alert.sh "Disk Space Warning" "Log partition is ${USAGE}% full
+
+Partition: $PARTITION
+Threshold: ${THRESHOLD}%
+Current: ${USAGE}%
+
+Action required:
+1. Review log rotation settings
+2. Archive old logs to external storage
+3. Expand partition if necessary
+
+Disk usage breakdown:
+$(du -sh /var/log/* | sort -hr | head -10)"
+fi</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Make disk space monitoring script executable
+# Enables automated monitoring of log partition capacity
+# Expected output: None (silent success)
+# Why: Prevents silent logging failures due to full disk
+# Use when: Setting up centralized log server with automated alerting
+sudo chmod +x /usr/local/bin/monitor-disk-space.sh
+
+# Add disk space check to root's crontab (runs hourly)
+# 0 * * * * = At minute 0 of every hour (01:00, 02:00, 03:00, etc.)
+# Expected output: "crontab: installing new crontab"
+# Why: Proactive alerting prevents log loss from disk space exhaustion
+# Use when: Critical logging systems require continuous monitoring
+# Note: Sends email if partition exceeds 80% threshold (configured in script)
+# Tip: Adjust THRESHOLD variable in script for different alert levels
+echo "0 * * * * /usr/local/bin/monitor-disk-space.sh" | sudo crontab -</code></pre>
+
+<div class="terminal-success not-prose">
+    <div class="terminal-success-header">
+        <i data-lucide="shield-check" class="terminal-success-icon"></i>
+        <h3 class="terminal-success-title">Security Monitoring Complete</h3>
+    </div>
+    <p class="terminal-success-content">
+        You now have a complete security monitoring pipeline: centralized logging (Syslog-ng), automated alerting (email + scripts), real-time threat monitoring (SSH, IDS, file integrity), and incident response procedures. Combined with IDS/HIDS (Part 5), you can detect, analyze, and respond to security incidents.
+    </p>
+</div>
+
+<h2>Ongoing Maintenance</h2>
+
+<ul>
+    <li><strong>Daily:</strong> Review critical alerts, check monitoring service status</li>
+    <li><strong>Weekly:</strong> Analyze log trends, review blocked IPs, test alert delivery</li>
+    <li><strong>Monthly:</strong> Rotate logs, archive to cold storage, update response scripts</li>
+    <li><strong>Quarterly:</strong> Test incident response procedures (tabletop exercise), review and update runbooks</li>
+    <li><strong>Yearly:</strong> Full security audit, penetration test, disaster recovery drill</li>
+</ul>
+
+<blockquote>
+    "Logs without analysis are noise. Alerts without response are theater. Monitoring without action is negligence. Build the full pipeline: collect, aggregate, analyze, alert, respond."
+</blockquote>
+
+<div class="flex justify-between mt-12 pt-6 border-t border-shell-border">
+    <a href="#/posts/3.Network_Security/part5.html" class="text-shell-accent hover:underline">← Part 5: NIDS, HIDS, IDS/IPS Systems</a>
+    <a href="#/posts/3.Network_Security/part7.html" class="text-shell-accent hover:underline">Part 7: DNS Security & Privacy →</a>
+</div>

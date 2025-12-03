@@ -1,0 +1,1219 @@
+<h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+    <span class="text-gray-500">#</span> 3. Segmentation & Firewall Rules
+</h1>
+
+<div class="terminal-alert not-prose">
+    <div class="terminal-alert-header">
+        <i data-lucide="shield-alert" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Prerequisites</h3>
+    </div>
+    <p class="terminal-alert-content">
+        Complete Parts 1-2 (VPN and Tor) before this guide. You should understand encrypted tunnels and anonymity networks. This guide assumes you have a router with custom firmware support or a dedicated firewall device.
+    </p>
+</div>
+
+<h2>What is Network Segmentation?</h2>
+
+<p>Network segmentation divides your network into isolated zones with different trust levels. A compromised IoT device can't access your encrypted laptop if they're on separate network segments with firewall rules blocking lateral movement.</p>
+
+<p><strong>Why segment networks:</strong></p>
+<ul>
+    <li>Contain breaches (compromised device can't pivot to other devices)</li>
+    <li>Isolate untrusted devices (IoT cameras, smart TVs, guest devices)</li>
+    <li>Protect sensitive systems (work laptops, servers, NAS)</li>
+    <li>Monitor and log suspicious traffic patterns</li>
+    <li>Apply different security policies per zone</li>
+</ul>
+
+<h2>Network Segmentation Strategy</h2>
+
+<p>Design your network with concentric rings of trust, similar to operational security circles:</p>
+
+<h3>Trust Zones</h3>
+
+<table>
+    <thead>
+        <tr>
+            <th>Zone</th>
+            <th>Trust Level</th>
+            <th>Devices</th>
+            <th>Access Rules</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Trusted</strong></td>
+            <td>High</td>
+            <td>Personal laptops, phones, hardened workstations</td>
+            <td>Can access all zones, internet access, strict logging</td>
+        </tr>
+        <tr>
+            <td><strong>Work</strong></td>
+            <td>Medium-High</td>
+            <td>Work laptops, company devices</td>
+            <td>Isolated from other zones, VPN-only internet access</td>
+        </tr>
+        <tr>
+            <td><strong>IoT</strong></td>
+            <td>Low</td>
+            <td>Smart home devices, cameras, TVs, voice assistants</td>
+            <td>Internet access only, no access to other zones</td>
+        </tr>
+        <tr>
+            <td><strong>Guest</strong></td>
+            <td>Untrusted</td>
+            <td>Visitor devices, temporary connections</td>
+            <td>Internet only, captive portal, time-limited</td>
+        </tr>
+        <tr>
+            <td><strong>DMZ</strong></td>
+            <td>Medium</td>
+            <td>Self-hosted services, servers accessible from internet</td>
+            <td>Restricted access to LAN, inbound rules from WAN</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>Example Network Architecture</h3>
+
+<pre data-lang="text"><code class="language-text">Internet (WAN)
+    │
+    ├─ Router/Firewall (192.168.1.1)
+    │
+    ├─ Trusted VLAN 10 (192.168.10.0/24)
+    │   ├─ Laptop (192.168.10.100)
+    │   ├─ Phone (192.168.10.101)
+    │   └─ Workstation (192.168.10.102)
+    │
+    ├─ Work VLAN 20 (192.168.20.0/24)
+    │   └─ Work Laptop (192.168.20.100)
+    │
+    ├─ IoT VLAN 30 (192.168.30.0/24)
+    │   ├─ Smart TV (192.168.30.100)
+    │   ├─ Security Camera (192.168.30.101)
+    │   └─ Smart Speaker (192.168.30.102)
+    │
+    ├─ Guest VLAN 40 (192.168.40.0/24)
+    │   └─ Guest Devices (DHCP pool)
+    │
+    └─ DMZ VLAN 50 (192.168.50.0/24)
+        └─ Web Server (192.168.50.100)</code></pre>
+
+<h2>Implementation Options</h2>
+
+<h3>Option 1: Router with Custom Firmware (Recommended for Home)</h3>
+
+<p><strong>OpenWrt:</strong> Open-source router firmware with VLAN and firewall support.</p>
+
+<p><strong>Compatible routers:</strong></p>
+<ul>
+    <li>Linksys WRT3200ACM, WRT32X (excellent OpenWrt support)</li>
+    <li>Netgear R7800, R8000 (high performance)</li>
+    <li>TP-Link Archer C7, A7 (budget-friendly)</li>
+    <li>GL.iNet routers (pre-installed OpenWrt)</li>
+</ul>
+
+<p><strong>Check compatibility:</strong> <code>https://toh.openwrt.org/</code></p>
+
+<h3>Option 2: Dedicated Firewall (Recommended for Advanced)</h3>
+
+<p><strong>pfSense/OPNsense:</strong> Enterprise-grade firewall on commodity hardware.</p>
+
+<p><strong>Hardware requirements:</strong></p>
+<ul>
+    <li>Dual-NIC mini PC (Protectli Vault, Qotom)</li>
+    <li>At least 4GB RAM, 16GB storage</li>
+    <li>Separate managed switch for VLANs</li>
+</ul>
+
+<h3>Option 3: Managed Switch + Stock Router (Budget)</h3>
+
+<p>Use managed switch for VLANs, stock router for routing/firewall (limited capabilities).</p>
+
+<h2>Setup: OpenWrt Network Segmentation</h2>
+
+<p>Implementing network segmentation through OpenWrt creates isolated network zones that prevent lateral movement between device categories, containing potential compromises to single segments rather than allowing attackers to pivot freely across your entire network. OpenWrt is an open-source Linux-based router firmware that replaces your router's stock firmware with a full-featured networking platform offering VLAN support, advanced firewall rules, traffic shaping, and extensive monitoring capabilities far beyond consumer router limitations. This setup assumes you've already flashed OpenWrt onto your router hardware (a one-time process that replaces the manufacturer's firmware), and will guide you through creating separate VLANs for trusted devices, IoT devices, and guest networks, each with dedicated IP ranges, firewall rules, and access policies. By segmenting at the VLAN level, you achieve network isolation at Layer 2 (data link layer), meaning devices in different VLANs cannot communicate at all unless explicitly permitted by firewall rules, even if they're connected to the same physical router, providing stronger isolation than simple IP-based filtering which can be bypassed if attackers compromise the routing layer.</p>
+
+<p>This guide assumes you've installed OpenWrt on your router. See: https://openwrt.org/docs/guide-user/installation/generic.flashing</p>
+
+<h3>1. Access OpenWrt Web Interface</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Default OpenWrt IP: 192.168.1.1
+# Connect via Ethernet (WiFi disabled by default)
+
+# Open browser: http://192.168.1.1
+# Default credentials:
+# Username: root
+# Password: (none - set on first login)</code></pre>
+
+<h3>2. Create VLANs</h3>
+
+<p><strong>Via Web Interface:</strong></p>
+<ul>
+    <li>Network → Switch → VLAN</li>
+    <li>Add VLAN 10 (Trusted): Tag on CPU port, Untagged on port 1</li>
+    <li>Add VLAN 30 (IoT): Tag on CPU port, Untagged on port 2</li>
+    <li>Add VLAN 40 (Guest): Tag on CPU port, Untagged on port 3</li>
+    <li>Save & Apply</li>
+</ul>
+
+<p><strong>Via SSH (alternative):</strong></p>
+
+<pre data-lang="bash"><code class="language-bash"># SSH into OpenWrt router using root account
+# Default IP: 192.168.1.1 on fresh OpenWrt installation
+# Must be connected via Ethernet (WiFi disabled by default)
+ssh root@192.168.1.1
+# Expected output: Password prompt (default: no password on first boot)
+# Why: Access router console to configure VLANs and firewall rules
+# Use when: Initial setup or making configuration changes
+# Warning: Change default IP and set strong password immediately
+
+# Edit network configuration file to define VLANs and interfaces
+# /etc/config/network = OpenWrt's network configuration file
+vi /etc/config/network
+# Expected output: Opens vi text editor with network config
+# Why: Define VLAN tags, interfaces, and IP addressing
+# Use when: Creating network segmentation with multiple VLANs
+# Note: Backup this file before editing: cp /etc/config/network /etc/config/network.backup
+
+# Add VLAN configuration stanzas to network config
+# Example VLAN 10 for Trusted network
+
+# Define VLAN 10 (Trusted) on switch
+config switch_vlan
+    option device 'switch0'  # Physical switch device
+    option vlan '10'  # VLAN ID (802.1Q tag)
+    option ports '0t 1'  # 0t = CPU port (tagged), 1 = physical port 1 (untagged)
+# Expected: VLAN 10 traffic on port 1, tagged on CPU (trunk)
+# Why: Isolates Trusted devices on their own broadcast domain
+# Use when: Creating isolated network segment for trusted devices
+# Ports: 0t=CPU(tagged), 1-4=LAN ports, 5=WAN port (varies by router)
+
+# Define VLAN 30 (IoT) on switch
+config switch_vlan
+    option device 'switch0'
+    option vlan '30'  # VLAN ID for IoT devices
+    option ports '0t 2'  # Tagged on CPU (0t), untagged on port 2
+# Expected: IoT VLAN on physical port 2
+# Why: Isolates untrusted IoT devices from Trusted network
+# Use when: Setting up separate network for smart home devices, cameras
+# Warning: Never mix trusted and untrusted VLANs on same physical port
+
+# Define VLAN 40 (Guest) on switch
+config switch_vlan
+    option device 'switch0'
+    option vlan '40'  # VLAN ID for guest network
+    option ports '0t 3'  # Guest VLAN on port 3
+# Expected: Guest devices isolated on physical port 3
+# Why: Prevents guests from accessing your internal network
+# Use when: Providing internet access to visitors without LAN access
+
+# Restart networking to apply VLAN changes
+# This may disconnect your SSH session temporarily
+/etc/init.d/network restart
+# Expected output: "Stopping/Starting network" messages
+# Why: Activates new VLAN configuration on switch hardware
+# Use when: After modifying /etc/config/network
+# Warning: May lose SSH connection, reconnect after 30 seconds
+# If connection lost, physically reconnect to new VLAN port</code></pre>
+
+        <h3>3. Create Network Interfaces</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Edit network configuration to create logical interfaces for each VLAN
+# /etc/config/network = OpenWrt's unified network configuration
+# vi = text editor (alternatives: nano, vim)
+vi /etc/config/network
+# Expected output: Opens vi editor with network config
+# Why: Map VLAN tags to logical interfaces with IP addressing
+# Use when: After creating VLANs on switch
+# Note: Backup first: cp /etc/config/network /etc/config/network.backup
+
+# Define Trusted VLAN interface (high-security zone)
+# config interface = UCI config section for network interface
+# 'trusted' = interface name (referenced by firewall, DHCP)
+config interface 'trusted'
+    # option type 'bridge' = create bridge interface (can add multiple ports)
+    option type 'bridge'
+    # option proto 'static' = use static IP, not DHCP client
+    option proto 'static'
+    # option ifname 'eth0.10' = physical interface (eth0) with VLAN tag 10
+    option ifname 'eth0.10'
+    # option ipaddr '192.168.10.1' = router IP on this VLAN (gateway for clients)
+    option ipaddr '192.168.10.1'
+    # option netmask '255.255.255.0' = /24 subnet (254 usable IPs)
+    option netmask '255.255.255.0'
+# Expected: Creates trusted interface accessible at 192.168.10.1
+# Why: Router needs IP on each VLAN to route traffic and provide DHCP/DNS
+# Use when: Creating trusted device network segment
+# Note: .1 IP convention for gateway (clients use as default route)
+
+# Define IoT VLAN interface (low-trust zone for smart devices)
+config interface 'iot'
+    # option proto 'static' = static IP for router on IoT VLAN
+    option proto 'static'
+    # option ifname 'eth0.30' = VLAN 30 subinterface
+    option ifname 'eth0.30'
+    # option ipaddr '192.168.30.1' = gateway IP for IoT devices
+    option ipaddr '192.168.30.1'
+    # option netmask '255.255.255.0' = /24 subnet
+    option netmask '255.255.255.0'
+# Expected: IoT devices will use 192.168.30.1 as gateway
+# Why: Separate subnet isolates IoT traffic from trusted devices
+# Use when: Setting up IoT device network (cameras, smart home)
+# Note: No bridge needed (not combining multiple ports)
+
+# Define Guest VLAN interface (untrusted zone for visitors)
+config interface 'guest'
+    # option proto 'static' = static gateway IP
+    option proto 'static'
+    # option ifname 'eth0.40' = VLAN 40 subinterface
+    option ifname 'eth0.40'
+    # option ipaddr '192.168.40.1' = gateway for guest devices
+    option ipaddr '192.168.40.1'
+    # option netmask '255.255.255.0' = /24 subnet (254 guest IPs)
+    option netmask '255.255.255.0'
+# Expected: Guest devices isolated on separate subnet
+# Why: Prevent guests from accessing internal network resources
+# Use when: Providing temporary internet access to visitors
+# Note: Firewall will restrict guest zone to internet-only access
+
+# Restart networking service to apply interface changes
+# /etc/init.d/network = OpenWrt network init script
+# restart = stop and start networking (applies config)
+/etc/init.d/network restart
+# Expected output: "Stopping/Starting network" messages, brief disconnection
+# Why: Load new interface configuration into kernel
+# Use when: After modifying /etc/config/network
+# Warning: SSH connection will drop, reconnect after 30 seconds
+# Troubleshooting: If can't reconnect, check physical connection to correct VLAN port</code></pre>        <h3>4. Configure DHCP per VLAN</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Edit DHCP/DNS configuration to provide automatic IP addressing per VLAN
+# /etc/config/dhcp = OpenWrt's DHCP and DNS configuration (dnsmasq)
+# vi = text editor
+vi /etc/config/dhcp
+# Expected output: Opens vi editor with DHCP config
+# Why: Each VLAN needs separate DHCP server to auto-assign IPs to devices
+# Use when: After creating network interfaces
+# Note: dnsmasq provides both DHCP and DNS caching
+
+# Configure DHCP for Trusted VLAN
+# config dhcp = UCI DHCP pool configuration section
+# 'trusted' = name matching interface name from /etc/config/network
+config dhcp 'trusted'
+    # option interface 'trusted' = bind DHCP to trusted interface
+    option interface 'trusted'
+    # option start '100' = first IP in pool (192.168.10.100)
+    option start '100'
+    # option limit '50' = pool size (50 IPs: .100 to .149)
+    option limit '50'
+    # option leasetime '12h' = how long IP assignment lasts (12 hours)
+    option leasetime '12h'
+# Expected: Trusted devices auto-assigned IPs 192.168.10.100-149
+# Why: Automatic IP configuration for trusted laptops/phones
+# Use when: Setting up DHCP for trusted network segment
+# Note: Static IPs .1-.99 available for servers, .150-.254 reserved
+# Lease time: 12h balances IP reuse vs. stability
+
+# Configure DHCP for IoT VLAN
+config dhcp 'iot'
+    # option interface 'iot' = serve DHCP on IoT VLAN
+    option interface 'iot'
+    # option start '100' = pool starts at 192.168.30.100
+    option start '100'
+    # option limit '50' = 50 IPs for IoT devices (cameras, smart home)
+    option limit '50'
+    # option leasetime '12h' = 12-hour lease
+    option leasetime '12h'
+# Expected: IoT devices auto-assigned IPs 192.168.30.100-149
+# Why: Automated IP assignment for IoT devices
+# Use when: Setting up IoT network segment
+# Note: Consider static DHCP reservations for cameras (bind MAC to IP)
+# MAC reservation prevents IP changes (important for camera access)
+
+# Configure DHCP for Guest VLAN (shorter lease for transient devices)
+config dhcp 'guest'
+    # option interface 'guest' = serve DHCP on guest VLAN
+    option interface 'guest'
+    # option start '100' = pool starts at 192.168.40.100
+    option start '100'
+    # option limit '50' = 50 IPs for guest devices
+    option limit '50'
+    # option leasetime '2h' = 2-hour lease (shorter for guests)
+    option leasetime '2h'
+# Expected: Guest devices auto-assigned IPs 192.168.40.100-149
+# Why: Temporary IP assignment for visitor devices
+# Use when: Setting up guest network
+# Note: Shorter lease (2h) allows faster IP reclamation
+# Trade-off: Guests may lose IP during visit, must reconnect
+
+# Restart dnsmasq service to apply DHCP configuration
+# /etc/init.d/dnsmasq = dnsmasq init script (DHCP + DNS service)
+# restart = reload configuration
+/etc/init.d/dnsmasq restart
+# Expected output: "Stopping/Starting dnsmasq" messages
+# Why: Activate new DHCP pools without reboot
+# Use when: After modifying /etc/config/dhcp
+# Effect: Devices connecting now get IPs from configured pools
+# Test: Connect device to VLAN, should receive IP via DHCP
+# Verify: Check router DHCP leases (Status → DHCP Leases in LuCI)</code></pre>        <h3>5. Configure Firewall Zones</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Edit firewall configuration to create security zones with different policies
+# /etc/config/firewall = OpenWrt's firewall configuration (nftables/iptables)
+# vi = text editor
+vi /etc/config/firewall
+# Expected output: Opens vi editor with firewall config
+# Why: Define security policies for each network segment
+# Use when: After creating network interfaces
+# Note: Zones control traffic direction (input/output/forward)
+
+# Define Trusted Zone (high trust, permissive policies)
+# config zone = firewall zone definition
+# Zones group interfaces with similar security requirements
+config zone
+    # option name 'trusted' = zone identifier
+    option name 'trusted'
+    # option input 'ACCEPT' = allow traffic TO router from this zone (SSH, web GUI)
+    option input 'ACCEPT'
+    # option output 'ACCEPT' = allow traffic FROM router to this zone (DHCP, DNS responses)
+    option output 'ACCEPT'
+    # option forward 'ACCEPT' = allow routing THROUGH router to other zones
+    option forward 'ACCEPT'
+    # option network 'trusted' = bind zone to trusted interface
+    option network 'trusted'
+# Expected: Trusted devices can access router and other zones (controlled by forwarding rules)
+# Why: Trusted devices need full network access for management
+# Use when: Configuring trusted device zone (personal laptops, phones)
+# Security: input ACCEPT allows SSH/web access to router (keep strong passwords!)
+# Note: forward ACCEPT doesn't bypass forwarding rules (still need explicit allows)
+
+# Define IoT Zone (low trust, restrictive policies)
+config zone
+    # option name 'iot' = zone for untrusted IoT devices
+    option name 'iot'
+    # option input 'REJECT' = block traffic TO router from IoT (no SSH/web GUI access)
+    option input 'REJECT'
+    # option output 'ACCEPT' = allow router responses to IoT (DHCP, DNS)
+    option output 'ACCEPT'
+    # option forward 'REJECT' = default deny routing to other zones
+    option forward 'REJECT'
+    # option network 'iot' = bind zone to iot interface
+    option network 'iot'
+# Expected: IoT devices CANNOT access router management or other VLANs by default
+# Why: Compromised IoT device can't pivot to trusted network
+# Use when: Setting up IoT device zone (cameras, smart home)
+# Security: input REJECT prevents hacked camera from attacking router
+# Note: Specific forwarding rules needed to allow internet access (added next)
+
+# Define Guest Zone (untrusted, internet-only access)
+config zone
+    # option name 'guest' = zone for visitor devices
+    option name 'guest'
+    # option input 'REJECT' = block traffic TO router from guests
+    option input 'REJECT'
+    # option output 'ACCEPT' = allow router responses (DHCP, DNS)
+    option output 'ACCEPT'
+    # option forward 'REJECT' = default deny routing to other zones
+    option forward 'REJECT'
+    # option network 'guest' = bind zone to guest interface
+    option network 'guest'
+# Expected: Guest devices isolated, no LAN access, no router management
+# Why: Prevent guests from snooping internal network or attacking infrastructure
+# Use when: Setting up guest network
+# Security: Strict isolation protects your privacy from visitors
+# Note: Must add forwarding rule to WAN for internet access
+
+# Restart firewall service to apply zone configuration
+# /etc/init.d/firewall = OpenWrt firewall init script
+# restart = reload firewall rules
+/etc/init.d/firewall restart
+# Expected output: "Stopping/Starting firewall" messages
+# Why: Activate new firewall zones and policies
+# Use when: After modifying /etc/config/firewall
+# Warning: Brief moment of no firewall during restart (~1-2 seconds)
+# Effect: New zones active, but no inter-zone traffic allowed yet (need forwarding rules)</code></pre><h3>6. Define Firewall Rules</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Define forwarding rules to allow/deny traffic between zones
+# Forwarding rules control routing between zones
+# Add these to /etc/config/firewall (continue editing from previous step)
+
+# Allow Trusted → Internet (trusted devices can access internet)
+# config forwarding = zone-to-zone forwarding rule
+config forwarding
+    # option src 'trusted' = source zone (trusted devices)
+    option src 'trusted'
+    # option dest 'wan' = destination zone (internet)
+    option dest 'wan'
+# Expected: Trusted devices can browse internet, download files
+# Why: Trusted zone needs internet access for normal use
+# Use when: Configuring trusted network internet access
+# Security: Outbound connections allowed, inbound blocked by WAN zone
+# Note: WAN zone pre-configured in default OpenWrt config
+
+# Allow Trusted → IoT (trusted devices can manage IoT devices)
+# Enables accessing camera web interface, controlling smart devices
+config forwarding
+    # option src 'trusted' = source zone (trusted devices)
+    option src 'trusted'
+    # option dest 'iot' = destination zone (IoT devices)
+    option dest 'iot'
+# Expected: Can access camera at 192.168.30.101 from laptop on trusted VLAN
+# Why: Need to manage/view IoT devices (camera streams, smart home control)
+# Use when: Want to access IoT devices from trusted network
+# Security: One-way access (IoT can't initiate connections to trusted)
+# Alternative: Create specific rules per device instead of blanket allow
+
+# Allow IoT → Internet (IoT devices can phone home, get updates)
+config forwarding
+    # option src 'iot' = source zone (IoT devices)
+    option src 'iot'
+    # option dest 'wan' = destination zone (internet)
+    option dest 'wan'
+# Expected: Smart TV can stream Netflix, camera can upload to cloud
+# Why: Most IoT requires internet connectivity to function
+# Use when: Setting up IoT network with internet access
+# Security: IoT isolated from LAN but can access internet
+# Trade-off: IoT can leak data to manufacturer (monitor with Pi-hole, Suricata)
+# Alternative: Block specific IoT devices from internet (whitelist approach)
+
+# IoT → Trusted (DENY by default - no forwarding rule needed)
+# Absence of forwarding rule = implicit deny
+# Why: Prevents compromised IoT from pivoting to trusted devices
+# Expected: IoT device cannot connect to 192.168.10.0/24
+# Security: Contains breach within IoT zone
+# Note: No config needed, this is the DEFAULT DENY behavior
+# Test: From IoT device, ping 192.168.10.1 should FAIL
+
+# Allow Guest → Internet (guests can browse web)
+config forwarding
+    # option src 'guest' = source zone (guest devices)
+    option src 'guest'
+    # option dest 'wan' = destination zone (internet)
+    option dest 'wan'
+# Expected: Guest devices can browse internet, use apps
+# Why: Provide internet access to visitors
+# Use when: Setting up guest network
+# Security: Guests isolated from all internal zones
+# Note: Consider bandwidth limiting for guests (prevent abuse)
+
+# Guest → All other zones (DENY by default)
+# No forwarding rules to trusted, iot, work zones = implicit deny
+# Why: Complete guest isolation from internal network
+# Expected: Guests cannot access ANY internal resources
+# Security: Protects privacy even from malicious guests
+# Test: From guest device, ping 192.168.10.1 should FAIL
+# Note: Guests can still resolve DNS (router provides DNS on guest interface)
+
+# Restart firewall to apply forwarding rules
+# /etc/init.d/firewall restart = reload firewall configuration
+/etc/init.d/firewall restart
+# Expected output: "Stopping/Starting firewall" messages
+# Why: Activate new forwarding rules between zones
+# Use when: After adding forwarding rules to /etc/config/firewall
+# Effect: Network segmentation now enforced with controlled inter-zone traffic
+# Test: Verify trusted can ping 192.168.30.1, guest cannot ping 192.168.10.1</code></pre>
+
+        <h3>7. Create WiFi Networks per VLAN</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Edit wireless configuration to create separate WiFi networks per VLAN
+# /etc/config/wireless = OpenWrt's wireless configuration
+# vi = text editor
+vi /etc/config/wireless
+# Expected output: Opens vi editor with wireless config
+# Why: Map WiFi SSIDs to VLANs for wireless network segmentation
+# Use when: After configuring VLANs and interfaces
+# Note: Each SSID can map to different VLAN (security zone)
+
+# Configure Trusted WiFi network (for personal devices)
+# config wifi-iface = wireless interface/SSID configuration
+config wifi-iface
+    # option device 'radio0' = physical radio (radio0=2.4GHz, radio1=5GHz typically)
+    option device 'radio0'
+    # option mode 'ap' = access point mode (router provides WiFi)
+    option mode 'ap'
+    # option ssid 'HomeNet-Trusted' = network name visible to devices
+    option ssid 'HomeNet-Trusted'
+    # option encryption 'sae-mixed' = WPA3-SAE with WPA2 fallback
+    option encryption 'sae-mixed'
+    # option key 'YourStrongPassword123!' = WiFi password (WPA3/WPA2 PSK)
+    option key 'YourStrongPassword123!'
+    # option network 'trusted' = bind SSID to trusted VLAN interface
+    option network 'trusted'
+# Expected: SSID "HomeNet-Trusted" appears, connects to trusted VLAN (192.168.10.0/24)
+# Why: Wireless devices on trusted network get same access as wired trusted devices
+# Use when: Setting up main WiFi network for personal devices
+# Security: WPA3-SAE provides stronger encryption than WPA2 (resistant to offline attacks)
+# Compatibility: 'sae-mixed' allows older WPA2 devices to connect (fallback)
+# Note: Change 'YourStrongPassword123!' to strong passphrase (20+ chars)
+# Alternative: Use 'sae' only (pure WPA3) if all devices support it
+
+# Configure IoT WiFi network (for smart home devices with weaker encryption)
+config wifi-iface
+    # option device 'radio0' = same physical radio (multi-SSID)
+    option device 'radio0'
+    # option mode 'ap' = access point mode
+    option mode 'ap'
+    # option ssid 'HomeNet-IoT' = separate SSID for IoT devices
+    option ssid 'HomeNet-IoT'
+    # option encryption 'psk2+ccmp' = WPA2-PSK with AES-CCMP (not WPA3)
+    option encryption 'psk2+ccmp'
+    # option key 'IoTPassword456!' = different password from trusted
+    option key 'IoTPassword456!'
+    # option network 'iot' = bind SSID to iot VLAN interface
+    option network 'iot'
+# Expected: SSID "HomeNet-IoT" appears, connects to IoT VLAN (192.168.30.0/24)
+# Why: Many IoT devices don't support WPA3 (cheap hardware, old firmware)
+# Use when: Setting up separate WiFi for smart home devices
+# Security: WPA2-only because IoT devices often lack WPA3 support
+# Trade-off: Weaker WiFi security acceptable because IoT zone isolated by firewall
+# Note: Use different password from trusted network (password compromise isolation)
+
+# Configure Guest WiFi network (for visitors)
+config wifi-iface
+    # option device 'radio0' = same physical radio (third SSID)
+    option device 'radio0'
+    # option mode 'ap' = access point mode
+    option mode 'ap'
+    # option ssid 'HomeNet-Guest' = guest-friendly SSID name
+    option ssid 'HomeNet-Guest'
+    # option encryption 'psk2+ccmp' = WPA2-PSK (broad compatibility)
+    option encryption 'psk2+ccmp'
+    # option key 'GuestPassword789!' = simple password for guests
+    option key 'GuestPassword789!'
+    # option network 'guest' = bind SSID to guest VLAN interface
+    option network 'guest'
+    # option isolate '1' = enable client isolation (guests can't see each other)
+    option isolate '1'
+# Expected: SSID "HomeNet-Guest" appears, connects to guest VLAN (192.168.40.0/24)
+# Why: Provide internet access to visitors without LAN access
+# Use when: Setting up guest network for visitors
+# Security: 'isolate 1' prevents guests from seeing/attacking each other
+# Note: Simple password OK (guests are already fully isolated by firewall)
+# Alternative: Add captive portal (package: nodogsplash) for terms of service
+
+# Restart WiFi service to apply wireless configuration
+# wifi reload = reload wireless configuration without full network restart
+wifi reload
+# Expected output: WiFi radios restart, SSIDs appear after 10-20 seconds
+# Why: Activate new WiFi networks mapped to VLANs
+# Use when: After modifying /etc/config/wireless
+# Effect: Multiple SSIDs visible, each connected to different security zone
+# Test: Connect to each SSID, verify IP address matches expected VLAN subnet
+# Note: 'wifi reload' faster than 'wifi restart' (doesn't reset radios completely)</code></pre>        <h2>Advanced Firewall Rules</h2>
+
+        <h3>Block IoT from Accessing Router Management</h3>
+
+<p>Beyond basic VLAN isolation, we add explicit firewall rules to prevent IoT devices from reaching the router's management interfaces, ensuring compromised IoT devices cannot be used to reconfigure network settings, disable security controls, or pivot into other network segments through router exploitation.</p>
+
+        <pre data-lang="bash"><code class="language-bash"># Add explicit rule to block IoT devices from accessing router management interfaces
+# Add this to /etc/config/firewall
+# config rule = specific firewall rule (more granular than zone forwarding)
+config rule
+    # option name = descriptive rule name for logs/debugging
+    option name 'Block IoT to Router'
+    # option src 'iot' = source zone (IoT devices)
+    option src 'iot'
+    # option dest_ip '192.168.30.1' = router IP on IoT VLAN
+    option dest_ip '192.168.30.1'
+    # option dest_port '22 80 443' = SSH (22), HTTP (80), HTTPS (443)
+    option dest_port '22 80 443'
+    # option proto 'tcp' = protocol (TCP for these services)
+    option proto 'tcp'
+    # option target 'REJECT' = block and send RST packet
+    option target 'REJECT'
+# Expected: IoT devices cannot access router web interface or SSH
+# Why: Compromised IoT device could attack router management
+# Use when: Hardening IoT zone (defense in depth)
+# Security: Even if IoT zone input policy is REJECT, explicit rule prevents bypass
+# Note: REJECT sends RST (connection refused), DROP would silently discard
+# Test: From IoT device, curl http://192.168.30.1 should fail immediately</code></pre>        <h3>Allow Specific IoT Device Access</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Create granular rule to allow specific trusted device to access specific IoT device
+# More secure than blanket trusted→iot forwarding (principle of least privilege)
+# Add this to /etc/config/firewall
+# config rule = specific firewall rule
+config rule
+    # option name = descriptive rule name
+    option name 'Access Camera from Trusted'
+    # option src 'trusted' = source zone (trusted devices)
+    option src 'trusted'
+    # option src_ip '192.168.10.100' = specific laptop IP (static or DHCP reservation)
+    option src_ip '192.168.10.100'
+    # option dest 'iot' = destination zone (IoT devices)
+    option dest 'iot'
+    # option dest_ip '192.168.30.101' = specific camera IP
+    option dest_ip '192.168.30.101'
+    # option dest_port '554 8080' = RTSP (554) for video stream, HTTP (8080) for web UI
+    option dest_port '554 8080'
+    # option proto 'tcp' = protocol (TCP for RTSP/HTTP)
+    option proto 'tcp'
+    # option target 'ACCEPT' = allow this specific traffic
+    option target 'ACCEPT'
+# Expected: Laptop 192.168.10.100 can access camera at 192.168.30.101
+# Why: Need to view camera feed without allowing ALL trusted devices to ALL IoT devices
+# Use when: Implementing least-privilege access (minimize attack surface)
+# Security: If laptop compromised, attacker can't pivot to other IoT devices
+# Note: Requires static IP or DHCP reservation for laptop (bind MAC to IP)
+# Alternative: Use source MAC address instead of IP (option src_mac)
+# Example: Replace trusted→iot blanket forwarding with multiple specific rules</code></pre>        <h3>Rate Limit Guest Network</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Install SQM (Smart Queue Management) for bandwidth shaping and limiting
+# opkg update = refresh package list from OpenWrt repositories
+opkg update
+# Expected output: "Updated list of available packages"
+# Why: Need current package index to install sqm-scripts
+# Use when: Before installing packages
+
+# Install SQM scripts and LuCI web interface
+# opkg install = install packages
+# sqm-scripts = traffic shaping/rate limiting engine
+# luci-app-sqm = web UI for SQM configuration
+opkg install sqm-scripts luci-app-sqm
+# Expected output: "Installing sqm-scripts", "Configuring sqm-scripts"
+# Why: Prevent guests from consuming all bandwidth (QoS for other zones)
+# Use when: Want to limit guest/IoT bandwidth
+# Note: SQM also improves latency (reduces bufferbloat)
+
+# Configure bandwidth limits for guest VLAN via web interface
+# LuCI = OpenWrt web interface (http://192.168.1.1)
+# Network → SQM QoS = Smart Queue Management settings
+# Why: Web UI easier than editing /etc/config/sqm manually
+# Use when: After installing sqm packages
+
+# Interface: guest = apply rate limiting to guest VLAN
+# Why: Limit guest bandwidth, not other VLANs
+
+# Download: 10000 Kbits/s (10 Mbps) = maximum download speed for guests
+# Why: Prevent guest from saturating your internet connection
+# Use when: Have faster connection, want to reserve bandwidth for trusted zone
+# Example: 100 Mbps connection → limit guests to 10 Mbps (reserve 90 Mbps for you)
+
+# Upload: 5000 Kbits/s (5 Mbps) = maximum upload speed for guests
+# Why: Upload typically more limited than download, prevent guest uploads from lagging you
+# Trade-off: Guests can still browse/stream, but can't monopolize connection
+# Note: Adjust based on your connection speed and guest needs
+# Alternative: Use tc (traffic control) for more advanced QoS (per-IP, per-protocol)</code></pre>        <h3>Log Suspicious Traffic</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Add firewall rule to log IoT attempts to access trusted network
+# Useful for detecting compromised IoT devices (lateral movement attempts)
+# Add this to /etc/config/firewall
+# config rule = specific firewall rule
+config rule
+    # option name = descriptive rule name for identifying log entries
+    option name 'Log IoT LAN Access Attempts'
+    # option src 'iot' = source zone (IoT devices)
+    option src 'iot'
+    # option dest 'trusted' = destination zone (trusted devices)
+    option dest 'trusted'
+    # option target 'REJECT' = block the traffic
+    option target 'REJECT'
+    # option extra = additional iptables/nftables parameters
+    # --log-prefix "IoT-to-LAN: " = prefix for log messages (easy grep filtering)
+    # --log-level 4 = warning level (0=emerg, 4=warning, 7=debug)
+    option extra '--log-prefix "IoT-to-LAN: " --log-level 4'
+# Expected: IoT→Trusted traffic blocked AND logged
+# Why: Detect compromised IoT attempting to pivot to trusted network
+# Use when: Security monitoring, incident detection
+# Security: Logs reveal malware behavior (port scans, lateral movement)
+# Note: Generates log entry for EVERY blocked packet (can be noisy)
+# Trade-off: Logs fill faster, but critical for detecting breaches
+
+# View firewall logs filtered for IoT lateral movement attempts
+# logread = OpenWrt's log viewer (reads from ring buffer)
+# grep "IoT-to-LAN" = filter for our custom log prefix
+logread | grep "IoT-to-LAN"
+# Expected output: Log lines showing src IP, dst IP, ports, protocol
+# Why: Identify which IoT device attempting to access trusted network
+# Use when: Investigating suspicious activity, checking for compromised devices
+# Example log entry:
+#   kernel: IoT-to-LAN: IN=br-iot OUT=br-trusted SRC=192.168.30.101 DST=192.168.10.100 PROTO=TCP DPT=22
+# Interpretation: Camera (192.168.30.101) tried to SSH to laptop (192.168.10.100)
+# Action: Investigate why IoT device attempting LAN access (compromise indicator)
+# Note: Also check /var/log/messages or 'dmesg' for firewall logs</code></pre><h2>Setup: pfSense Network Segmentation</h2>
+
+<p>pfSense provides more advanced features than OpenWrt. This guide assumes pfSense is installed on dedicated hardware.</p>
+
+<h3>1. Create VLANs</h3>
+
+<p><strong>Web Interface:</strong></p>
+<ul>
+    <li>Interfaces → Assignments → VLANs</li>
+    <li>Add VLAN 10 (Parent: igb0, Tag: 10, Description: TRUSTED)</li>
+    <li>Add VLAN 30 (Parent: igb0, Tag: 30, Description: IOT)</li>
+    <li>Add VLAN 40 (Parent: igb0, Tag: 40, Description: GUEST)</li>
+    <li>Save</li>
+</ul>
+
+<h3>2. Assign Interfaces</h3>
+
+<ul>
+    <li>Interfaces → Assignments</li>
+    <li>Add → Select VLAN10 → Enable interface</li>
+    <li>Configure:
+        <ul>
+            <li>IPv4 Type: Static</li>
+            <li>IPv4 Address: 192.168.10.1/24</li>
+        </ul>
+    </li>
+    <li>Repeat for VLAN30 (192.168.30.1/24) and VLAN40 (192.168.40.1/24)</li>
+</ul>
+
+<h3>3. Configure DHCP</h3>
+
+<ul>
+    <li>Services → DHCP Server</li>
+    <li>Select TRUSTED tab → Enable DHCP</li>
+    <li>Range: 192.168.10.100 - 192.168.10.200</li>
+    <li>DNS Servers: 1.1.1.1, 9.9.9.9 (or your preferred)</li>
+    <li>Repeat for IOT and GUEST VLANs</li>
+</ul>
+
+<h3>4. Firewall Rules</h3>
+
+<p><strong>TRUSTED Rules:</strong></p>
+<pre data-lang="text"><code class="language-text">Firewall → Rules → TRUSTED
+Add Rule:
+- Action: Pass
+- Interface: TRUSTED
+- Protocol: Any
+- Source: TRUSTED net
+- Destination: Any
+(Allows trusted devices to access everything)</code></pre>
+
+<p><strong>IOT Rules:</strong></p>
+<pre data-lang="text"><code class="language-text">Firewall → Rules → IOT
+
+Rule 1 (Block RFC1918 private addresses):
+- Action: Block
+- Interface: IOT
+- Protocol: Any
+- Source: IOT net
+- Destination: RFC1918 (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+- Description: Block IoT from accessing LAN
+
+Rule 2 (Allow internet):
+- Action: Pass
+- Interface: IOT
+- Protocol: Any
+- Source: IOT net
+- Destination: Any
+- Description: Allow IoT internet access</code></pre>
+
+<p><strong>GUEST Rules:</strong></p>
+<pre data-lang="text"><code class="language-text">Firewall → Rules → GUEST
+
+Rule 1 (Block LAN):
+- Action: Block
+- Interface: GUEST
+- Protocol: Any
+- Source: GUEST net
+- Destination: RFC1918
+- Description: Isolate guests from LAN
+
+Rule 2 (Allow internet):
+- Action: Pass
+- Interface: GUEST
+- Protocol: Any
+- Source: GUEST net
+- Destination: Any
+- Description: Guest internet only</code></pre>
+
+<h3>5. Enable Logging for Security Events</h3>
+
+<pre data-lang="text"><code class="language-text">Firewall → Rules → IOT
+Edit "Block RFC1918" rule:
+- Log packets that are handled by this rule: ✓
+- Save
+
+View logs:
+Status → System Logs → Firewall</code></pre>
+
+        <h2>Testing Network Segmentation</h2>
+
+        <h3>1. Test VLAN Isolation</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Test firewall rules are properly isolating network segments
+# Run these tests from devices connected to different VLANs
+
+# From trusted device (e.g., laptop on trusted VLAN at 192.168.10.100)
+# Test: Can trusted device access IoT devices?
+# ping = ICMP echo request (tests network connectivity)
+# 192.168.30.101 = example IoT device IP (camera)
+ping 192.168.30.101
+# Expected output: Reply from 192.168.30.101, successful pings
+# Why: Trusted→IoT forwarding rule allows access (for management)
+# Use when: Verifying trusted zone can manage IoT devices
+# Success: Receive ping replies (ICMP echo reply)
+# Failure: If timeout, check forwarding rule 'trusted' to 'iot'
+
+# From IoT device (e.g., camera on IoT VLAN at 192.168.30.101)
+# Test: Can IoT device access trusted devices? (should FAIL)
+# 192.168.10.100 = trusted device IP (your laptop)
+ping 192.168.10.100
+# Expected output: "Destination Host Unreachable" or timeout (100% packet loss)
+# Why: No IoT→Trusted forwarding rule (implicit deny)
+# Use when: Verifying IoT isolation from trusted network
+# Success: Ping FAILS (firewall blocking as intended)
+# Failure: If ping succeeds, firewall misconfigured (SECURITY ISSUE!)
+# Troubleshooting: Check no accidental IoT→Trusted forwarding rule exists
+
+# From IoT device, try to access router web interface
+# Test: Can IoT device manage router? (should FAIL)
+# curl = HTTP client
+# http://192.168.30.1 = router IP on IoT VLAN (web interface)
+curl http://192.168.30.1
+# Expected output: Connection refused or timeout (no response)
+# Why: Firewall rule "Block IoT to Router" (port 80/443 blocked)
+# Use when: Verifying IoT can't attack router management
+# Success: Connection FAILS (blocked by firewall)
+# Failure: If HTML returned, firewall rule missing (CRITICAL ISSUE!)
+# Security: Compromised IoT should never access router admin interface</code></pre>        <h3>2. Test Internet Access</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Verify all VLANs have internet access (forwarding to WAN works)
+
+# From trusted device (192.168.10.100)
+# Test: Can trusted zone access internet?
+# curl = HTTP client
+# ifconfig.me = service that returns your public IP
+curl ifconfig.me
+# Expected output: Your public IP address (ISP-assigned IP)
+# Why: Verify trusted→wan forwarding rule works
+# Use when: Testing internet connectivity from trusted zone
+# Success: Returns public IP (not 192.168.x.x)
+# Failure: If timeout/error, check WAN zone configuration or ISP connection
+
+# From IoT device (192.168.30.101)
+# Test: Can IoT zone access internet?
+curl ifconfig.me
+# Expected output: Your public IP address (same as trusted)
+# Why: Verify iot→wan forwarding rule works (IoT needs internet for functionality)
+# Use when: Testing IoT internet access
+# Success: Returns public IP
+# Failure: If timeout, check IoT→WAN forwarding rule exists
+# Note: Same public IP for all zones (NAT'd through router)
+
+# From guest device (192.168.40.100)
+# Test: Can guest zone access internet?
+curl ifconfig.me
+# Expected output: Your public IP address
+# Why: Verify guest→wan forwarding rule works (guests need internet)
+# Use when: Testing guest network internet access
+# Success: Returns public IP
+# Failure: If timeout, check guest→WAN forwarding rule
+# Security: Guest can reach internet but not LAN (verified in previous test)</code></pre>        <h3>3. Verify DNS Resolution</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Test DNS resolution works on all VLANs
+# Router provides DNS service (dnsmasq) on each VLAN interface
+
+# Test DNS with nslookup (simple DNS query)
+# nslookup = DNS lookup utility
+# google.com = test domain
+nslookup google.com
+# Expected output: Non-authoritative answer with IP addresses
+# Why: Verify router DNS service responding to queries
+# Use when: Testing DNS functionality after segmentation setup
+# Success: Returns IP addresses for google.com (e.g., 142.250.x.x)
+# Failure: If "server can't find", check dnsmasq running (/etc/init.d/dnsmasq status)
+
+# Test DNS with dig (detailed DNS query)
+# dig = DNS lookup utility (more detailed than nslookup)
+# example.com = test domain
+dig example.com
+# Expected output: ANSWER SECTION with A records and IP addresses
+# Why: Verify DNS resolution with detailed output (query time, server used)
+# Use when: Troubleshooting DNS issues
+# Success: ANSWER section contains IP address
+# Failure: If SERVFAIL, check upstream DNS servers configured
+
+# Check which DNS server is being used
+# nslookup google.com = query google.com
+# grep Server = filter output for DNS server line
+nslookup google.com | grep Server
+# Expected output: "Server: 192.168.X.1" (X=10 for trusted, 30 for IoT, 40 for guest)
+# Why: Confirm devices using router as DNS server (not ISP DNS directly)
+# Use when: Verifying DHCP provided correct DNS server to clients
+# Success: Shows router IP as DNS server (192.168.10.1, 192.168.30.1, etc.)
+# Failure: If shows ISP DNS (e.g., 8.8.8.8), DHCP config may be wrong
+# Security: Router DNS allows local DNS blocking (Pi-hole integration)</code></pre>        <h3>4. Port Scan Detection</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Test firewall blocks IoT reconnaissance of trusted network
+# Verify firewall logs suspicious activity
+
+# From IoT device, attempt to scan trusted network
+# nmap = network scanner/security auditing tool
+# -sn = ping scan only (no port scan, just host discovery)
+# 192.168.10.0/24 = trusted network subnet (CIDR notation)
+nmap -sn 192.168.10.0/24
+# Expected output: "Note: Host seems down" or timeout (no hosts discovered)
+# Why: Firewall blocks ICMP and TCP from IoT→Trusted (implicit deny)
+# Use when: Testing firewall effectiveness against network reconnaissance
+# Success: nmap finds NO hosts (all blocked by firewall)
+# Failure: If hosts discovered, firewall rules not working (CRITICAL ISSUE!)
+# Security: Prevents compromised IoT from mapping your trusted network
+# Note: This test may take 30-60 seconds (nmap probing entire subnet)
+
+# Check firewall logs for blocked IoT scan attempts
+# Logs reveal IoT trying to access trusted network (compromise indicator)
+
+# OpenWrt: View firewall logs
+# logread = OpenWrt system log viewer
+# grep iot = filter for IoT-related firewall logs
+logread | grep iot
+# Expected output: Log entries showing blocked packets from IoT zone
+# Why: Audit firewall activity, detect compromised IoT devices
+# Use when: Investigating suspicious IoT behavior
+# Success: See log entries like "IoT-to-LAN: SRC=192.168.30.101"
+# Example log: kernel: IoT-to-LAN: IN=br-iot OUT=br-trusted SRC=192.168.30.101 DST=192.168.10.100 PROTO=TCP DPT=22
+# Interpretation: IoT device 192.168.30.101 tried to SSH (port 22) to trusted device 192.168.10.100
+# Action: Investigate why IoT device attempting LAN access (malware/compromise indicator)
+
+# pfSense: View firewall logs via web interface
+# Status → System Logs → Firewall = firewall activity log
+# Why: GUI log viewer easier than command line for pfSense
+# Use when: Checking pfSense firewall blocks
+# Success: See blocked packets in firewall log with source/dest IPs, ports
+# Note: pfSense logs more detailed than OpenWrt (includes rule that matched)</code></pre><h2>Advanced: Intrusion Detection (Suricata)</h2>
+
+<p>Add network-based IDS to detect malicious traffic patterns.</p>
+
+<h3>pfSense: Install Suricata</h3>
+
+<pre data-lang="text"><code class="language-text">System → Package Manager → Available Packages
+Search: suricata
+Install
+
+Services → Suricata → Global Settings
+- Enable Suricata: ✓
+- Enable OpenAppID: ✓
+
+Interfaces:
+- Add WAN interface
+- Enable: ✓
+- IPS Mode: Block offenders (requires inline mode)
+
+Download Rules:
+- Enable: Emerging Threats Open
+- Update Interval: 12 hours
+
+Alerts:
+Services → Suricata → Alerts
+View real-time threat detections</code></pre>
+
+        <h3>OpenWrt: Install Suricata (Advanced)</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Install Suricata intrusion detection system on OpenWrt
+# WARNING: Requires OpenWrt with sufficient RAM (512MB+ minimum, 1GB+ recommended)
+# Suricata is resource-intensive (deep packet inspection)
+
+# Update package list to get latest Suricata
+# opkg update = refresh OpenWrt package repository index
+opkg update
+# Expected output: "Updated list of available packages"
+# Why: Need current package list to install Suricata
+# Use when: Before installing packages
+
+# Install Suricata IDS package
+# opkg install = install OpenWrt package
+# suricata = network intrusion detection system
+opkg install suricata
+# Expected output: "Installing suricata", "Configuring suricata"
+# Why: Add network-based threat detection (signatures for malware, exploits, C2)
+# Use when: Want advanced threat detection beyond firewall rules
+# Note: May take several minutes to install and download initial rulesets
+# Warning: High RAM usage (check with 'free -m' before installing)
+
+# Configure Suricata to monitor your network segments
+# vi = text editor
+# /etc/suricata/suricata.yaml = main Suricata configuration file
+vi /etc/suricata/suricata.yaml
+# Expected output: Opens vi with YAML configuration
+# Why: Define home networks, rule sources, detection settings
+# Use when: After installing Suricata
+# Note: YAML is whitespace-sensitive (use spaces, not tabs)
+
+# Set home networks (YOUR internal networks to protect)
+# HOME_NET = Suricata variable for internal IP ranges
+# "[192.168.10.0/24, 192.168.30.0/24]" = trusted and IoT VLANs
+HOME_NET: "[192.168.10.0/24, 192.168.30.0/24]"
+# Expected: Suricata treats these IPs as internal (monitors inbound/outbound)
+# Why: Distinguish internal vs external traffic (different rule logic)
+# Use when: Configuring Suricata for your network
+# Note: Exclude guest VLAN (192.168.40.0/24) - don't care about guest traffic analysis
+# Adjust: Add all your internal VLANs (work, DMZ, etc.)
+
+# Enable rule sources (threat signature databases)
+# rule-files = list of rule files to load
+# emerging-threats.rules = free community ruleset (updated daily)
+rule-files:
+  - emerging-threats.rules
+# Expected: Suricata loads Emerging Threats signature database
+# Why: Detect known exploits, malware, C2 communications
+# Use when: Configuring threat detection rules
+# Note: ET Open is free, ET Pro requires subscription (more rules, faster updates)
+# Alternative rulesets: Snort Community Rules, Abuse.ch rules (add more lines)
+
+# Start Suricata service immediately
+# /etc/init.d/suricata = Suricata init script
+# start = launch Suricata process
+/etc/init.d/suricata start
+# Expected output: "Starting suricata"
+# Why: Begin monitoring network traffic for threats
+# Use when: After configuring suricata.yaml
+# Note: First startup slow (loading rulesets, compiling patterns)
+# Verify: ps | grep suricata (should show running process)
+
+# Enable Suricata to start automatically on boot
+# /etc/init.d/suricata enable = add to startup scripts
+/etc/init.d/suricata enable
+# Expected output: No output on success
+# Why: Ensure IDS protection persists across reboots
+# Use when: After verifying Suricata works correctly
+# Note: Disable if router becomes unstable (RAM exhaustion)
+
+# View Suricata alerts in real-time
+# tail -f = follow log file (shows new lines as added)
+# /var/log/suricata/fast.log = simplified alert format
+tail -f /var/log/suricata/fast.log
+# Expected output: Stream of alerts as threats detected
+# Why: Monitor for ongoing attacks, compromised devices
+# Use when: Investigating suspicious activity, monitoring after setup
+# Example alert:
+#   01/15/2024-14:32:18.123456 [**] [1:2024364:2] ET MALWARE Win32/Emotet ... [**]
+# Interpretation: Emotet malware detected (signature ID 1:2024364:2)
+# Action: Investigate source IP, isolate compromised device
+# Note: Many false positives normal (tune rules over time)</code></pre>        <h2>Monitoring and Maintenance</h2>
+
+        <h3>Network Traffic Analysis</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Install bandwidth monitoring tools on OpenWrt
+# opkg install = install packages
+# iftop = real-time bandwidth monitor per interface
+# nethogs = bandwidth monitor per process/connection
+opkg install iftop nethogs
+# Expected output: "Installing iftop", "Installing nethogs"
+# Why: Monitor network usage, identify bandwidth hogs, detect anomalies
+# Use when: Troubleshooting network performance, identifying suspicious traffic
+# Note: Both tools require root/sudo privileges
+
+# View real-time bandwidth usage per network interface
+# iftop = interactive bandwidth monitor
+# -i br-trusted = monitor trusted bridge interface
+iftop -i br-trusted
+# Expected output: Live table of connections, source/dest IPs, bandwidth usage
+# Why: See who's using bandwidth on trusted network in real-time
+# Use when: Investigating slow network, monitoring specific VLAN
+# Interface: Shows bi-directional bandwidth per connection
+# Controls: Press 'q' to quit, 't' to toggle display mode
+# Alternative interfaces: -i br-iot, -i br-guest, -i eth0 (WAN)
+# Note: Adjust br-trusted to your actual interface name (check with 'ip link')
+
+# View bandwidth usage per process (requires root)
+# nethogs = per-process network monitor
+nethogs
+# Expected output: Table showing processes and their send/receive rates
+# Why: Identify which process consuming bandwidth (browser, torrent, malware)
+# Use when: Troubleshooting application network usage
+# Display: Shows PID, user, program name, KB/s sent/received
+# Controls: Press 'q' to quit, 'm' to change units (KB/MB/GB)
+# Note: Must run on device consuming bandwidth (not router)
+
+# pfSense: Use built-in traffic graphing (no command needed)
+# Web interface: Status → Traffic Graph
+# Why: pfSense has integrated real-time traffic graphs
+# Use when: Monitoring pfSense firewall traffic
+# Select interface to monitor: WAN, LAN, TRUSTED, IOT, GUEST
+# Features: Real-time graphs, historical data, per-VLAN breakdown
+# Note: More user-friendly than command-line tools</code></pre><h3>Regular Security Checks</h3>
+
+<ul>
+    <li><strong>Weekly:</strong> Review firewall logs for anomalies</li>
+    <li><strong>Monthly:</strong> Update router firmware and IDS rules</li>
+    <li><strong>Quarterly:</strong> Audit firewall rules (remove unnecessary exceptions)</li>
+    <li><strong>Yearly:</strong> Re-evaluate network segmentation strategy</li>
+</ul>
+
+        <h3>Backup Configuration</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># OpenWrt: Backup router configuration via SSH
+# CRITICAL: Backup before major changes or firmware updates
+
+# SSH into OpenWrt router
+# ssh = secure shell client
+# root@192.168.1.1 = root user on router IP
+ssh root@192.168.1.1
+# Expected output: Password prompt, shell access to router
+# Why: Need router access to create backup
+# Use when: Before firmware updates, major config changes
+# Note: Adjust IP to your router address (192.168.10.1 if on trusted VLAN)
+
+# Create backup archive with date stamp
+# sysupgrade -b = create backup of configuration
+# /tmp/backup-$(date +%Y%m%d).tar.gz = filename with date (e.g., backup-20240115.tar.gz)
+sysupgrade -b /tmp/backup-$(date +%Y%m%d).tar.gz
+# Expected output: Creating backup archive in /tmp
+# Why: Save all configuration files (/etc/config/*, installed packages list)
+# Use when: Before risky changes (firmware update, major reconfig)
+# Contains: network, firewall, wireless, dhcp configs, package list
+# Note: Does NOT include custom scripts outside /etc (backup separately)
+
+# Copy backup from router to local machine
+# scp = secure copy (SSH file transfer)
+# root@192.168.1.1:/tmp/backup-*.tar.gz = remote file path (wildcard matches date)
+# ./ = copy to current directory on local machine
+scp root@192.168.1.1:/tmp/backup-*.tar.gz ./
+# Expected output: backup-20240115.tar.gz copied, transfer progress
+# Why: Store backup off-router (safe from firmware failure, router brick)
+# Use when: After creating backup on router
+# Security: Store backup encrypted offsite (USB drive, cloud storage)
+# Restore: sysupgrade -r backup-YYYYMMDD.tar.gz (upload to /tmp first)
+
+# pfSense: Backup configuration via web interface
+# Web UI: Diagnostics → Backup & Restore
+# Why: pfSense uses XML for config (easier to edit than OpenWrt's UCI)
+# Use when: Before pfSense upgrades, rule changes
+# Steps:
+#   1. Navigate to Diagnostics → Backup & Restore
+#   2. Click "Download configuration as XML"
+#   3. Save XML file (e.g., pfSense-config-20240115.xml)
+# Security: Store encrypted offsite (cloud storage with encryption)
+# Contains: All firewall rules, VLANs, interfaces, NAT, VPN configs
+# Restore: Upload XML via same page, click "Restore Configuration"
+# Note: Backup after EVERY successful config change</code></pre><h2>Common Mistakes</h2>
+
+<h3>1. Incomplete Isolation</h3>
+<p><strong>Mistake:</strong> Allowing IoT devices to access router DNS/DHCP creates pivot opportunity.</p>
+<p><strong>Fix:</strong> Use dedicated DNS server for untrusted zones or restrict DNS queries with firewall rules.</p>
+
+<h3>2. Overlooking IPv6</h3>
+<p><strong>Mistake:</strong> IPv4 firewall rules don't apply to IPv6. IoT devices can bypass segmentation via IPv6.</p>
+<p><strong>Fix:</strong> Disable IPv6 on untrusted VLANs or create equivalent IPv6 firewall rules.</p>
+
+<h3>3. Trusting IoT Firmware</h3>
+<p><strong>Mistake:</strong> Assuming IoT manufacturer's security updates are sufficient.</p>
+<p><strong>Fix:</strong> Treat all IoT as compromised. Never allow direct LAN access.</p>
+
+<h3>4. Permissive Default Rules</h3>
+<p><strong>Mistake:</strong> Creating allow-all rules and adding exceptions.</p>
+<p><strong>Fix:</strong> Default deny, explicitly allow only required traffic.</p>
+
+<div class="terminal-success not-prose">
+    <div class="terminal-success-header">
+        <i data-lucide="shield-check" class="terminal-success-icon"></i>
+        <h3 class="terminal-success-title">Defense in Depth</h3>
+    </div>
+    <p class="terminal-success-content">
+        Network segmentation contains breaches but doesn't prevent them. Combine with: endpoint hardening (Circle 3), encrypted communication (Circle 2), and physical security. A compromised IoT device trapped in its VLAN is inconvenient, not catastrophic.
+    </p>
+</div>
+
+<h2>Next Steps</h2>
+
+<p>You now have isolated network zones with firewall rules preventing lateral movement. Part 4 covers secure remote access: setting up WireGuard VPN for accessing your home network, and SSH hardening for server management.</p>
+
+<blockquote>
+    "A network without segmentation is a single point of failure. A segmented network is a series of controlled chokepoints."
+</blockquote>
+
+<div class="flex justify-between mt-12 pt-6 border-t border-shell-border">
+    <a href="#/posts/3.Network_Security/part2.html" class="text-shell-accent hover:underline">← Part 2: Tor Network & Anonymity</a>
+    <a href="#/posts/3.Network_Security/part4.html" class="text-shell-accent hover:underline">Part 4: Secure Remote Access →</a>
+</div>

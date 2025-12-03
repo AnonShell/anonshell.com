@@ -1,0 +1,742 @@
+<h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+    <span class="text-gray-500">#</span> 9. Wireless Security & Rogue AP
+</h1>
+
+<div class="terminal-alert not-prose mb-8">
+    <div class="terminal-alert-header">
+        <i data-lucide="alert-circle" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Why Wireless Security Matters</h3>
+    </div>
+    <p class="terminal-alert-content">
+        WiFi networks broadcast your data through walls to anyone within range. Weak encryption allows neighbors and attackers to intercept traffic. Rogue access points trick you into connecting, stealing credentials and monitoring communications. <strong>An insecure wireless network is an open door to your entire digital life.</strong>
+    </p>
+</div>
+
+<h2>The Wireless Threat Landscape</h2>
+
+<p>WiFi operates on radio frequencies (2.4GHz, 5GHz, 6GHz) that are accessible to anyone with a wireless adapter. Key threats include:</p>
+
+<ul>
+    <li><strong>Weak encryption (WEP, WPA)</strong> - Can be cracked in minutes, exposing all network traffic</li>
+    <li><strong>Evil twin attacks</strong> - Fake access points impersonating legitimate networks to steal credentials</li>
+    <li><strong>Rogue access points</strong> - Unauthorized APs on your network creating backdoors for attackers</li>
+    <li><strong>Deauthentication attacks</strong> - Forcing clients to disconnect and reconnect, capturing handshakes for cracking</li>
+    <li><strong>Man-in-the-middle (MITM)</strong> - Attackers intercepting wireless traffic to capture passwords and session tokens</li>
+    <li><strong>WPS vulnerabilities</strong> - WiFi Protected Setup can be brute-forced, bypassing WPA2 entirely</li>
+</ul>
+
+<div class="terminal-info not-prose my-6">
+    <div class="terminal-info-header">
+        <i data-lucide="shield" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">Defense Strategy</h3>
+    </div>
+    <p class="terminal-info-content">
+        Use WPA3 encryption with strong passphrases, disable WPS, implement MAC filtering and network segmentation, continuously scan for rogue APs, monitor deauthentication attacks, and use wireless IDS to detect anomalies.
+    </p>
+</div>
+
+<h2>1. Wireless Security Assessment</h2>
+
+<p>Conducting a wireless security assessment of your own network allows you to identify vulnerabilities before attackers do, testing your WiFi encryption strength, detecting unauthorized access points, and verifying that security configurations are properly implemented and haven't been inadvertently weakened by firmware updates or configuration changes. This assessment phase establishes your wireless security baseline by documenting all authorized access points with their BSSIDs (MAC addresses), channels, encryption protocols, and signal strengths, then actively scanning for anomalies like rogue APs, evil twins impersonating your network, or weak encryption that could be exploited. Understanding your wireless environment is critical because WiFi broadcasts through walls to anyone within range, making it fundamentally different from wired networks where attackers must gain physical access or compromise internet-facing services - with wireless, your network perimeter extends to wherever your signal reaches, potentially including neighboring buildings, parking lots, or streets where attackers can sit comfortably capturing traffic without ever being detected.</p>
+
+<h3>Scanning WiFi Networks with Aircrack-ng Suite</h3>
+
+<p>The Aircrack-ng suite provides the essential toolkit for comprehensive wireless security assessment, offering a collection of command-line utilities that handle every aspect of WiFi testing from packet capture and injection to encryption cracking and analysis. Installing aircrack-ng brings tools like airodump-ng for passive scanning and packet capture, aireplay-ng for packet injection and deauthentication attacks, aircrack-ng for WEP/WPA/WPA2 password cracking, and airmon-ng for managing wireless interface modes. Before any wireless assessment can begin, you must configure your wireless adapter for monitor mode, a special operating mode that allows the adapter to capture all WiFi packets in range regardless of the destination address, rather than only packets addressed to your MAC address as in normal managed mode. Monitor mode is essential because it enables passive reconnaissance of all nearby networks, capturing handshakes for security analysis, and detecting hidden networks that don't broadcast their SSID but can be revealed by observing client probe requests.</p>
+
+<p>The Aircrack-ng suite is the industry standard for WiFi security testing. It includes tools for packet capture, injection, cracking, and analysis.</p>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Install Aircrack-ng suite:</p>
+    <pre data-lang="bash"><code class="language-bash"># Install aircrack-ng wireless security toolkit
+# sudo apt install = install package with root privileges
+# aircrack-ng = suite of tools for WiFi security auditing (airodump-ng, aireplay-ng, aircrack-ng)
+sudo apt install aircrack-ng
+# Expected output: Package installation progress, ~50MB download
+# Why: Essential toolkit for wireless network assessment and security testing
+# Use when: Auditing your own WiFi security or authorized penetration testing
+# Warning: Using these tools on networks you don't own is illegal
+# Note: Also installs dependencies like wireless drivers and libraries</code></pre>
+</div>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Put wireless adapter in monitor mode:</p>
+    <pre data-lang="bash"><code class="language-bash"># Check wireless interface name
+# iwconfig = display wireless interface configuration
+iwconfig
+# Expected output: Shows wireless interfaces (wlan0, wlp2s0, etc.) and their status
+# Why: Need to identify interface name before enabling monitor mode
+# Normal output: wlan0, wlan1, wlp2s0 (naming varies by system)
+
+# Disable network manager to prevent interference
+# sudo systemctl stop = stop systemd service
+# NetworkManager = manages network connections, conflicts with monitor mode
+sudo systemctl stop NetworkManager
+# Expected output: No output if successful
+# Why: NetworkManager tries to manage wireless adapter, interferes with manual configuration
+# Use when: About to put adapter in monitor mode
+# Warning: This disables all network manager functionality until you restart it
+# Note: Remember to restart: sudo systemctl start NetworkManager when done
+
+# Kill interfering processes
+# sudo airmon-ng check kill = terminate processes that interfere with monitor mode
+# Kills: dhclient, wpa_supplicant, NetworkManager processes
+sudo airmon-ng check kill
+# Expected output: Lists killed processes (PID and process names)
+# Why: These processes constantly try to manage the wireless adapter
+# Processes killed: wpa_supplicant (WPA authentication), dhclient (DHCP), network managers
+# Note: Your internet connection will drop when these are killed
+
+# Enable monitor mode
+# sudo airmon-ng start = put interface into monitor mode
+# wlan0 = your wireless interface name (replace with your actual interface)
+# monitor mode = promiscuous mode allowing capture of all WiFi packets in range
+sudo airmon-ng start wlan0
+# Expected output: "monitor mode enabled on wlan0mon" or similar
+# Creates new interface: wlan0mon (original interface + "mon" suffix)
+# Why: Monitor mode required to capture WiFi packets without being connected
+# Use when: Beginning any wireless security assessment
+# Note: Interface name changes to wlan0mon - use this for subsequent commands
+
+# Verify monitor mode is active
+# iwconfig = check wireless interface configuration
+iwconfig
+# Expected output: Shows "Mode:Monitor" for wlan0mon interface
+# Why: Confirm monitor mode successfully enabled before proceeding
+# Look for: "Mode:Monitor" in output for wlan0mon
+# If not showing monitor mode: repeat airmon-ng start command</code></pre>
+</div>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Scan for all nearby WiFi networks:</p>
+    <pre data-lang="bash"><code class="language-bash"># Scan and capture WiFi networks
+# sudo airodump-ng = capture WiFi packets and display networks
+# wlan0mon = interface in monitor mode (use your actual monitor interface)
+sudo airodump-ng wlan0mon
+# Expected output: Real-time updating table of WiFi networks
+# Top section: Access points (BSSIDs, channels, encryption, SSIDs)
+# Bottom section: Connected clients (stations) and their associations
+# Columns explained:
+#   BSSID = MAC address of access point (unique identifier)
+#   PWR = Signal strength (-30 = very strong, -80 = weak)
+#   Beacons = Announcement packets sent by AP (more = more stable)
+#   #Data = Number of data packets captured
+#   CH = WiFi channel (1-13 on 2.4GHz, 36+ on 5GHz)
+#   ENC = Encryption type (WPA2, WPA3, WEP, OPN=Open)
+#   CIPHER = Encryption cipher (CCMP, TKIP)
+#   AUTH = Authentication method (PSK, MGT, OPN)
+#   ESSID = Network name (SSID)
+# Why: Identify all WiFi networks in range, find weak encryption, detect hidden SSIDs
+# Use when: Assessing wireless security posture of area
+# Look for: WEP (ancient, crackable in minutes), WPA (old, vulnerable), hidden SSIDs
+# Press Ctrl+C to stop scanning
+
+# Security red flags in output:
+# - ENC: WEP = Immediately vulnerable, crackable in &lt;5 minutes
+# - ENC: WPA (not WPA2/WPA3) = Vulnerable to attacks
+# - Hidden SSID with clients = Can be revealed by deauth attack
+# - Multiple APs with same SSID but different BSSIDs = Possible evil twin
+# - Unknown APs in your building = Potential rogue access points</code></pre>
+</div>
+
+<h3>Targeted Network Capture</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Capture packets from specific network to analyze security:</p>
+    <pre data-lang="bash"><code class="language-bash"># Capture packets from specific access point
+# sudo airodump-ng = WiFi packet capture tool
+# -c 6 = lock to channel 6 (prevents channel hopping, improves capture quality)
+#        Replace with actual channel of target network from previous scan
+# --bssid AA:BB:CC:DD:EE:FF = filter for specific access point MAC address
+#                             Replace with target BSSID from scan
+# -w capture = write packets to files named capture-01.cap, capture-02.cap, etc.
+#              Creates multiple files: .cap (packets), .csv (network data), .kismet.csv
+# wlan0mon = monitor mode interface
+sudo airodump-ng -c 6 --bssid AA:BB:CC:DD:EE:FF -w capture wlan0mon
+# Expected output: Focused view of single network and its clients
+# Shows: All devices connected to this AP, packet counts, signal strength
+# Files created:
+#   capture-01.cap = Packet capture file (can be opened in Wireshark)
+#   capture-01.csv = CSV log of networks seen
+#   capture-01.kismet.csv = Kismet-format log
+# Why: Concentrated capture of one network allows detailed analysis
+# Use when: Investigating specific network for security assessment
+# Wait for: "WPA handshake: AA:BB:CC:DD:EE:FF" in top-right corner
+#           This indicates successful capture of 4-way handshake for WPA cracking
+# Keep running: Until handshake captured (wait for client to connect or force reconnect)
+# Handshake captured when: Client connects/reconnects to network
+# Press Ctrl+C to stop and save capture
+
+# Reading the output:
+# Top right corner: Shows "WPA handshake: [BSSID]" when handshake captured
+# Beacons column: Should be increasing (AP is broadcasting)
+# Data column: Increases when clients send/receive data
+# Station (bottom): Shows all clients connected to this AP
+#   PWR = Client signal strength
+#   Packets = Data sent by client
+#   Probes = Networks this client is looking for (privacy leak!)</code></pre>
+</div>
+
+<h2>2. WPA/WPA2/WPA3 Security Analysis</h2>
+
+<h3>Understanding WiFi Encryption Standards</h3>
+
+<div class="terminal-info not-prose my-6">
+    <div class="terminal-info-header">
+        <i data-lucide="info" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">Encryption Evolution</h3>
+    </div>
+    <div class="terminal-info-content">
+        <p><strong>WEP (1999):</strong> Fundamentally broken, crackable in minutes. Never use.</p>
+        <p><strong>WPA (2003):</strong> Temporary fix for WEP, vulnerable to dictionary attacks. Deprecated.</p>
+        <p><strong>WPA2 (2004):</strong> Industry standard for 15+ years, strong with long passphrases. Vulnerable to KRACK attack (patched) and offline dictionary attacks with weak passwords.</p>
+        <p><strong>WPA3 (2018):</strong> Modern standard with forward secrecy (Dragonfly handshake), protection against offline dictionary attacks, 192-bit encryption mode. Recommended for all new deployments.</p>
+    </div>
+</div>
+
+<h3>Testing WPA2 Passphrase Strength</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Capture WPA handshake for security testing:</p>
+    <pre data-lang="bash"><code class="language-bash"># Method 1: Wait for client to naturally connect (can take hours)
+# Method 2: Force client reconnection with deauthentication (faster, but detectable)
+
+# Deauthentication attack (forces client to reconnect, capturing handshake)
+# sudo aireplay-ng = WiFi packet injection tool
+# --deauth 5 = send 5 deauthentication frames
+#              More frames = more aggressive, easier to detect
+#              Fewer frames = stealthier but might not work
+# -a AA:BB:CC:DD:EE:FF = target access point BSSID (AP to attack)
+# -c 11:22:33:44:55:66 = target client MAC address (specific device to disconnect)
+#                        Omit this to deauth ALL clients (more disruptive, more obvious)
+# wlan0mon = monitor mode interface
+sudo aireplay-ng --deauth 5 -a AA:BB:CC:DD:EE:FF -c 11:22:33:44:55:66 wlan0mon
+# Expected output: "Sending DeAuth to [AP] -- STMAC: [Client]"
+# What happens: Client gets kicked off WiFi for 1-3 seconds
+# Client behavior: Automatically reconnects within seconds
+# Network disruption: Minimal (few seconds), but repeated deauths = denial of service
+# Why: Force handshake capture when testing your own network
+# Use when: Authorized testing of WPA2 security (your network only)
+# Warning: Deauth attacks are illegal on networks you don't own
+# Detectable by: Wireless IDS, network admins monitoring management frames
+# Alternatives: Be patient and wait for natural client connection/reconnection
+
+# Check airodump-ng window: Should show "WPA handshake: [BSSID]" in top-right
+# If no handshake: Client might not have reconnected yet, send more deauth frames
+# Handshake components: 4 EAPOL frames exchanged during authentication
+#   Frame 1: AP → Client (ANonce)
+#   Frame 2: Client → AP (SNonce)  
+#   Frame 3: AP → Client (GTK)
+#   Frame 4: Client → AP (Ack)
+# Need all 4 frames for successful handshake capture</code></pre>
+</div>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Analyze captured handshake strength (for educational purposes - your network only):</p>
+    <pre data-lang="bash"><code class="language-bash"># Verify handshake was captured successfully
+# aircrack-ng = WiFi password cracking and analysis tool
+# capture-01.cap = packet capture file from airodump-ng
+aircrack-ng capture-01.cap
+# Expected output: List of networks found in capture with handshake status
+# Shows: BSSID, Encryption, Handshake status, ESSID
+# Look for: "1 handshake" in output = successful capture
+# If shows "0 handshakes": Need to recapture with deauth attack
+# Why: Confirm handshake before attempting password analysis
+# Note: This command just checks, doesn't attempt cracking yet
+
+# Test against common passwords (demonstrates weak password vulnerability)
+# aircrack-ng = password cracking tool using dictionary attack
+# -w /usr/share/wordlists/rockyou.txt = wordlist file path
+#    rockyou.txt = 14 million real passwords from data breaches
+#    Most common passwords: "123456", "password", "12345678", "qwerty", etc.
+# -b AA:BB:CC:DD:EE:FF = target BSSID to crack
+# capture-01.cap = packet capture file with handshake
+aircrack-ng -w /usr/share/wordlists/rockyou.txt -b AA:BB:CC:DD:EE:FF capture-01.cap
+# Expected output: Tries passwords sequentially, shows speed (keys/second)
+# Typical speed: 500-5000 keys/second (CPU-dependent)
+# Success output: "KEY FOUND! [ password123 ]"
+# Failure output: "Passphrase not in dictionary" after testing all passwords
+# Time required: Depends on password position in wordlist
+#   Common passwords: Seconds to minutes
+#   Uncommon but dictionary: Hours to days
+#   Strong random passwords: Never (not in wordlist)
+# Why: Demonstrates that weak/common passwords are trivially crackable
+# Use when: Testing your own network's password strength
+# What this proves: Dictionary passwords are completely insecure for WiFi
+# Strong passwords: 20+ random characters, not in any wordlist
+
+# Generate custom wordlist for targeted testing
+# crunch = wordlist generator
+# 8 12 = minimum 8 characters, maximum 12 characters
+# -t @@@@@@@@ = pattern template (@ = lowercase, , = uppercase, % = numbers, ^ = symbols)
+# -o wordlist.txt = output file
+crunch 8 12 -t @@@@@@@@ -o wordlist.txt
+# Expected output: Generates all possible combinations, shows progress
+# File size warning: Can be HUGE (GBs to TBs depending on parameters)
+# Why: Create targeted wordlists based on password policy requirements
+# Use when: Testing if password policy alone is sufficient security
+# Example: Company requires 8-char alphanumeric = still crackable with enough time
+# Better approach: Use existing breached password lists, then add mutations</code></pre>
+</div>
+
+<div class="terminal-alert not-prose my-6">
+    <div class="terminal-alert-header">
+        <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Legal and Ethical Warning</h3>
+    </div>
+    <p class="terminal-alert-content">
+        <strong>Only test networks you own or have explicit written authorization to test.</strong> Unauthorized access to WiFi networks is illegal under computer fraud laws in most countries (CFAA in US, Computer Misuse Act in UK, etc.). Even "just testing" carries criminal penalties including fines and imprisonment. Use these tools only for: (1) Securing your own network, (2) Authorized professional penetration testing with contracts, (3) Educational lab environments with isolated networks.
+    </p>
+</div>
+
+<h2>3. Rogue Access Point Detection</h2>
+
+<p>Rogue APs are unauthorized wireless access points connected to your network. They can be:</p>
+<ul>
+    <li><strong>Employee-installed:</strong> Convenience devices creating security holes (old routers, travel routers)</li>
+    <li><strong>Attacker-deployed:</strong> Physical backdoors for remote access and lateral movement</li>
+    <li><strong>Evil twins:</strong> APs impersonating your network to steal credentials</li>
+</ul>
+
+<h3>Continuous Wireless Monitoring</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Set up Kismet for persistent wireless monitoring:</p>
+    <pre data-lang="bash"><code class="language-bash"># Install Kismet wireless IDS
+# sudo apt install = install package with root privileges
+# kismet = wireless network detector, sniffer, and IDS
+#          Detects: networks, hidden SSIDs, rogue APs, clients, anomalies
+sudo apt install kismet
+# Expected output: Package installation progress, ~30MB download
+# Why: Enterprise-grade wireless monitoring and intrusion detection
+# Use when: Need continuous monitoring for rogue APs and security threats
+# Capabilities: Packet capture, device tracking, alerting, GPS logging, protocol decoding
+# Web interface: Yes (modern UI at http://localhost:2501)
+
+# Add your user to kismet group (avoid running as root)
+# sudo usermod = modify user account
+# -aG kismet = add (-a) user to group (-G) named 'kismet'
+# $USER = your current username (environment variable)
+sudo usermod -aG kismet $USER
+# Expected output: No output if successful
+# Why: Kismet can run without root if user in kismet group (security best practice)
+# Use when: First time setting up Kismet
+# Note: Log out and back in for group membership to take effect
+# Verify with: groups command should show 'kismet'
+
+# Configure Kismet
+# sudo nano = edit file with root privileges
+# /etc/kismet/kismet_site.conf = Kismet local configuration (overrides defaults)
+sudo nano /etc/kismet/kismet_site.conf
+# Add this line to configure data source:
+# source=wlan0:name=MainMonitor
+#   source= declares a capture source
+#   wlan0 = wireless interface to use (Kismet will enable monitor mode automatically)
+#   name=MainMonitor = friendly name for this source in UI
+# Can add multiple sources:
+#   source=wlan0:name=Office2.4GHz
+#   source=wlan1:name=Office5GHz
+# Why: Tell Kismet which wireless interfaces to monitor
+# Note: Kismet handles monitor mode automatically, no need for airmon-ng
+
+# Add alerting for rogue APs
+# Add these lines to kismet_site.conf:
+# alertbackend=alerts
+# alert=ROGUE_AP:Include rogue access points
+# alert_channels=ethernet,alert
+#   alertbackend=alerts = enable alert system
+#   alert=ROGUE_AP = create alert for rogue APs
+#   alert_channels = where to send alerts (log files, external scripts)
+# Why: Get notified when unknown APs appear
+# Customization: Can define regex patterns for known vs. rogue based on SSID/BSSID</code></pre>
+</div>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Run Kismet and access web interface:</p>
+    <pre data-lang="bash"><code class="language-bash"># Start Kismet service
+# sudo systemctl start kismet = start Kismet daemon
+sudo systemctl start kismet
+# Expected output: No output if successful, Kismet runs in background
+# Why: Start wireless monitoring service
+# Service starts: Web server on port 2501, packet capture on configured interfaces
+# Auto-starts on boot: sudo systemctl enable kismet
+
+# Access web interface
+# Open browser and navigate to: http://localhost:2501
+# First-time setup: Create admin username and password
+# Dashboard shows:
+#   - Networks discovered (SSIDs, BSSIDs, encryption, channels, clients)
+#   - Devices (all WiFi clients seen, even if not connected to any network)
+#   - Channels (activity heatmap by WiFi channel)
+#   - Packets (capture statistics)
+#   - Alerts (security events)
+# Why: Modern UI easier than terminal output for continuous monitoring
+# Features: Real-time updates, filtering, sorting, device details, GPS mapping
+
+# Command-line monitoring (alternative)
+# kismet_client = connect to Kismet server from terminal
+kismet_client
+# Expected output: Live text-based interface showing networks and clients
+# Controls: Arrow keys to navigate, 's' to sort, 'h' for help
+# Why: Useful for remote/headless monitoring
+# Use when: No GUI available or scripting monitoring tasks
+
+# View Kismet logs
+# Kismet stores: pcap files, device database, alerts, GPS tracks
+# Default log location: ~/.kismet/logs/
+ls -la ~/.kismet/logs/
+# Expected output: List of log files with timestamps
+# Files:
+#   Kismet-*.pcapng = Full packet captures (can open in Wireshark)
+#   Kismet-*.kismet = Device database (networks, clients, relationships)
+#   Kismet-*.alerts = Security alerts and anomalies
+# Why: Historical data for forensics and trend analysis
+# Rotation: New files created daily or when Kismet restarts</code></pre>
+</div>
+
+<h3>Building a Rogue AP Baseline</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Create whitelist of authorized access points:</p>
+    <pre data-lang="bash"><code class="language-bash"># Export current network inventory
+# Create file: authorized_aps.txt
+# Format: BSSID,SSID,Location,Purpose
+# Example:
+cat &lt;&lt;'EOF' &gt; authorized_aps.txt
+AA:BB:CC:DD:EE:01,OfficeWiFi-Main,Building-A-Floor1,Primary-WiFi
+AA:BB:CC:DD:EE:02,OfficeWiFi-Main,Building-A-Floor2,Primary-WiFi
+AA:BB:CC:DD:EE:03,OfficeWiFi-Guest,Building-A-Lobby,Guest-Network
+11:22:33:44:55:01,OfficeWiFi-Main,Building-B-Floor1,Primary-WiFi
+EOF
+# cat &lt;&lt;'EOF' &gt; file = write multi-line content to file (heredoc syntax)
+# Why: Document all legitimate APs for comparison
+# Use when: Initial deployment, after adding/removing APs
+# Update: Whenever network changes are made
+# Columns: BSSID (unique identifier), SSID (network name), Location (physical), Purpose
+# Important: Include all radios (2.4GHz and 5GHz have different BSSIDs on same AP)
+
+# Script to compare active APs vs. whitelist
+# Create rogue detection script
+cat &lt;&lt;'EOF' &gt; detect_rogues.sh
+#!/bin/bash
+# Detect rogue access points by comparing active APs to whitelist
+
+# Extract BSSIDs from Kismet
+# kismet prints real-time network data
+# Parse output for BSSIDs
+# Compare against authorized_aps.txt
+# Alert on unknown BSSIDs
+
+WHITELIST="authorized_aps.txt"
+CURRENT_APS=$(sudo iw dev wlan0mon scan | grep "BSS" | awk '{print $2}')
+
+for AP in $CURRENT_APS; do
+    # Remove trailing ) from BSSID
+    AP_CLEAN=$(echo $AP | tr -d '()')
+    
+    # Check if in whitelist
+    if ! grep -q "$AP_CLEAN" "$WHITELIST"; then
+        echo "ROGUE AP DETECTED: $AP_CLEAN"
+        # Could add: send email, log to SIEM, trigger IPS block
+    fi
+done
+EOF
+# Expected output: Script file created
+# Why: Automated rogue AP detection
+# Use when: Run as cron job for continuous monitoring
+# Enhancements: Add SSID checks, signal strength, geolocation, alerting
+# Make executable: chmod +x detect_rogues.sh
+
+# Schedule hourly rogue AP checks
+# crontab -e = edit user's cron table (scheduled tasks)
+# Add this line:
+# 0 * * * * /path/to/detect_rogues.sh &gt;&gt; /var/log/rogue_ap_scan.log 2&gt;&1
+#   0 * * * * = run at minute 0 of every hour
+#   &gt;&gt; /var/log/rogue_ap_scan.log = append output to log file
+#   2&gt;&1 = redirect errors to same log
+# Why: Continuous automated monitoring without manual intervention
+# Use when: Production environment requiring 24/7 protection
+# Log rotation: Configure logrotate for /var/log/rogue_ap_scan.log</code></pre>
+</div>
+
+<h2>4. Evil Twin Attack Detection</h2>
+
+<p>Evil twin attacks use fake access points with legitimate SSIDs to trick users into connecting. The attacker then performs man-in-the-middle attacks to steal credentials and intercept traffic.</p>
+
+<h3>Indicators of Evil Twin Attacks</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Detect evil twin access points:</p>
+    <pre data-lang="bash"><code class="language-bash"># Monitor for duplicate SSIDs with different BSSIDs
+# sudo airodump-ng wlan0mon = scan for all WiFi networks
+# Look for: Same ESSID appearing multiple times with different BSSIDs
+sudo airodump-ng wlan0mon
+# Red flags in output:
+#   - Same SSID, different BSSID = potential evil twin
+#   - Unusually strong signal = attacker's AP is very close
+#   - Different channel than legitimate AP = suspicious
+#   - Encryption mismatch = legitimate is WPA3, fake is WPA2/Open
+#   - Different vendor (OUI) = legitimate is Cisco, fake is TP-Link
+# Example suspicious output:
+#   BSSID: AA:BB:CC:DD:EE:01  ESSID: OfficeWiFi  Channel: 6  ENC: WPA3  PWR: -45
+#   BSSID: 11:22:33:44:55:99  ESSID: OfficeWiFi  Channel: 11 ENC: WPA2  PWR: -20
+#   ^ Stronger signal, different channel, weaker encryption = likely evil twin
+# Why: Evil twins impersonate legitimate networks to steal credentials
+# Detection: Compare BSSID to known authorized list
+
+# Check BSSID vendor (OUI lookup)
+# macchanger -l | grep = search MAC vendor database
+# "AA:BB:CC" = first 3 octets of BSSID (manufacturer identifier)
+macchanger -l | grep "AA:BB:CC"
+# Expected output: Manufacturer name (Cisco, Ubiquiti, TP-Link, etc.)
+# Why: If known AP is Cisco but new BSSID shows TP-Link = likely rogue
+# OUI database: IEEE registry of MAC address prefixes
+# Use when: Investigating suspicious duplicate SSIDs
+# Note: Install macchanger if not available: sudo apt install macchanger
+
+# Advanced: Signal strength fingerprinting
+# Create signal strength baseline for legitimate APs
+# Unusual signal = physical location changed or new device
+# Example: Legitimate AP always -50dBm, suddenly seeing -20dBm = attacker nearby
+# Use when: High-security environment with fixed AP locations
+
+# Automated evil twin detection script
+cat &lt;&lt;'EOF' &gt; detect_evil_twin.sh
+#!/bin/bash
+# Detect evil twin APs (duplicate SSIDs with different BSSIDs)
+
+SCAN_OUTPUT=$(sudo airodump-ng wlan0mon --output-format csv -w scan --write-interval 5)
+sleep 10  # Let scan run for 10 seconds
+sudo pkill airodump-ng
+
+# Parse CSV and find duplicate SSIDs
+DUPLICATES=$(cat scan-01.csv | awk -F',' '{print $14}' | sort | uniq -d)
+
+if [ -n "$DUPLICATES" ]; then
+    echo "EVIL TWIN DETECTED: Duplicate SSIDs found:"
+    echo "$DUPLICATES"
+    # Could add: detailed BSSID comparison, alerting, automatic blocking
+fi
+EOF
+# Why: Automated evil twin detection for continuous monitoring
+# Use when: Protecting against sophisticated attacks
+# Enhancements: Compare against whitelist, check encryption mismatches, signal analysis</code></pre>
+</div>
+
+<h2>5. Wireless Intrusion Detection with Snort</h2>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Install and configure Snort for wireless monitoring:</p>
+    <pre data-lang="bash"><code class="language-bash"># Install Snort IDS
+# sudo apt install = install package with root privileges
+# snort = network intrusion detection and prevention system
+sudo apt install snort
+# Expected output: Package installation, prompts for network configuration
+# Prompts: Enter your network CIDR (e.g., 192.168.1.0/24)
+# Why: IDS for detecting wireless attacks in real-time
+# Capabilities: Packet logging, protocol analysis, pattern matching, alerting
+# Note: Snort can also run in IPS mode to block attacks
+
+# Create custom Snort rules for wireless attacks
+# sudo nano = edit file with root privileges
+# /etc/snort/rules/local.rules = custom Snort rules file
+sudo nano /etc/snort/rules/local.rules
+
+# Add these rules:
+
+# Detect deauthentication flood (DoS attack)
+# alert = generate alert (vs. log, pass, drop)
+# wlan = wireless LAN protocol
+# any -&gt; any = any source to any destination
+# msg = alert message text
+# wlan_type:1 = management frame (0=management, 1=control, 2=data)
+# wlan_subtype:12 = deauth frame subtype
+# threshold: type threshold, track by_src, count 5, seconds 60 = alert if &gt;5 deauths from same source in 60 seconds
+# sid:1000001 = unique Snort rule ID (custom rules start at 1000000)
+alert wlan any -&gt; any any (msg:"Deauth Flood Detected"; wlan_type:1; wlan_subtype:12; threshold: type threshold, track by_src, count 5, seconds 60; sid:1000001;)
+# Why: Detect deauthentication attacks (used to force handshake capture or DoS)
+# Triggers when: More than 5 deauth frames from same source in 60 seconds
+# Normal behavior: Occasional deauth (1-2 per minute) when clients disconnect naturally
+# Attack pattern: Rapid deauths (10-100+ per second)
+
+# Detect beacon flood (rogue AP spam)
+# Beacon flood = attacker creates hundreds of fake APs to overwhelm scanning
+alert wlan any -&gt; any any (msg:"Beacon Flood - Possible Rogue AP"; wlan_type:0; wlan_subtype:8; threshold: type threshold, track by_src, count 100, seconds 60; sid:1000002;)
+# Why: Mass creation of fake APs is attack indicator
+# Triggers when: Same BSSID sends &gt;100 beacons per minute
+# Normal: 10-20 beacons per minute per AP
+# Attack: Hundreds to thousands of beacons from many fake BSSIDs
+
+# Detect EAPOL handshake capture attempts
+# EAPOL = authentication protocol used in WPA handshake
+alert wlan any -&gt; any any (msg:"WPA Handshake Capture Attempt"; wlan_type:2; content:"|88 8e|"; threshold: type threshold, track by_dst, count 4, seconds 10; sid:1000003;)
+# Why: Attackers capturing handshakes for offline cracking
+# Triggers when: 4+ EAPOL frames to same destination in 10 seconds
+# Normal: 4 EAPOL frames when client connects (legitimate)
+# Suspicious: Repeated handshakes = deauth attack + capture attempts
+# content:"|88 8e|" = hex for EAPOL ethertype
+
+# Restart Snort to load new rules
+# sudo systemctl restart snort = restart Snort service with new configuration
+sudo systemctl restart snort
+# Expected output: No output if successful
+# Why: Apply new wireless attack detection rules
+# Verify: sudo systemctl status snort should show "active (running)"</code></pre>
+</div>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Monitor Snort alerts in real-time:</p>
+    <pre data-lang="bash"><code class="language-bash"># View Snort alerts
+# sudo tail -f = follow (-f) file in real-time, with root privileges
+# /var/log/snort/alert = Snort alert log file
+sudo tail -f /var/log/snort/alert
+# Expected output: Real-time stream of security alerts
+# Alert format:
+#   [**] [1:1000001:0] Deauth Flood Detected [**]
+#   Priority: 3
+#   [timestamp] source_MAC -&gt; dest_MAC
+#   802.11 WLAN
+# Why: Immediate visibility into wireless attacks
+# Use when: Active monitoring during security incidents
+# Press Ctrl+C to stop
+
+# Parse alerts for reporting
+# grep = search for text pattern
+# "Deauth Flood" = alert message to search for
+# /var/log/snort/alert = log file to search in
+grep "Deauth Flood" /var/log/snort/alert | wc -l
+# Expected output: Number of deauth flood alerts
+# Why: Quantify attack frequency for reporting
+# wc -l = count lines (number of matching alerts)
+
+# Export alerts to SIEM
+# Snort can output to: syslog, unified2 format, JSON, databases
+# Edit /etc/snort/snort.conf:
+# output alert_syslog: LOG_AUTH LOG_ALERT
+# Why: Centralize security alerts with other logs
+# Use when: Enterprise environment with SIEM (Splunk, ELK, etc.)
+
+# Create alert summary script
+cat &lt;&lt;'EOF' &gt; wireless_alert_summary.sh
+#!/bin/bash
+# Generate daily summary of wireless security alerts
+
+LOG="/var/log/snort/alert"
+YESTERDAY=$(date -d "yesterday" +%Y-%m-%d)
+
+echo "Wireless Security Alert Summary for $YESTERDAY"
+echo "============================================="
+echo ""
+echo "Deauth Floods: $(grep "$YESTERDAY" "$LOG" | grep -c "Deauth Flood")"
+echo "Beacon Floods: $(grep "$YESTERDAY" "$LOG" | grep -c "Beacon Flood")"
+echo "Handshake Captures: $(grep "$YESTERDAY" "$LOG" | grep -c "Handshake Capture")"
+echo ""
+echo "Top 5 Attack Sources:"
+grep "$YESTERDAY" "$LOG" | awk '{print $NF}' | sort | uniq -c | sort -rn | head -5
+EOF
+# chmod +x wireless_alert_summary.sh
+# Why: Daily reports for security review
+# Use when: Regular security monitoring routine
+# Schedule: crontab -e, add: 0 8 * * * /path/to/wireless_alert_summary.sh | mail -s "Wireless Security Report" admin@company.com</code></pre>
+</div>
+
+<h2>6. Wireless Security Best Practices</h2>
+
+<div class="terminal-success not-prose my-6">
+    <div class="terminal-success-header">
+        <i data-lucide="check-circle" class="terminal-success-icon"></i>
+        <h3 class="terminal-success-title">Recommended Configuration</h3>
+    </div>
+    <div class="terminal-success-content">
+        <p><strong>Authentication:</strong> WPA3-Enterprise with 802.1X RADIUS (not PSK shared passwords)</p>
+        <p><strong>Encryption:</strong> AES-256 (CCMP), disable TKIP</p>
+        <p><strong>Disable:</strong> WPS, WEP, WPA, TKIP, SSID broadcast (hidden networks), UPnP</p>
+        <p><strong>Enable:</strong> 802.11w (Management Frame Protection), MAC filtering (defense in depth), client isolation on guest networks</p>
+        <p><strong>Monitoring:</strong> Continuous wireless IDS (Kismet/Snort), rogue AP scanning, deauth attack detection</p>
+        <p><strong>Network Segmentation:</strong> Separate SSIDs/VLANs for: corporate, guest, IoT devices</p>
+        <p><strong>Passphrase:</strong> 20+ random characters (if using PSK), rotate quarterly</p>
+    </div>
+</div>
+
+<h3>Secure Wireless Deployment Checklist</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Router hardening commands:</p>
+    <pre data-lang="bash"><code class="language-bash"># These commands vary by router manufacturer
+# Example for OpenWrt/pfSense CLI:
+
+# Disable WPS
+uci set wireless.@wifi-iface[0].wps_pushbutton='0'
+uci commit wireless
+wifi
+# uci = Unified Configuration Interface (OpenWrt config tool)
+# set wireless.@wifi-iface[0].wps_pushbutton='0' = disable WPS on first interface
+# commit = save changes permanently
+# wifi = restart WiFi with new config
+# Why: WPS is vulnerable to brute force (can crack WPA2 in hours)
+# Use when: Setting up new router or hardening existing
+
+# Enable WPA3 with strong cipher
+uci set wireless.@wifi-iface[0].encryption='sae-mixed'
+uci set wireless.@wifi-iface[0].key='[strong-passphrase-20+-characters]'
+uci commit wireless
+wifi
+# encryption='sae-mixed' = WPA3 (SAE) with WPA2 fallback for compatibility
+#                          Pure WPA3: encryption='sae' (no legacy support)
+# key= = WiFi passphrase (20+ random characters)
+# Why: WPA3 provides forward secrecy and offline attack protection
+# Compatibility: 'sae-mixed' allows older WPA2 devices to connect
+# Production: Move to pure 'sae' once all clients support WPA3
+
+# Enable Management Frame Protection (802.11w)
+uci set wireless.@wifi-iface[0].ieee80211w='2'
+uci commit wireless
+wifi
+# ieee80211w='2' = required MFP (all clients must support)
+#                  '1' = optional (for compatibility)
+#                  '0' = disabled
+# Why: Prevents deauthentication and disassociation attacks
+# MFP: Encrypts management frames, blocking spoofed deauth packets
+# Requires: WPA2 or WPA3
+# Note: Some old clients don't support MFP (won't connect with '2')
+
+# Disable SSID broadcast (security through obscurity, minimal value)
+uci set wireless.@wifi-iface[0].hidden='1'
+uci commit wireless
+wifi
+# hidden='1' = don't broadcast SSID in beacon frames
+# Why: Slightly harder for casual users to discover network
+# Reality: Trivial to discover via probing or client connections
+# Recommendation: Don't rely on this for security, use strong encryption instead
+# Downside: Compatibility issues, clients must manually add network
+
+# Enable MAC filtering (defense in depth, not primary security)
+uci set wireless.@wifi-iface[0].macfilter='allow'
+uci set wireless.@wifi-iface[0].maclist='AA:BB:CC:DD:EE:01 AA:BB:CC:DD:EE:02'
+uci commit wireless
+wifi
+# macfilter='allow' = only listed MACs can connect (whitelist mode)
+# maclist= = space-separated list of allowed MAC addresses
+# Why: Additional layer, but MAC addresses can be spoofed
+# Use when: Known, controlled set of devices (corporate, not home)
+# Limitation: MAC spoofing is trivial, not a strong security control
+# Management overhead: Must update list when adding/removing devices</code></pre>
+</div>
+
+<h2>Summary: Wireless Security Posture</h2>
+
+<div class="terminal-info not-prose my-6">
+    <div class="terminal-info-header">
+        <i data-lucide="shield-check" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">Defense in Depth for Wireless</h3>
+    </div>
+    <div class="terminal-info-content">
+        <p><strong>Layer 1 - Encryption:</strong> WPA3 with strong passphrases, disable legacy protocols</p>
+        <p><strong>Layer 2 - Authentication:</strong> 802.1X RADIUS for enterprise, certificate-based authentication</p>
+        <p><strong>Layer 3 - Detection:</strong> Wireless IDS (Kismet, Snort), rogue AP scanning, deauth attack monitoring</p>
+        <p><strong>Layer 4 - Segmentation:</strong> Separate VLANs for corporate/guest/IoT, firewall rules between networks</p>
+        <p><strong>Layer 5 - Monitoring:</strong> Continuous baseline comparison, alert on anomalies, log all wireless events</p>
+        <p><strong>Layer 6 - Response:</strong> Automated rogue AP alerts, incident response procedures, forensic capabilities</p>
+    </div>
+</div>
+
+<p>Wireless security requires continuous vigilance. Your WiFi broadcasts through walls to anyone within range—treat it as a hostile environment. Strong encryption, proactive monitoring, and defense in depth are essential to prevent compromise.</p>

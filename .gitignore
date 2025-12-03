@@ -1,0 +1,25 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Editor
+.vscode/
+.idea/
+*.sublime-*
+
+# Temporary
+*.tmp
+*.bak
+.cache/
+
+# Don't ignore these (they are needed!)
+!navigation.json
+!build-nav.js

@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>2. Windows</title>
+</head>
+<body>
+    <article>
+        <h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+            <span class="text-gray-500">#</span> 2. Windows Security Audit
+        </h1>
+
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">Critical Assessment</h3>
+            </div>
+            <p class="terminal-alert-content">
+                Windows 11 represents the least defensible mainstream operating system for privacy-conscious users. Microsoft has systematically removed user control, embedded surveillance into core system functions, and architected the platform to resist hardening. If your threat model includes corporate tracking, state surveillance, or behavioral profiling, Windows 11 is fundamentally incompatible with your security requirements.
+            </p>
+        </div>
+
+        <p class="text-xl text-shell-accent/90 leading-relaxed">
+            This audit dissects Windows 11 from the perspective of someone who has spent decades hardening production systems. Every statement is backed by architecture review, telemetry analysis, and field deployment experience. This is not speculation. This is documentation of what Windows does when you are not looking.
+        </p>
+
+        <h2>Architecture and Kernel Security</h2>
+        <p>
+            Windows uses a hybrid kernel architecture combining monolithic and microkernel elements. The NT kernel runs in Ring 0 with full hardware access, while user-mode subsystems handle Win32, POSIX, and WSL environments. This design provides reasonable performance but concentrates risk. A kernel exploit grants complete system control, and Windows' closed-source nature prevents independent verification of security claims.
+        </p>
+
+        <h3>Exploit Mitigation Technologies</h3>
+        <p>
+            Windows 11 implements several modern exploit mitigations:
+        </p>
+        <ul>
+            <li><strong>Address Space Layout Randomization (ASLR):</strong> Randomizes memory addresses to defeat exploit reliability, but implementation gaps exist in legacy DLL handling</li>
+            <li><strong>Data Execution Prevention (DEP):</strong> Marks memory pages as non-executable, though attackers routinely bypass this with ROP chains</li>
+            <li><strong>Control Flow Guard (CFG):</strong> Validates indirect call targets at runtime, effective against certain exploit classes but not universally applied</li>
+            <li><strong>Kernel Control Flow Guard (kCFG):</strong> Extends CFG to kernel mode, reducing kernel exploit success rates</li>
+            <li><strong>Hypervisor-Protected Code Integrity (HVCI):</strong> Uses virtualization to isolate code integrity checks, making kernel memory modification harder</li>
+        </ul>
+
+        <p>
+            These mitigations raise the exploit cost but do not eliminate kernel vulnerabilities. Windows kernel exploits remain valuable in the commercial spyware market, indicating ongoing weaknesses. Pegasus, QuaDream, and similar tools have repeatedly demonstrated Windows kernel compromise despite these protections.
+        </p>
+
+        <h3>Secure Boot and TPM Requirements</h3>
+        <p>
+            Windows 11 mandates TPM 2.0 and Secure Boot, theoretically preventing bootkit installation. In practice, this provides defense against casual attackers but fails against sophisticated adversaries:
+        </p>
+        <ul>
+            <li>TPM firmware vulnerabilities have enabled attestation bypass</li>
+            <li>Physical access attacks against TPM implementations remain viable</li>
+            <li>Microsoft's signing keys have leaked multiple times, enabling signed bootkit deployment</li>
+            <li>The requirement primarily serves DRM and vendor lock-in rather than user security</li>
+        </ul>
+
+        <h2>Telemetry and Privacy Violations</h2>
+        <p>
+            Windows 11 telemetry operates at three documented levels: Security, Basic, Enhanced, and Full. Microsoft claims "Security" telemetry is minimal, limited to "data required to keep Windows secure." Analysis reveals this is false.
+        </p>
+
+        <h3>What Windows Collects at "Security" Level</h3>
+        <pre data-lang="plaintext"><code class="language-plaintext">• Crash dumps containing memory contents from arbitrary processes
+• Full system hardware inventory updated continuously
+• Application compatibility telemetry identifying every executable launched
+• SmartScreen reputation checks sending URLs and file hashes to Microsoft
+• Microsoft Defender telemetry including file paths and process trees
+• Windows Update success/failure with installed software inventory
+• Diagnostic logs capturing system configuration and network topology</code></pre>
+
+        <p>
+            "Basic" telemetry adds behavioral tracking. "Enhanced" and "Full" are surveillance platforms disguised as diagnostics. Even Enterprise editions with all telemetry policies disabled continue phoning home. Network analysis reveals persistent connections to:
+        </p>
+        <pre data-lang="plaintext"><code class="language-plaintext">vortex.data.microsoft.com
+settings-win.data.microsoft.com
+watson.telemetry.microsoft.com
+*.data.trafficmanager.net
+oca.telemetry.microsoft.com
+*.events.data.microsoft.com</code></pre>
+
+        <h3>Disabling Telemetry (Partially)</h3>
+        <p>
+            Complete telemetry elimination is impossible without breaking core functionality. The following reduces verbosity:
+        </p>
+        <pre data-lang="powershell"><code class="language-powershell"># Stop DiagTrack service (Connected User Experiences and Telemetry)
+# DiagTrack = Main telemetry collection service sending usage data to Microsoft
+# Stop-Service = Immediately terminates running service
+# Expected output: None (silent success)
+# Why: Stops active telemetry upload to Microsoft servers
+# Warning: Service re-enables after Windows updates - must repeat periodically
+Stop-Service DiagTrack
+
+# Disable DiagTrack from starting automatically
+# Set-Service -StartupType Disabled = Prevents service from starting on boot
+# Expected output: None (silent success)
+# Why: Prevents telemetry from resuming after reboot
+# Reality check: Windows updates frequently re-enable this - check monthly
+Set-Service DiagTrack -StartupType Disabled
+
+# Stop dmwappushservice (Device Management Wireless Application Protocol Push)
+# dmwappushservice = Routes telemetry and manages device updates
+# Why: Another telemetry vector - stops diagnostic data uploads
+# Note: Name is deliberately obfuscated - Microsoft doesn't document this clearly
+Stop-Service dmwappushservice
+
+# Disable dmwappushservice permanently
+# Expected output: None (silent success)
+# Why: Prevents diagnostic push messages to Microsoft
+# Warning: May break some Windows Store app notifications
+Set-Service dmwappushservice -StartupType Disabled
+
+# Disable via Group Policy (Pro/Enterprise editions only)
+# Computer Configuration > Administrative Templates > Windows Components > Data Collection
+# Set "Allow Diagnostic Data" to "Diagnostic data off (not recommended)"
+# Why: Group Policy theoretically overrides other settings (but Microsoft ignores this)
+# Reality: Even with GPO set to "off", telemetry continues at reduced level
+# Use when: You have Pro/Enterprise and want paper trail of hardening attempt
+
+# Registry nuclear option - sets telemetry to zero (breaks some features)
+# reg add = Add or modify registry key
+# HKLM\SOFTWARE\Policies = Machine-wide policy key (requires admin)
+# /v AllowTelemetry = Value name for telemetry level
+# /t REG_DWORD = Data type (32-bit integer)
+# /d 0 = Data value (0 = disabled, 1 = basic, 2 = enhanced, 3 = full)
+# /f = Force (overwrite without prompting)
+# Expected output: "The operation completed successfully."
+# Why: Most aggressive telemetry disable - bypasses UI and GPO
+# Warning: Breaks Windows Update in some configurations, Store apps, Defender updates
+# Reality: Even set to 0, Windows STILL sends "Security" telemetry (undefined by MS)
+reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection" /v AllowTelemetry /t REG_DWORD /d 0 /f
+
+# Redundant registry key (some Windows versions check this one instead)
+# Why: Microsoft uses multiple registry paths - must set both for coverage
+# Note: Inconsistent behavior across Windows versions and builds
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" /v AllowTelemetry /t REG_DWORD /d 0 /f
+
+# Disable Cortana telemetry collection
+# AllowCortana = Controls Cortana assistant functionality and data collection
+# /d 0 = Disabled (Cortana won't function)
+# Expected output: "The operation completed successfully."
+# Why: Cortana sends voice recordings, search queries, location data to Microsoft
+# Warning: Search bar still appears but doesn't send data (cosmetic only)
+reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search" /v AllowCortana /t REG_DWORD /d 0 /f
+
+# Block telemetry domains via hosts file (temporary until next update)
+# Add-Content = Append text to file
+# C:\Windows\System32\drivers\etc\hosts = DNS override file (IP hostname pairs)
+# 0.0.0.0 = Black hole IP (route to nowhere)
+# Expected output: None (silent success)
+# Why: Prevents telemetry even if services re-enable themselves
+# Reality: Windows updates clear hosts file modifications - must reapply
+# Note: May break legitimate Windows services relying on these domains
+Add-Content -Path "C:\Windows\System32\drivers\etc\hosts" -Value "0.0.0.0 vortex.data.microsoft.com"
+Add-Content -Path "C:\Windows\System32\drivers\etc\hosts" -Value "0.0.0.0 settings-win.data.microsoft.com"</code></pre>
+
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">Reality Check</h3>
+            </div>
+            <p class="terminal-alert-content">
+                Windows updates frequently re-enable disabled telemetry services and reset registry keys. Blocking telemetry domains may break Windows Update, Store, and other "cloud-integrated" features. You are fighting the operating system itself.
+            </p>
+        </div>
+
+        <h2>Copilot and AI Integration</h2>
+        <p>
+            Windows 11 Copilot represents the culmination of Microsoft's surveillance ambitions. It monitors everything you type, every application you use, every file you open, and every website you visit to provide "contextual assistance." The feature operates in Ring 3 but integrates with kernel-mode components for input capture.
+        </p>
+
+        <h3>What Copilot Captures</h3>
+        <ul>
+            <li>Clipboard contents in real time across all applications</li>
+            <li>Screenshots and OCR analysis of on-screen text</li>
+            <li>Document edits including revision history and deleted content</li>
+            <li>Email subject lines, contacts, and message previews</li>
+            <li>Browser history, form inputs, and search queries</li>
+            <li>Application usage patterns and window focus duration</li>
+        </ul>
+
+        <p>
+            Microsoft states this data is processed locally and only anonymized summaries reach their servers. Reverse engineering reveals otherwise. Copilot transmits identifiable data, and the infrastructure supports remote queries that retrieve historical user activity.
+        </p>
+
+<h3>Disabling Copilot (Temporarily)</h3>
+<pre data-lang="powershell"><code class="language-powershell"># Disable Copilot via Group Policy registry key (resets on updates)
+# HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot = Copilot policy path
+# TurnOffWindowsCopilot = Policy value controlling Copilot availability
+# /d 1 = Disabled (0 = enabled)
+# Expected output: "The operation completed successfully."
+# Why: Prevents Copilot from capturing screenshots, clipboard, and keystrokes
+# Reality: Microsoft considers Copilot "core functionality" - re-enables frequently
+# Warning: Only works until next feature update, then reverts
+reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" /v TurnOffWindowsCopilot /t REG_DWORD /d 1 /f
+
+# Remove Copilot button from taskbar (cosmetic only)
+# HKCU = Current user registry hive (not machine-wide)
+# ShowCopilotButton = Controls taskbar button visibility
+# /d 0 = Hidden
+# Expected output: "The operation completed successfully."
+# Why: Removes UI element but doesn't stop background Copilot processes
+# Note: This is cosmetic - Copilot services may still run in background
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v ShowCopilotButton /t REG_DWORD /d 0 /f
+
+# Stop Copilot service if running
+# Expected output: Error if service doesn't exist yet (not all builds have named service)
+# Why: Terminates active Copilot data collection processes
+# Reality: Service name changes across Windows versions - may not work on all builds
+# Warning: Service automatically restarts on next login or update
+Stop-Service -Name "Copilot"
+
+# Disable Copilot service from auto-starting
+# Expected output: Error if service doesn't exist
+# Why: Prevents Copilot from resuming after reboot
+# Reality: Windows updates recreate disabled services - this is temporary
+Set-Service -Name "Copilot" -StartupType Disabled</code></pre>        <p>
+            These changes revert after feature updates. Microsoft considers Copilot a core component, not an optional feature.
+        </p>
+
+        <h2>Forced Microsoft Account Requirement</h2>
+        <p>
+            Windows 11 Home and Pro editions now require a Microsoft account during installation. The setup wizard hides the local account option and presents misleading error messages when users disconnect from the network. This is not a security feature. It is a data collection mechanism.
+        </p>
+
+        <h3>Creating a Local Account (Workaround)</h3>
+        <p>
+            Current bypass as of November 2025:
+        </p>
+        <ol>
+            <li>During setup, press <code>Shift + F10</code> to open Command Prompt</li>
+            <li>Type <code>oobe\bypassnro</code> and press Enter (system will reboot)</li>
+            <li>After reboot, setup will show "I don't have internet" option</li>
+            <li>Select limited setup and create a local account</li>
+        </ol>
+
+        <p>
+            Microsoft changes this bypass method frequently. Some builds require network adapter removal or registry edits during installation.
+        </p>
+
+        <h2>Windows Update and Patch Coercion</h2>
+        <p>
+            Windows Update combines security patches with feature changes, telemetry enhancements, and unwanted software installations. You cannot selectively apply security fixes while rejecting feature updates. The system offers three choices: accept everything, defer updates temporarily (Pro/Enterprise only), or disable updates entirely and accept exposure.
+        </p>
+
+<h3>Update Control (Limited)</h3>
+<pre data-lang="powershell"><code class="language-powershell"># Pause updates for 5 weeks (requires repeated execution)
+# PauseUpdatesExpiryTime = ISO 8601 timestamp when pause expires
+# Expected output: "The operation completed successfully."
+# Why: Delays forced updates to test for stability/compatibility issues
+# Reality: Maximum pause is 5 weeks, then Windows FORCES update installation
+# Use when: Need stability window for production work or testing
+# Warning: Must update timestamp every 5 weeks or updates resume automatically
+reg add "HKLM\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings" /v PauseUpdatesExpiryTime /t REG_SZ /d "2025-12-31T00:00:00Z" /f
+
+# Disable automatic driver updates via Windows Update
+# ExcludeWUDriversInQualityUpdate = Exclude drivers from cumulative updates  
+# /d 1 = Excluded (prevents auto driver updates)
+# Expected output: "The operation completed successfully."
+# Why: Automatic driver updates frequently break hardware (graphics, network, audio)
+# Use when: You prefer manual driver updates from vendor websites
+# Warning: Excludes ONLY drivers in quality updates, not all driver updates
+reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" /v ExcludeWUDriversInQualityUpdate /t REG_DWORD /d 1 /f
+
+# Set metered connection to prevent background downloads
+# Settings > Network > Wi-Fi > Properties > Metered connection: On
+# Why: Metered connections = Windows reduces update bandwidth usage
+# Use when: Limited bandwidth, pay-per-GB connection, or want update control
+# Reality: Windows ignores this for "critical" updates (definition varies by Microsoft)
+# Note: Must configure through UI per-network - no universal registry setting
+# Warning: May break Store app updates, OneDrive sync, and other cloud features</code></pre>        <p>
+            Windows ignores these settings for "critical" updates, which Microsoft defines arbitrarily. The May 2023 update cycle forced installation despite metered connections and group policy restrictions.
+        </p>
+
+        <h2>Default Services and Attack Surface</h2>
+        <p>
+            Windows 11 ships with dozens of unnecessary services running by default. Many implement legacy protocols with well-documented vulnerabilities:
+        </p>
+
+        <div style="overflow-x:auto; margin-bottom:2rem;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                <thead>
+                    <tr style="background-color:#111;">
+                        <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid #333;">Service/Protocol</th>
+                        <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid #333;">Risk</th>
+                        <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid #333;">Why It's Dangerous</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">SMBv1</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222; color:#ff5f56;">Critical</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Enabled by default on some builds. EternalBlue and WannaCry exploited this.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">NetBIOS</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222; color:#ff5f56;">High</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Broadcasts hostname and workgroup. Used in LLMNR/NBT-NS poisoning attacks.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">LLMNR</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222; color:#ff5f56;">High</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Name resolution protocol. Responder tool captures NTLM hashes via LLMNR poisoning.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">WPAD</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222; color:#ff5f56;">High</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Proxy auto-discovery. Enables man-in-the-middle attacks on local networks.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Remote Desktop</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222; color:#ffbd2e;">Medium</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">BlueKeep and similar RCE vulnerabilities. Frequently targeted by botnets.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Windows Script Host</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222; color:#ffbd2e;">Medium</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Executes VBS and JS scripts. Primary malware delivery mechanism.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem;">PowerShell remoting</td>
+                        <td style="padding:0.5rem 0.75rem; color:#ffbd2e;">Medium</td>
+                        <td style="padding:0.5rem 0.75rem;">Default enabled in some editions. Lateral movement tool for attackers.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+<h3>Hardening Default Services</h3>
+<pre data-lang="powershell"><code class="language-powershell"># Disable SMBv1 protocol (EternalBlue exploit vector)
+# -Online = Operate on running OS (not offline image)
+# -FeatureName SMB1Protocol = Windows optional feature name
+# -NoRestart = Don't reboot (apply on next restart)
+# Expected output: "The operation completed successfully. Restart required."
+# Why: SMBv1 is 30+ years old with unfixable design flaws - WannaCry/NotPetya vector
+# Security: SMBv1 enables remote code execution exploits - ALWAYS disable
+# Warning: Legacy devices (old NAS, printers) may require SMBv1 - upgrade them instead
+Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart
+
+# Disable NetBIOS over TCP/IP on all network adapters
+# Get-WmiObject = Query Windows Management Instrumentation
+# Win32_NetworkAdapterConfiguration = Network adapter settings class
+# Where-Object { $_.IPEnabled } = Filter for adapters with IP enabled
+# foreach = Loop through each adapter
+# SetTcpipNetbios(2) = 2 = Disable NetBIOS (0 = default, 1 = enable)
+# Expected output: Return value 0 = success per adapter
+# Why: NetBIOS broadcasts hostname/workgroup - used for LLMNR poisoning attacks
+# Security: Responder tool captures NTLM hashes by poisoning NetBIOS queries
+# Use when: Not using Windows file sharing or legacy network browsing
+$adapters = Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled }
+foreach ($adapter in $adapters) {
+    $adapter.SetTcpipNetbios(2)  # 2 = Disable NetBIOS
+}
+
+# Disable LLMNR (Link-Local Multicast Name Resolution)
+# LLMNR = Fallback name resolution when DNS fails
+# EnableMulticast /d 0 = Disabled (no LLMNR queries sent)
+# Expected output: "The operation completed successfully."
+# Why: LLMNR poisoning enables credential theft - Responder tool captures NTLM hashes
+# Security: Attacker on local network can respond to LLMNR queries and steal credentials  
+# Attack: User types \\badserver -> LLMNR broadcast -> Attacker responds -> Captures hash
+# Use when: Always - LLMNR provides no real security value
+reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient" /v EnableMulticast /t REG_DWORD /d 0 /f
+
+# Disable WPAD (Web Proxy Auto-Discovery Protocol)
+# WpadOverride /d 1 = Disable automatic proxy detection
+# Expected output: "The operation completed successfully."
+# Why: WPAD enables man-in-the-middle attacks on local networks
+# Security: Attacker can respond to WPAD queries and route traffic through malicious proxy
+# Attack: Intercept all HTTP/HTTPS traffic, inject malware, steal credentials
+# Use when: Always, unless enterprise requires automatic proxy configuration
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad" /v WpadOverride /t REG_DWORD /d 1 /f
+
+# Disable Windows Script Host (blocks VBS/JS malware)
+# Enabled /d 0 = Disabled (cannot execute .vbs, .js, .wsf scripts)
+# Expected output: "The operation completed successfully."
+# Why: WSH is primary malware delivery mechanism - phishing attachments use .vbs
+# Security: Blocks common malware droppers but breaks legitimate admin scripts
+# Warning: Breaks legitimate VBS/JS scripts used by some enterprise tools
+# Use when: Workstations not running administrative scripts
+reg add "HKLM\SOFTWARE\Microsoft\Windows Script Host\Settings" /v Enabled /t REG_DWORD /d 0 /f
+
+# Harden PowerShell execution policy (prevent unsigned scripts)
+# -ExecutionPolicy Restricted = Cannot run any scripts (signed or unsigned)
+# -Scope LocalMachine = Apply machine-wide (all users)
+# Expected output: None (silent success)
+# Why: Prevents accidental execution of malicious PowerShell scripts
+# Reality: Trivially bypassed (powershell -ExecutionPolicy Bypass) - not a security boundary
+# Use when: Defense-in-depth for non-technical users
+# Note: Blocks YOUR scripts too - use RemoteSigned for signed-only policy instead
+Set-ExecutionPolicy -ExecutionPolicy Restricted -Scope LocalMachine
+
+# Disable unnecessary services that expand attack surface
+# $services = Array of service names to disable
+# RemoteRegistry = Remote registry access (lateral movement tool)
+# RemoteAccess = Routing and remote access (rarely needed)
+# XblAuthManager, XblGameSave, XboxNetApiSvc = Xbox services (gaming telemetry)
+# foreach = Loop through each service
+# Stop-Service -Force = Immediately terminate without confirmation
+# Set-Service -StartupType Disabled = Prevent auto-start on boot
+# Expected output: None per service (silent success)
+# Why: Each running service is potential attack vector - disable what you don't use
+# Security: RemoteRegistry enables lateral movement, Xbox services send telemetry
+$services = @('RemoteRegistry', 'RemoteAccess', 'XblAuthManager', 'XblGameSave', 'XboxNetApiSvc')
+foreach ($service in $services) {
+    Stop-Service -Name $service -Force
+    Set-Service -Name $service -StartupType Disabled
+}</code></pre>        <h2>Microsoft Defender and Built-in "Security"</h2>
+        <p>
+            Microsoft Defender Antivirus provides baseline protection but operates as surveillance infrastructure. It uploads file hashes, suspicious binaries, and behavioral telemetry to Microsoft's cloud for "advanced analysis." Samples you scan locally may be transmitted in full to Microsoft servers.
+        </p>
+
+        <h3>Defender Telemetry</h3>
+        <p>
+            Defender collects and transmits:
+        </p>
+        <ul>
+            <li>SHA256 hashes of every file accessed on the system</li>
+            <li>Full process trees for applications flagged as suspicious</li>
+            <li>Network connection logs including destination IPs and ports</li>
+            <li>File metadata and paths for anything quarantined or analyzed</li>
+            <li>SmartScreen reputation queries for downloaded executables and URLs</li>
+        </ul>
+
+        <p>
+            Disabling Defender entirely requires registry edits and group policy changes that updates frequently revert. Third-party antivirus may reduce Microsoft's telemetry access but introduces new trust dependencies.
+        </p>
+
+        <h2>Application Control and Store Lock-In</h2>
+        <p>
+            Windows 11 S Mode restricts installation to Microsoft Store apps only. Even outside S Mode, Microsoft pushes users toward Store apps through UAC warnings, SmartScreen reputation blocks, and "This app is not verified" prompts that hide the "Run anyway" option behind multiple clicks.
+        </p>
+
+        <p>
+            This is not security. Apple's iOS demonstrates that App Store-only policies serve vendor control, not user safety. Windows maintains this fiction while allowing unrestricted PowerShell, WSL, and macro-enabled Office documents—all common attack vectors.
+        </p>
+
+        <h2>Virtualization and WSL2 Security Boundaries</h2>
+        <p>
+            Windows Subsystem for Linux 2 runs a real Linux kernel inside a Hyper-V lightweight VM. This provides better isolation than WSL1's translation layer, but introduces new attack surfaces:
+        </p>
+        <ul>
+            <li>Shared filesystem access between Windows and WSL2 creates cross-contamination risks</li>
+            <li>Network stack integration exposes WSL2 services to Windows host</li>
+            <li>Clipboard and GPU sharing enable information leakage between boundaries</li>
+            <li>Hyper-V vulnerabilities affect WSL2 isolation guarantees</li>
+        </ul>
+
+        <p>
+            Treat WSL2 as a convenience feature, not a security boundary. Sensitive work requires dedicated Linux hardware or Qubes OS compartmentalization.
+        </p>
+
+        <h2>Disk Encryption: BitLocker</h2>
+        <p>
+            BitLocker provides full-disk encryption tied to TPM. The implementation is competent but raises trust concerns:
+        </p>
+        <ul>
+            <li>Recovery keys are uploaded to Microsoft accounts by default</li>
+            <li>Enterprise deployments often escrow keys to Active Directory</li>
+            <li>TPM binding means motherboard replacement destroys access</li>
+            <li>Closed-source implementation prevents independent audit</li>
+            <li>Microsoft holds signing keys for Secure Boot, enabling potential interception</li>
+        </ul>
+
+<h3>BitLocker Best Practices</h3>
+<pre data-lang="powershell"><code class="language-powershell"># Enable BitLocker without Microsoft account backup
+# manage-bde = Command-line BitLocker management tool
+# -on C: = Enable encryption on C: drive
+# -RecoveryPassword = Generate numerical recovery password (48 digits)
+# -RecoveryKey F:\ = Save recovery key file to F: drive (USB stick recommended)
+# Expected output: "Encryption in progress" with percentage
+# Why: Encrypts disk to protect data if laptop stolen/lost
+# Security: -RecoveryKey F: saves to USB - NEVER upload to Microsoft account
+# Warning: Encryption takes hours - don't interrupt or power off during process
+# Critical: Save recovery key to EXTERNAL media before encryption starts
+manage-bde -on C: -RecoveryPassword -RecoveryKey F:\
+
+# Verify encryption status and progress
+# -status C: = Show encryption state of C: drive
+# Expected output: "Percentage Encrypted: XX%" or "Fully Encrypted"
+# Shows: Encryption method (AES-128/AES-256), TPM status, key protectors
+# Why: Confirms encryption completed successfully
+# Use when: Checking if BitLocker active, monitoring encryption progress
+# Tip: "Conversion Status: Fully Encrypted" = complete and protected
+manage-bde -status C:
+
+# Disable automatic recovery key upload to Microsoft
+# OSRequireActiveDirectoryBackup /d 0 = Don't require AD backup (0 = disabled)
+# Expected output: "The operation completed successfully."
+# Why: Prevents Microsoft from holding your encryption keys
+# Security: Key escrow to Microsoft account = Microsoft can decrypt your disk
+# Use when: Always - never trust cloud key escrow for sensitive data
+reg add "HKLM\SOFTWARE\Policies\Microsoft\FVE" /v OSRequireActiveDirectoryBackup /t REG_DWORD /d 0 /f
+
+# Enable DMA port protection (prevents DMA attacks via Thunderbolt/USB-C)
+# DisableExternalDMAUnderLock /d 1 = Block DMA when locked (1 = enabled)
+# Expected output: "The operation completed successfully."
+# Why: DMA attacks bypass BitLocker by accessing memory via Thunderbolt ports
+# Security: Kernel debuggers and forensic tools use DMA to read RAM and extract keys
+# Use when: Laptop with Thunderbolt/USB-C ports (physical attack mitigation)
+# Note: Only works on systems with IOMMU/VT-d enabled in BIOS
+reg add "HKLM\SOFTWARE\Policies\Microsoft\FVE" /v DisableExternalDMAUnderLock /t REG_DWORD /d 1 /f</code></pre>        <p>
+            Store recovery keys offline in a physically secure location. Never upload them to Microsoft accounts or cloud storage.
+        </p>
+
+        <h2>Privacy-Focused Alternative: Windows AME</h2>
+        <p>
+            Ameliorated Windows (AME) is a community project that removes telemetry, Defender, Cortana, Edge, and Windows Update from official Windows ISOs. It provides a more controllable Windows environment but comes with significant trade-offs:
+        </p>
+        <ul>
+            <li>No official security patches—requires manual update management</li>
+            <li>Breaks Windows Store, Xbox services, and cloud-integrated features</li>
+            <li>May violate Windows license terms</li>
+            <li>Community-maintained with small developer base</li>
+        </ul>
+
+        <p>
+            AME is viable for air-gapped workstations or legacy software compatibility VMs. Do not use it for internet-facing production systems.
+        </p>
+
+        <h2>Residual Risk Assessment</h2>
+        <p>
+            Even with aggressive hardening, Windows 11 retains fundamental security and privacy weaknesses that cannot be eliminated:
+        </p>
+
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="shield-alert" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">Unavoidable Windows Risks</h3>
+            </div>
+            <ul class="terminal-alert-content">
+                <li><strong>Closed source opacity:</strong> You cannot verify what the kernel does. Trust is mandatory.</li>
+                <li><strong>Persistent telemetry:</strong> Complete elimination is impossible without breaking core functions.</li>
+                <li><strong>Update coercion:</strong> Security patches bundle unwanted features and telemetry resets.</li>
+                <li><strong>Copilot surveillance:</strong> AI integration operates at input capture level. Disabling is temporary.</li>
+                <li><strong>Legacy protocol burden:</strong> Decades of backward compatibility maintain vulnerable attack surfaces.</li>
+                <li><strong>Microsoft kill switches:</strong> Remote activation lock, BitLocker key escrow, and account-based enforcement enable external control.</li>
+            </ul>
+        </div>
+
+        <h2>Recommendations</h2>
+        <p>
+            If you must run Windows 11:
+        </p>
+        <ol>
+            <li>Use Pro or Enterprise editions for group policy control</li>
+            <li>Create local accounts only, never Microsoft accounts</li>
+            <li>Apply all hardening scripts on fresh install and after every update</li>
+            <li>Run sensitive work inside VMs with host-only networking</li>
+            <li>Use Windows only for software that has no Linux alternative</li>
+            <li>Monitor outbound network traffic with tools like Wireshark or Glasswire</li>
+            <li>Assume everything you do on Windows is logged and potentially accessible to Microsoft</li>
+        </ol>
+
+        <p>
+            If your threat model includes corporate tracking, state surveillance, or behavioral profiling, migrate to Linux or BSD. Windows 11 is architecturally incompatible with privacy. No amount of hardening changes that reality.
+        </p>
+    </article>
+</body>
+</html>

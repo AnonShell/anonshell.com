@@ -1,0 +1,1219 @@
+<h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+    <span class="text-gray-500">#</span> Security Posture Assessment
+</h1>
+
+<div class="terminal-info not-prose mb-8">
+    <div class="terminal-info-header">
+        <i data-lucide="clipboard-list" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">Evaluate Your Current Security Posture</h3>
+    </div>
+    <p class="terminal-info-content">
+        This assessment evaluates your operational security practices across all circles: understanding, personal practice, hardware security, and environmental defense. Answer honestly – your results are never transmitted or stored. Based on your answers, we'll identify your threat level, recommend specific learning paths, and estimate the time investment required to improve your security posture.
+    </p>
+</div>
+
+<div id="assessment-container">
+    <!-- Start Screen -->
+    <div id="start-screen" class="space-y-6">
+        <div class="bg-shell-panel border border-shell-accent/30 rounded-lg p-6">
+            <h2 class="text-shell-accent mb-4">What You'll Learn</h2>
+            <ul class="space-y-2 text-gray-300">
+                <li class="flex items-start gap-2">
+                    <i data-lucide="check-circle" class="w-5 h-5 text-shell-accent mt-0.5 flex-shrink-0"></i>
+                    <span><strong>Your Threat Level:</strong> Based on your current adversaries and capabilities</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <i data-lucide="check-circle" class="w-5 h-5 text-shell-accent mt-0.5 flex-shrink-0"></i>
+                    <span><strong>Security Gaps:</strong> Critical vulnerabilities in your current setup</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <i data-lucide="check-circle" class="w-5 h-5 text-shell-accent mt-0.5 flex-shrink-0"></i>
+                    <span><strong>Learning Path:</strong> Prioritized guides to improve your defenses</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <i data-lucide="check-circle" class="w-5 h-5 text-shell-accent mt-0.5 flex-shrink-0"></i>
+                    <span><strong>Time Investment:</strong> Realistic estimates for learning and maintenance</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <i data-lucide="check-circle" class="w-5 h-5 text-shell-accent mt-0.5 flex-shrink-0"></i>
+                    <span><strong>Daily Routine:</strong> Security habits to maintain your hardened posture</span>
+                </li>
+            </ul>
+        </div>
+
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="shield-alert" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">Privacy Notice</h3>
+            </div>
+            <p class="terminal-alert-content">
+                This assessment runs entirely in your browser. No answers are transmitted to any server. No cookies, no tracking, no data collection. Your results exist only in your browser's memory and disappear when you close this page.
+            </p>
+        </div>
+
+        <button id="start-assessment-btn" class="w-full bg-shell-accent text-black font-bold py-4 px-6 rounded-lg hover:bg-shell-accent/90 transition-colors flex items-center justify-center gap-2">
+            <i data-lucide="play-circle" class="w-5 h-5"></i>
+            Begin Assessment (30 Questions)
+        </button>
+    </div>
+
+    <!-- Question Screen -->
+    <div id="question-screen" class="hidden space-y-6">
+        <div class="flex items-center justify-between mb-4">
+            <div class="text-sm text-gray-400">
+                Question <span id="current-question">1</span> of <span id="total-questions">15</span>
+            </div>
+            <div class="text-sm text-shell-accent">
+                <span id="progress-percentage">0</span>% Complete
+            </div>
+        </div>
+
+        <div class="w-full bg-shell-border rounded-full h-2 mb-6">
+            <div id="progress-bar" class="bg-shell-accent h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+
+        <div class="bg-shell-panel border border-shell-accent/30 rounded-lg p-6">
+            <div class="mb-2 text-xs uppercase tracking-wider text-shell-accent font-semibold" id="question-category"></div>
+            <h3 class="text-xl text-white mb-6" id="question-text"></h3>
+            
+            <div id="answers-container" class="space-y-3">
+                <!-- Radio buttons will be inserted here -->
+            </div>
+        </div>
+
+        <div class="flex gap-4">
+            <button id="prev-btn" class="flex-1 bg-shell-dark border border-shell-border text-white font-semibold py-3 px-6 rounded-lg hover:border-shell-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" disabled>
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                Previous
+            </button>
+            <button id="next-btn" class="flex-1 bg-shell-accent text-black font-bold py-3 px-6 rounded-lg hover:bg-shell-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" disabled>
+                Next
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="results-screen" class="hidden space-y-6">
+        <div id="threat-level-card" class="border-2 rounded-lg p-6">
+            <div class="flex items-center gap-4 mb-4">
+                <div id="threat-icon" class="w-16 h-16 rounded-full flex items-center justify-center">
+                    <i data-lucide="shield-alert" class="w-8 h-8"></i>
+                </div>
+                <div>
+                    <div class="text-sm uppercase tracking-wider text-gray-400 mb-1">Your Threat Level</div>
+                    <h2 id="threat-level-name" class="text-3xl font-bold"></h2>
+                </div>
+            </div>
+            <p id="threat-level-description" class="text-gray-300"></p>
+        </div>
+
+        <div class="bg-shell-panel border border-shell-accent/30 rounded-lg p-6">
+            <h3 class="text-shell-accent text-xl mb-4 flex items-center gap-2">
+                <i data-lucide="target" class="w-5 h-5"></i>
+                Assessment Breakdown
+            </h3>
+            <div class="space-y-4" id="category-scores">
+                <!-- Category scores will be inserted here -->
+            </div>
+        </div>
+
+        <div class="bg-shell-panel border border-shell-accent/30 rounded-lg p-6">
+            <h3 class="text-shell-accent text-xl mb-4 flex items-center gap-2">
+                <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                Critical Vulnerabilities
+            </h3>
+            <div id="vulnerabilities-list" class="space-y-3">
+                <!-- Vulnerabilities will be inserted here -->
+            </div>
+        </div>
+
+        <div class="bg-shell-panel border border-shell-accent/30 rounded-lg p-6">
+            <h3 class="text-shell-accent text-xl mb-4 flex items-center gap-2">
+                <i data-lucide="map" class="w-5 h-5"></i>
+                Your Learning Path
+            </h3>
+            <div id="learning-path" class="space-y-4">
+                <!-- Learning path will be inserted here -->
+            </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="bg-shell-panel border border-shell-accent/30 rounded-lg p-6">
+                <h3 class="text-shell-accent text-lg mb-4 flex items-center gap-2">
+                    <i data-lucide="clock" class="w-5 h-5"></i>
+                    Time Investment
+                </h3>
+                <div class="space-y-3 text-gray-300">
+                    <div>
+                        <div class="text-sm text-gray-400 mb-1">Initial Setup</div>
+                        <div class="text-2xl font-bold text-shell-accent" id="time-initial"></div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-400 mb-1">Learning & Implementation</div>
+                        <div class="text-2xl font-bold text-shell-accent" id="time-learning"></div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-400 mb-1">Full Proficiency</div>
+                        <div class="text-2xl font-bold text-shell-accent" id="time-mastery"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-shell-panel border border-shell-accent/30 rounded-lg p-6">
+                <h3 class="text-shell-accent text-lg mb-4 flex items-center gap-2">
+                    <i data-lucide="repeat" class="w-5 h-5"></i>
+                    Daily Maintenance
+                </h3>
+                <div id="daily-routine" class="space-y-2">
+                    <!-- Daily routine will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="lightbulb" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Next Steps</h3>
+            </div>
+            <p class="terminal-success-content" id="next-steps-text">
+                <!-- Next steps will be inserted here -->
+            </p>
+        </div>
+
+        <div class="flex gap-4">
+            <button id="retake-btn" class="flex-1 bg-shell-dark border border-shell-border text-white font-semibold py-3 px-6 rounded-lg hover:border-shell-accent transition-colors flex items-center justify-center gap-2">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                Retake Assessment
+            </button>
+            <a href="#/posts/toc.html" class="flex-1 bg-shell-accent font-bold py-3 px-6 rounded-lg hover:bg-shell-accent/90 transition-colors flex items-center justify-center gap-2" style="text-decoration: none; color: #000000 !important;">
+                <i data-lucide="book-open" class="w-4 h-4" style="color: #000000;"></i>
+                <span style="color: #000000;">View Learning Path</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// Use a namespace to prevent variable conflicts and state reset
+if (!window.SecurityAssessment) {
+    window.SecurityAssessment = {
+        initialized: false,
+        currentQuestionIndex: 0,
+        answers: [],
+        categoryScores: {
+            "Circle 1: Understanding": { score: 0, maxScore: 0, weight: 0 },
+            "Circle 2: Personal Practice": { score: 0, maxScore: 0, weight: 0 },
+            "Circle 3: Hardware Security": { score: 0, maxScore: 0, weight: 0 },
+            "Circle 4: Environmental Defense": { score: 0, maxScore: 0, weight: 0 }
+        }
+    };
+}
+
+// Assessment Questions Database
+const questions = [
+    // Circle 1: Understanding (3 questions)
+    {
+        category: "Circle 1: Understanding",
+        question: "How do you currently approach threat modeling for your digital life?",
+        answers: [
+            { text: "I have a documented threat model identifying my adversaries and their capabilities", score: 4, weight: 1.5 },
+            { text: "I have a general idea of who might target me but nothing documented", score: 2, weight: 1.5 },
+            { text: "I assume everyone is a potential threat and act accordingly", score: 1, weight: 1.5 },
+            { text: "I haven't thought about specific threats to my security", score: 0, weight: 1.5 }
+        ]
+    },
+    {
+        category: "Circle 1: Understanding",
+        question: "What is your understanding of metadata and its security implications?",
+        answers: [
+            { text: "I understand metadata leakage and actively minimize it in my communications", score: 4, weight: 1.2 },
+            { text: "I know metadata exists but don't actively manage it", score: 2, weight: 1.2 },
+            { text: "I've heard of metadata but don't understand its security implications", score: 1, weight: 1.2 },
+            { text: "I don't know what metadata is", score: 0, weight: 1.2 }
+        ]
+    },
+    {
+        category: "Circle 1: Understanding",
+        question: "How do you evaluate the trustworthiness of security tools and software?",
+        answers: [
+            { text: "I verify signatures, review source code, and check independent audits", score: 4, weight: 1.3 },
+            { text: "I research recommendations from security communities", score: 3, weight: 1.3 },
+            { text: "I use whatever is popular or recommended by mainstream sources", score: 1, weight: 1.3 },
+            { text: "I don't evaluate tools; I trust what others use", score: 0, weight: 1.3 }
+        ]
+    },
+    
+    // Circle 2: Personal Practice (4 questions)
+    {
+        category: "Circle 2: Personal Practice",
+        question: "How do you manage your passwords and authentication credentials?",
+        answers: [
+            { text: "Unique random passwords (20+ chars) for every account in encrypted password manager, 2FA on critical accounts", score: 4, weight: 1.8 },
+            { text: "Password manager with some password reuse, 2FA on some accounts", score: 2, weight: 1.8 },
+            { text: "I reuse variations of a few passwords across multiple sites", score: 1, weight: 1.8 },
+            { text: "I use the same password (or minor variations) everywhere", score: 0, weight: 1.8 }
+        ]
+    },
+    {
+        category: "Circle 2: Personal Practice",
+        question: "What encryption do you use for your daily communications?",
+        answers: [
+            { text: "End-to-end encrypted messaging (Signal/Session) for all sensitive communications, verified safety numbers", score: 4, weight: 1.6 },
+            { text: "I use encrypted apps (Signal, WhatsApp) but haven't verified contacts", score: 3, weight: 1.6 },
+            { text: "I use standard messaging apps (SMS, Facebook Messenger, regular email)", score: 1, weight: 1.6 },
+            { text: "I don't use any encrypted communication tools", score: 0, weight: 1.6 }
+        ]
+    },
+    {
+        category: "Circle 2: Personal Practice",
+        question: "How do you compartmentalize your digital identities?",
+        answers: [
+            { text: "Separate identities with dedicated accounts, browsers, and devices per use case", score: 4, weight: 1.4 },
+            { text: "I use browser profiles or containers for different activities", score: 3, weight: 1.4 },
+            { text: "I use one identity for most things, separate for work", score: 1, weight: 1.4 },
+            { text: "I use the same identity and accounts for everything", score: 0, weight: 1.4 }
+        ]
+    },
+    {
+        category: "Circle 2: Personal Practice",
+        question: "What is your approach to browser security and privacy?",
+        answers: [
+            { text: "Hardened browser (Firefox/Brave), content blockers, NoScript/uMatrix, fingerprint protection, regular cookie clearing", score: 4, weight: 1.5 },
+            { text: "Privacy extensions (ad blocker, privacy badger) on standard browser", score: 3, weight: 1.5 },
+            { text: "Default browser settings, maybe incognito mode occasionally", score: 1, weight: 1.5 },
+            { text: "I haven't changed any browser security settings", score: 0, weight: 1.5 }
+        ]
+    },
+
+    // Circle 3: Hardware Security (4 questions)
+    {
+        category: "Circle 3: Hardware Security",
+        question: "What encryption do you use on your primary devices?",
+        answers: [
+            { text: "Full-disk encryption on all devices with strong passphrases (not biometrics for primary unlock)", score: 4, weight: 2.0 },
+            { text: "Full-disk encryption enabled with default settings", score: 3, weight: 2.0 },
+            { text: "Only my laptop/desktop is encrypted, mobile devices are not", score: 1, weight: 2.0 },
+            { text: "No encryption on any of my devices", score: 0, weight: 2.0 }
+        ]
+    },
+    {
+        category: "Circle 3: Hardware Security",
+        question: "How have you hardened your operating system?",
+        answers: [
+            { text: "Disabled telemetry, hardened firewall, minimal services, MAC (SELinux/AppArmor), regular security audits", score: 4, weight: 1.7 },
+            { text: "Disabled some telemetry, enabled firewall, removed some bloatware", score: 2, weight: 1.7 },
+            { text: "Using default OS installation with standard security updates", score: 1, weight: 1.7 },
+            { text: "I haven't made any OS security changes beyond what came pre-configured", score: 0, weight: 1.7 }
+        ]
+    },
+    {
+        category: "Circle 3: Hardware Security",
+        question: "How do you control application permissions and access on your devices?",
+        answers: [
+            { text: "Least privilege principle: apps get only necessary permissions, reviewed regularly, application firewall configured", score: 4, weight: 1.5 },
+            { text: "I review app permissions before installing and adjust obvious issues", score: 3, weight: 1.5 },
+            { text: "I accept default permissions but deny obviously invasive requests", score: 1, weight: 1.5 },
+            { text: "Apps get whatever permissions they request", score: 0, weight: 1.5 }
+        ]
+    },
+    {
+        category: "Circle 3: Hardware Security",
+        question: "What is your backup strategy for critical data?",
+        answers: [
+            { text: "3-2-1 backup rule: 3 copies, 2 different media, 1 offsite, all encrypted, tested regularly", score: 4, weight: 1.6 },
+            { text: "Regular encrypted backups to external drive or cloud storage", score: 3, weight: 1.6 },
+            { text: "Occasional backups when I remember, not encrypted", score: 1, weight: 1.6 },
+            { text: "I don't have a backup strategy", score: 0, weight: 1.6 }
+        ]
+    },
+
+    // Circle 4: Environmental Defense (4 questions)
+    {
+        category: "Circle 4: Environmental Defense",
+        question: "How do you secure your network and internet traffic?",
+        answers: [
+            { text: "Network segmentation (VLANs), WPA3 WiFi, self-hosted VPN (WireGuard), DNS encryption (DoH/DoT), IDS monitoring", score: 4, weight: 2.0 },
+            { text: "Strong WiFi password (WPA2/3), using trusted VPN service, some DNS protection", score: 3, weight: 2.0 },
+            { text: "Changed default router password, using ISP-provided DNS", score: 1, weight: 2.0 },
+            { text: "Using default router settings and public WiFi without protection", score: 0, weight: 2.0 }
+        ]
+    },
+    {
+        category: "Circle 4: Environmental Defense",
+        question: "What remote access security measures do you implement?",
+        answers: [
+            { text: "SSH with keys only (no passwords), 2FA, non-standard ports, Fail2Ban, bastion host architecture", score: 4, weight: 1.8 },
+            { text: "SSH with key authentication and strong passwords, firewall rules limiting access", score: 3, weight: 1.8 },
+            { text: "Standard SSH with password authentication on default port", score: 1, weight: 1.8 },
+            { text: "No remote access or insecure protocols (telnet, unprotected RDP)", score: 0, weight: 1.8 }
+        ]
+    },
+    {
+        category: "Circle 4: Environmental Defense",
+        question: "Do you have intrusion detection and security monitoring in place?",
+        answers: [
+            { text: "NIDS (Suricata), HIDS (Wazuh), centralized logging, automated alerting, file integrity monitoring", score: 4, weight: 1.7 },
+            { text: "Basic logging enabled, reviewing logs occasionally, firewall logs monitored", score: 2, weight: 1.7 },
+            { text: "Default system logging only, rarely reviewed", score: 1, weight: 1.7 },
+            { text: "No security monitoring or logging configured", score: 0, weight: 1.7 }
+        ]
+    },
+    {
+        category: "Circle 4: Environmental Defense",
+        question: "How do you handle DNS security and ad/tracker blocking?",
+        answers: [
+            { text: "Pi-hole or AdGuard Home with encrypted upstream DNS (DoH/DoT), monitoring DNS queries for anomalies", score: 4, weight: 1.5 },
+            { text: "Using encrypted DNS (DoH/DoT) on devices, browser-based ad blocking", score: 3, weight: 1.5 },
+            { text: "Using ad blocker extensions only", score: 1, weight: 1.5 },
+            { text: "No ad blocking or DNS security measures", score: 0, weight: 1.5 }
+        ]
+    },
+    
+    // Additional Circle 1: Understanding questions (4 more)
+    {
+        category: "Circle 1: Understanding",
+        question: "How do you stay informed about emerging security threats and vulnerabilities?",
+        answers: [
+            { text: "I follow security researchers, read advisories, participate in infosec communities, and maintain a threat intelligence feed", score: 4, weight: 1.2 },
+            { text: "I occasionally check security news sites and subscribe to some newsletters", score: 2, weight: 1.2 },
+            { text: "I rely on automatic updates and mainstream tech news", score: 1, weight: 1.2 },
+            { text: "I don't actively track security threats", score: 0, weight: 1.2 }
+        ]
+    },
+    {
+        category: "Circle 1: Understanding",
+        question: "What is your understanding of the Five Eyes and mass surveillance infrastructure?",
+        answers: [
+            { text: "I understand SIGINT collection methods, know which services/protocols are compromised, and design my opsec around this threat model", score: 4, weight: 1.4 },
+            { text: "I know about NSA/GCHQ capabilities and try to use encryption", score: 2, weight: 1.4 },
+            { text: "I've heard of Snowden but don't know the technical details", score: 1, weight: 1.4 },
+            { text: "I'm not familiar with Five Eyes or mass surveillance programs", score: 0, weight: 1.4 }
+        ]
+    },
+    {
+        category: "Circle 1: Understanding",
+        question: "How do you approach the security vs usability tradeoff?",
+        answers: [
+            { text: "I analyze risk for each use case and apply proportional security measures, accepting inconvenience for sensitive activities", score: 4, weight: 1.3 },
+            { text: "I try to balance security and convenience, prioritizing security for important things", score: 3, weight: 1.3 },
+            { text: "I usually choose convenience unless something seems obviously risky", score: 1, weight: 1.3 },
+            { text: "I prioritize convenience and usability over security", score: 0, weight: 1.3 }
+        ]
+    },
+    {
+        category: "Circle 1: Understanding",
+        question: "Do you understand the concept of 'security through obscurity' and its limitations?",
+        answers: [
+            { text: "I understand it's not a defense strategy; I rely on strong crypto and proven security models, never on secrecy of design", score: 4, weight: 1.2 },
+            { text: "I know it's weak but sometimes use it as an additional layer", score: 2, weight: 1.2 },
+            { text: "I think hiding how things work makes them more secure", score: 1, weight: 1.2 },
+            { text: "I'm not familiar with this concept", score: 0, weight: 1.2 }
+        ]
+    },
+    
+    // Additional Circle 2: Personal Practice questions (4 more)
+    {
+        category: "Circle 2: Personal Practice",
+        question: "How do you handle software updates and patch management?",
+        answers: [
+            { text: "Critical security patches within 24-48 hours, staged rollout for major updates, test on non-critical systems first", score: 4, weight: 1.6 },
+            { text: "I install updates regularly, usually within a week of release", score: 3, weight: 1.6 },
+            { text: "I update when I remember or when prompted multiple times", score: 1, weight: 1.6 },
+            { text: "I avoid updates because they might break things", score: 0, weight: 1.6 }
+        ]
+    },
+    {
+        category: "Circle 2: Personal Practice",
+        question: "What's your approach to social media and online presence?",
+        answers: [
+            { text: "Minimal/no presence, separate personas for different contexts, strict privacy settings, regular audits of shared data", score: 4, weight: 1.5 },
+            { text: "I use privacy settings and am selective about what I share", score: 3, weight: 1.5 },
+            { text: "I share freely but avoid obviously sensitive information", score: 1, weight: 1.5 },
+            { text: "I share my life openly on social media", score: 0, weight: 1.5 }
+        ]
+    },
+    {
+        category: "Circle 2: Personal Practice",
+        question: "How do you handle email security and PGP/encryption?",
+        answers: [
+            { text: "PGP for sensitive emails, verified keys, using Protonmail/Tutanota, separate email addresses for different purposes", score: 4, weight: 1.4 },
+            { text: "I use encrypted email services but haven't set up PGP", score: 2, weight: 1.4 },
+            { text: "I use standard email (Gmail, Outlook) with 2FA", score: 1, weight: 1.4 },
+            { text: "I use free email with weak password", score: 0, weight: 1.4 }
+        ]
+    },
+    {
+        category: "Circle 2: Personal Practice",
+        question: "What's your approach to mobile device security?",
+        answers: [
+            { text: "Degoogled/GrapheneOS, minimal apps, regular reviews of permissions, separate profiles for different use cases, VPN always-on", score: 4, weight: 1.7 },
+            { text: "Stock OS with privacy tweaks, careful about app permissions, use of privacy-focused apps", score: 3, weight: 1.7 },
+            { text: "Standard smartphone with factory settings, some privacy apps", score: 1, weight: 1.7 },
+            { text: "Default configuration, install whatever apps I want", score: 0, weight: 1.7 }
+        ]
+    },
+    
+    // Additional Circle 3: Hardware Security questions (4 more)
+    {
+        category: "Circle 3: Hardware Security",
+        question: "How do you handle physical security of your devices?",
+        answers: [
+            { text: "Never leave devices unattended, locked down BIOS/firmware, cable locks in public, security cameras at home, rapid remote wipe capability", score: 4, weight: 1.6 },
+            { text: "I'm careful with my devices and use screen locks", score: 2, weight: 1.6 },
+            { text: "I use basic screen locks but sometimes leave devices unattended", score: 1, weight: 1.6 },
+            { text: "I don't take special physical security precautions", score: 0, weight: 1.6 }
+        ]
+    },
+    {
+        category: "Circle 3: Hardware Security",
+        question: "What is your approach to firmware and BIOS security?",
+        answers: [
+            { text: "BIOS password, disabled USB boot, secure boot enabled, firmware updates applied, boot order locked, checked for implants", score: 4, weight: 1.5 },
+            { text: "Secure boot enabled and BIOS password set", score: 2, weight: 1.5 },
+            { text: "Default BIOS settings", score: 1, weight: 1.5 },
+            { text: "I don't know how to access BIOS settings", score: 0, weight: 1.5 }
+        ]
+    },
+    {
+        category: "Circle 3: Hardware Security",
+        question: "How do you sanitize and dispose of old hardware?",
+        answers: [
+            { text: "Multiple pass wipe (DBAN/shred), physical destruction of storage media, firmware reset, verified destruction", score: 4, weight: 1.4 },
+            { text: "Factory reset and single-pass wipe before disposal", score: 2, weight: 1.4 },
+            { text: "I do a factory reset", score: 1, weight: 1.4 },
+            { text: "I sell/donate devices without special preparation", score: 0, weight: 1.4 }
+        ]
+    },
+    {
+        category: "Circle 3: Hardware Security",
+        question: "What security measures do you use for your home network hardware?",
+        answers: [
+            { text: "Separate router/firewall, hardened firmware (OpenWrt/pfSense), disabled unnecessary services, regular updates, isolated IoT VLAN", score: 4, weight: 1.8 },
+            { text: "Changed default credentials, disabled WPS, using WPA3, firmware updated", score: 3, weight: 1.8 },
+            { text: "Changed WiFi password from default", score: 1, weight: 1.8 },
+            { text: "Using default router configuration", score: 0, weight: 1.8 }
+        ]
+    },
+    
+    // Additional Circle 4: Environmental Defense questions (3 more)
+    {
+        category: "Circle 4: Environmental Defense",
+        question: "How do you protect against traffic analysis and network fingerprinting?",
+        answers: [
+            { text: "VPN + Tor for sensitive activities, traffic shaping, decoy traffic, MAC randomization, avoiding patterns in connection times", score: 4, weight: 1.6 },
+            { text: "VPN with kill switch, some MAC randomization", score: 2, weight: 1.6 },
+            { text: "VPN when I remember, mainly on public WiFi", score: 1, weight: 1.6 },
+            { text: "No specific protections against traffic analysis", score: 0, weight: 1.6 }
+        ]
+    },
+    {
+        category: "Circle 4: Environmental Defense",
+        question: "What is your incident response plan?",
+        answers: [
+            { text: "Documented IR plan, tested procedures, offline backups, emergency contacts, forensics capability, regular drills", score: 4, weight: 1.5 },
+            { text: "I have a general plan and know what to do if compromised", score: 2, weight: 1.5 },
+            { text: "I'd figure it out if something happened", score: 1, weight: 1.5 },
+            { text: "I don't have any incident response plan", score: 0, weight: 1.5 }
+        ]
+    },
+    {
+        category: "Circle 4: Environmental Defense",
+        question: "How do you secure your cloud storage and online services?",
+        answers: [
+            { text: "Client-side encryption before upload, zero-knowledge providers, 2FA on all accounts, regular audit of access logs", score: 4, weight: 1.7 },
+            { text: "Using privacy-focused providers with 2FA enabled", score: 3, weight: 1.7 },
+            { text: "Standard cloud services (Google Drive, Dropbox) with 2FA", score: 1, weight: 1.7 },
+            { text: "Using free cloud storage without encryption or 2FA", score: 0, weight: 1.7 }
+        ]
+    }
+];
+
+// Use the namespace for state
+let currentQuestionIndex = window.SecurityAssessment.currentQuestionIndex;
+let answers = window.SecurityAssessment.answers;
+let categoryScores = window.SecurityAssessment.categoryScores;
+
+// Store shuffled answer mappings for each question (maps displayed index to actual index)
+if (!window.SecurityAssessment.answerMappings) {
+    window.SecurityAssessment.answerMappings = [];
+}
+let answerMappings = window.SecurityAssessment.answerMappings;
+
+// DOM elements - will be initialized when available
+let startScreen, questionScreen, resultsScreen, startBtn, prevBtn, nextBtn, retakeBtn;
+
+// Initialize the assessment when DOM is ready
+function initializeAssessment() {
+    // Prevent double initialization
+    if (window.SecurityAssessment.initialized) {
+        return;
+    }
+    
+    startScreen = document.getElementById('start-screen');
+    questionScreen = document.getElementById('question-screen');
+    resultsScreen = document.getElementById('results-screen');
+    startBtn = document.getElementById('start-assessment-btn');
+    prevBtn = document.getElementById('prev-btn');
+    nextBtn = document.getElementById('next-btn');
+    retakeBtn = document.getElementById('retake-btn');
+    
+    // Event listeners - check if they exist and haven't been bound yet
+    if (startBtn && !startBtn.dataset.bound) {
+        startBtn.dataset.bound = 'true';
+        startBtn.addEventListener('click', startAssessment);
+    }
+    if (prevBtn && !prevBtn.dataset.bound) {
+        prevBtn.dataset.bound = 'true';
+        prevBtn.addEventListener('click', previousQuestion);
+    }
+    if (nextBtn && !nextBtn.dataset.bound) {
+        nextBtn.dataset.bound = 'true';
+        nextBtn.addEventListener('click', nextQuestion);
+    }
+    if (retakeBtn && !retakeBtn.dataset.bound) {
+        retakeBtn.dataset.bound = 'true';
+        retakeBtn.addEventListener('click', resetAssessment);
+    }
+    
+    // Initialize icons
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+    
+    window.SecurityAssessment.initialized = true;
+}
+
+// Initialize immediately when script executes
+initializeAssessment();
+
+function startAssessment() {
+    // Shuffle answers for each question (only once at start)
+    if (answerMappings.length === 0) {
+        questions.forEach((question, qIndex) => {
+            // Create array of indices and shuffle them
+            const indices = question.answers.map((_, i) => i);
+            for (let i = indices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [indices[i], indices[j]] = [indices[j], indices[i]];
+            }
+            answerMappings[qIndex] = indices;
+        });
+        window.SecurityAssessment.answerMappings = answerMappings;
+    }
+    
+    startScreen.classList.add('hidden');
+    questionScreen.classList.remove('hidden');
+    displayQuestion();
+}
+
+function displayQuestion() {
+    const question = questions[currentQuestionIndex];
+    const shuffledIndices = answerMappings[currentQuestionIndex];
+    
+    document.getElementById('current-question').textContent = currentQuestionIndex + 1;
+    document.getElementById('total-questions').textContent = questions.length;
+    document.getElementById('question-category').textContent = question.category;
+    document.getElementById('question-text').textContent = question.question;
+    
+    const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+    document.getElementById('progress-bar').style.width = `${progress}%`;
+    document.getElementById('progress-percentage').textContent = Math.round(progress);
+    
+    // Create answer buttons with shuffled order
+    const answersContainer = document.getElementById('answers-container');
+    answersContainer.innerHTML = '';
+    
+    shuffledIndices.forEach((originalIndex, displayIndex) => {
+        const answer = question.answers[originalIndex];
+        const answerDiv = document.createElement('div');
+        answerDiv.className = 'answer-option';
+        
+        const isSelected = answers[currentQuestionIndex] === originalIndex;
+        
+        answerDiv.innerHTML = `
+            <label class="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                isSelected 
+                    ? 'border-shell-accent bg-shell-accent/10' 
+                    : 'border-shell-border hover:border-shell-accent/50'
+            }">
+                <input type="radio" name="answer" value="${originalIndex}" class="mt-1" ${isSelected ? 'checked' : ''}>
+                <span class="text-gray-300">${answer.text}</span>
+            </label>
+        `;
+        
+        answerDiv.querySelector('input').addEventListener('change', () => selectAnswer(originalIndex));
+        answersContainer.appendChild(answerDiv);
+    });
+    
+    // Update button states
+    prevBtn.disabled = currentQuestionIndex === 0;
+    nextBtn.disabled = answers[currentQuestionIndex] === undefined;
+    nextBtn.innerHTML = currentQuestionIndex === questions.length - 1 
+        ? '<i data-lucide="check-circle" class="w-4 h-4"></i> View Results'
+        : 'Next <i data-lucide="chevron-right" class="w-4 h-4"></i>';
+    
+    lucide.createIcons();
+}
+
+function selectAnswer(answerIndex) {
+    answers[currentQuestionIndex] = answerIndex;
+    window.SecurityAssessment.answers = answers; // Sync to namespace
+    nextBtn.disabled = false;
+    
+    // Update visual selection - check the actual radio button values, not indices
+    document.querySelectorAll('.answer-option label').forEach((label) => {
+        const radio = label.querySelector('input[type="radio"]');
+        if (radio && parseInt(radio.value) === answerIndex) {
+            label.className = 'flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all border-shell-accent bg-shell-accent/10';
+        } else {
+            label.className = 'flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all border-shell-border hover:border-shell-accent/50';
+        }
+    });
+}
+
+function previousQuestion() {
+    if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
+        window.SecurityAssessment.currentQuestionIndex = currentQuestionIndex; // Sync to namespace
+        displayQuestion();
+    }
+}
+
+function nextQuestion() {
+    if (currentQuestionIndex < questions.length - 1) {
+        currentQuestionIndex++;
+        window.SecurityAssessment.currentQuestionIndex = currentQuestionIndex; // Sync to namespace
+        displayQuestion();
+    } else {
+        calculateResults();
+    }
+}
+
+function calculateResults() {
+    // Reset category scores
+    Object.keys(categoryScores).forEach(key => {
+        categoryScores[key] = { score: 0, maxScore: 0, weight: 0 };
+    });
+    
+    // Calculate scores
+    questions.forEach((question, index) => {
+        const answerIndex = answers[index];
+        const answer = question.answers[answerIndex];
+        const category = question.category;
+        
+        categoryScores[category].score += answer.score * answer.weight;
+        categoryScores[category].maxScore += 4 * answer.weight;
+        categoryScores[category].weight += answer.weight;
+    });
+    
+    // Sync to namespace
+    window.SecurityAssessment.categoryScores = categoryScores;
+    
+    // Calculate overall score (weighted average)
+    let totalWeightedScore = 0;
+    let totalWeight = 0;
+    
+    Object.values(categoryScores).forEach(cat => {
+        totalWeightedScore += cat.score;
+        totalWeight += cat.maxScore;
+    });
+    
+    const overallPercentage = (totalWeightedScore / totalWeight) * 100;
+    
+    displayResults(overallPercentage);
+}
+
+function displayResults(overallScore) {
+    questionScreen.classList.add('hidden');
+    resultsScreen.classList.remove('hidden');
+    
+    // Small delay to ensure DOM is ready
+    setTimeout(() => {
+        try {
+            // Determine threat level
+            const threatLevel = getThreatLevel(overallScore);
+            displayThreatLevel(threatLevel);
+            
+            // Display category breakdowns
+            displayCategoryScores();
+            
+            // Display vulnerabilities
+            displayVulnerabilities();
+            
+            // Display learning path
+            displayLearningPath(threatLevel);
+            
+            // Display time estimates
+            displayTimeEstimates(threatLevel);
+            
+            // Display daily routine
+            displayDailyRoutine(threatLevel);
+            
+            // Display next steps
+            displayNextSteps(threatLevel);
+            
+            // Recreate all icons
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        } catch (error) {
+            console.error('Error displaying results:', error);
+        }
+    }, 50);
+}
+
+function getThreatLevel(score) {
+    if (score >= 85) {
+        return {
+            level: "Hardened",
+            color: "#00ff9d",
+            icon: "shield-check",
+            description: "Your security posture is exceptional. You have implemented comprehensive defenses across all circles of operational security. You understand threat models, practice strong digital hygiene, have hardened your systems, and maintain robust environmental defenses. Your adversaries would need significant resources and sophisticated techniques to compromise your security.",
+            adversaries: "Advanced persistent threats, nation-state actors, well-resourced organizations",
+            timeframe: "You're already well-defended. Focus on maintenance and staying current.",
+            learning: "2-4 weeks",
+            mastery: "2-3 months",
+            maintenance: "30-45 min/day"
+        };
+    } else if (score >= 70) {
+        return {
+            level: "Vigilant",
+            color: "#10b981",
+            icon: "shield",
+            description: "You have a strong security foundation with most critical defenses in place. You understand operational security concepts and have implemented key protections. Some gaps remain in advanced areas, but your baseline security is solid. Targeted attacks would require significant effort and expertise.",
+            adversaries: "Skilled individuals, organized cybercrime groups, corporate espionage",
+            timeframe: "Closing remaining gaps will significantly strengthen your posture.",
+            learning: "3-6 weeks",
+            mastery: "3-4 months",
+            maintenance: "20-30 min/day"
+        };
+    } else if (score >= 50) {
+        return {
+            level: "Cautious",
+            color: "#f59e0b",
+            icon: "alert-triangle",
+            description: "You have implemented some security measures but critical gaps remain. You understand basic concepts but need to strengthen your operational security practices. Your current defenses may deter opportunistic attacks but won't stop determined adversaries. Priority should be closing fundamental gaps in authentication, encryption, and system hardening.",
+            adversaries: "Opportunistic attackers, script kiddies, automated scanners, basic phishing",
+            timeframe: "Significant work needed to establish robust defenses.",
+            learning: "6-10 weeks",
+            mastery: "4-6 months",
+            maintenance: "15-25 min/day"
+        };
+    } else if (score >= 25) {
+        return {
+            level: "Exposed",
+            color: "#ef4444",
+            icon: "shield-alert",
+            description: "Your security posture has serious vulnerabilities. You lack fundamental protections that defend against common attacks. Basic operational security concepts need immediate attention. Your current state makes you vulnerable to automated attacks, phishing, credential theft, and social engineering. Urgent action required.",
+            adversaries: "Any attacker with basic skills, automated attacks, mass surveillance",
+            timeframe: "Critical vulnerabilities need immediate remediation.",
+            learning: "10-14 weeks",
+            mastery: "6-9 months",
+            maintenance: "10-20 min/day initially"
+        };
+    } else {
+        return {
+            level: "Critical",
+            color: "#dc2626",
+            icon: "skull",
+            description: "Your security posture is critically weak. You are vulnerable to even the most basic attacks. Fundamental operational security practices are absent. Without immediate action, your data, communications, and systems are effectively unprotected. You need to start from the very beginning and build a security foundation systematically.",
+            adversaries: "Anyone with internet access, fully exposed to mass surveillance and automated attacks",
+            timeframe: "Start immediately. Every day without basic protections is a significant risk.",
+            learning: "12-16 weeks",
+            mastery: "9-12 months",
+            maintenance: "Start with 10 min/day, build up gradually"
+        };
+    }
+}
+
+function displayThreatLevel(threat) {
+    const card = document.getElementById('threat-level-card');
+    if (card) {
+        card.style.borderColor = threat.color;
+    }
+    
+    const icon = document.getElementById('threat-icon');
+    if (icon) {
+        icon.style.backgroundColor = `${threat.color}20`;
+        icon.style.borderColor = threat.color;
+        const iconElement = icon.querySelector('i');
+        if (iconElement) {
+            iconElement.setAttribute('data-lucide', threat.icon);
+            iconElement.style.color = threat.color;
+        }
+    }
+    
+    const levelName = document.getElementById('threat-level-name');
+    if (levelName) {
+        levelName.textContent = threat.level;
+        levelName.style.color = threat.color;
+    }
+    
+    const levelDesc = document.getElementById('threat-level-description');
+    if (levelDesc) {
+        levelDesc.textContent = threat.description;
+    }
+}
+
+function displayCategoryScores() {
+    const container = document.getElementById('category-scores');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    Object.entries(categoryScores).forEach(([category, data]) => {
+        const percentage = data.maxScore > 0 ? Math.round((data.score / data.maxScore) * 100) : 0;
+        const categoryDiv = document.createElement('div');
+        
+        let statusColor = '#ef4444';
+        let statusText = 'Critical';
+        let guidance = '';
+        
+        if (percentage >= 85) { 
+            statusColor = '#00ff9d'; 
+            statusText = 'Strong';
+            if (category === "Circle 1: Understanding") {
+                guidance = 'Excellent foundation. Continue studying emerging threats, participate in CTFs to test your knowledge, and consider mentoring others to solidify your understanding.';
+            } else if (category === "Circle 2: Personal Practice") {
+                guidance = 'Strong hygiene practices. Focus on consistency and automation where possible. Review and update your practices quarterly as threats evolve.';
+            } else if (category === "Circle 3: Hardware Security") {
+                guidance = 'Solid device security. Consider advanced topics: hardware key storage (YubiKey), air-gapped systems for sensitive work, and regular firmware integrity checks.';
+            } else {
+                guidance = 'Robust environmental defenses. Expand to honeypots for threat detection, threat hunting in logs, and advanced network segmentation with micro-segmentation.';
+            }
+        }
+        else if (percentage >= 70) { 
+            statusColor = '#10b981'; 
+            statusText = 'Good';
+            if (category === "Circle 1: Understanding") {
+                guidance = 'Good knowledge base. Deepen understanding of cryptography, study real-world attack case studies, and follow security researchers to stay current.';
+            } else if (category === "Circle 2: Personal Practice") {
+                guidance = 'On the right track. Focus on eliminating weak points: ensure 2FA everywhere, use hardware keys instead of SMS, compartmentalize all activities.';
+            } else if (category === "Circle 3: Hardware Security") {
+                guidance = 'Decent device security. Priority improvements: firmware security, BIOS hardening, secure wipe procedures, and physical security measures.';
+            } else {
+                guidance = 'Good network security. Next steps: implement IDS/IPS, set up centralized logging, create network monitoring dashboards, practice incident response.';
+            }
+        }
+        else if (percentage >= 50) { 
+            statusColor = '#f59e0b'; 
+            statusText = 'Fair';
+            if (category === "Circle 1: Understanding") {
+                guidance = 'Start with: study threat modeling frameworks, understand your adversaries, learn about mass surveillance infrastructure (Five Eyes), and read foundational security texts.';
+            } else if (category === "Circle 2: Personal Practice") {
+                guidance = 'Critical gaps to address: switch to encrypted communications (Signal), implement password manager, enable 2FA on all accounts, compartmentalize digital identities.';
+            } else if (category === "Circle 3: Hardware Security") {
+                guidance = 'Urgent: enable full-disk encryption on all devices, harden your OS (disable telemetry, configure firewall), implement strict app permissions, create backup strategy.';
+            } else {
+                guidance = 'Major vulnerabilities: set up VPN, configure DNS encryption, secure your router (change defaults, update firmware), implement network segmentation for IoT devices.';
+            }
+        }
+        else { 
+            statusColor = '#ef4444'; 
+            statusText = 'Critical';
+            if (category === "Circle 1: Understanding") {
+                guidance = 'START HERE: Read /1.OpSec_101/Part 1 immediately. You need foundational knowledge before implementing technical controls. Understanding "why" is more critical than knowing "how".';
+            } else if (category === "Circle 2: Personal Practice") {
+                guidance = 'URGENT: Your daily practices have critical flaws. Priority 1: Unique strong passwords + password manager. Priority 2: 2FA on email/banking. Priority 3: Encrypted messaging. Do these NOW.';
+            } else if (category === "Circle 3: Hardware Security") {
+                guidance = 'CRITICAL RISK: Your devices are completely exposed. Enable full-disk encryption TODAY. This is your last line of defense if devices are lost, stolen, or seized. Start with your most sensitive device.';
+            } else {
+                guidance = 'SEVERE EXPOSURE: Your network is vulnerable to basic attacks. Immediate actions: change router password, enable WPA3 WiFi, use VPN for all traffic, disable UPnP on router.';
+            }
+        }
+        
+        categoryDiv.innerHTML = `
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <span class="font-semibold text-white">${category}</span>
+                    <span class="text-sm px-3 py-1 rounded font-semibold" style="background-color: ${statusColor}20; color: ${statusColor}">${statusText} - ${percentage}%</span>
+                </div>
+                <div class="w-full bg-shell-dark rounded-full h-3 mb-2">
+                    <div class="h-3 rounded-full transition-all" style="width: ${percentage}%; background-color: ${statusColor}"></div>
+                </div>
+                <p class="text-sm text-gray-400 italic">${guidance}</p>
+            </div>
+        `;
+        
+        container.appendChild(categoryDiv);
+    });
+}
+
+function displayVulnerabilities() {
+    const container = document.getElementById('vulnerabilities-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    const vulnerabilities = [];
+    
+    questions.forEach((question, index) => {
+        const answerIndex = answers[index];
+        const answer = question.answers[answerIndex];
+        
+        if (answer.score <= 1) {
+            // Generate risk explanation based on the question
+            let riskExplanation = '';
+            
+            if (question.question.includes('threat modeling')) {
+                riskExplanation = 'Without a clear threat model, you cannot prioritize security measures effectively. You may waste resources on irrelevant protections while leaving critical vulnerabilities exposed. Understanding your adversaries and their capabilities is the foundation of operational security.';
+            } else if (question.question.includes('metadata')) {
+                riskExplanation = 'Metadata reveals who you communicate with, when, how often, and from where. Even with encrypted content, metadata can expose your social network, daily routines, and sensitive associations. Mass surveillance systems primarily rely on metadata analysis.';
+            } else if (question.question.includes('trustworthiness of security tools')) {
+                riskExplanation = 'Blindly trusting security tools can be worse than using none at all. Compromised or backdoored tools give you false confidence while actively undermining your security. Always verify signatures, review code, and check independent audits before trusting tools with sensitive data.';
+            } else if (question.question.includes('passwords and authentication')) {
+                riskExplanation = 'Password reuse is the #1 cause of account compromises. When one service is breached, attackers test those credentials everywhere. Weak passwords can be cracked in seconds. Without 2FA, a single password compromise gives attackers complete access to your accounts.';
+            } else if (question.question.includes('encryption do you use for your daily')) {
+                riskExplanation = 'Unencrypted communications are readable by anyone with network access: your ISP, government agencies, hackers on public WiFi, and the service provider. SMS and standard email are sent in plaintext. Your conversations, photos, and location data are fully exposed.';
+            } else if (question.question.includes('compartmentalize your digital identities')) {
+                riskExplanation = 'Using the same identity everywhere creates a comprehensive profile of your entire life. A single data breach or social engineering attack can expose all your activities. Adversaries can correlate your work, personal life, activism, and sensitive research, giving them leverage and attack vectors.';
+            } else if (question.question.includes('browser security and privacy')) {
+                riskExplanation = 'Default browsers leak extensive data: browsing history, search queries, shopping habits, political views, health concerns. Advertising networks build detailed profiles for targeting and selling. Tracking scripts follow you across the web. Without hardening, your browser is a surveillance device.';
+            } else if (question.question.includes('encryption do you use on your primary devices')) {
+                riskExplanation = 'Unencrypted devices expose all data if lost, stolen, or seized. Law enforcement, thieves, or malicious actors get complete access to your files, photos, messages, passwords, and browser history. Physical device security is your last line of defense.';
+            } else if (question.question.includes('hardened your operating system')) {
+                riskExplanation = 'Default OS configurations prioritize convenience over security. Telemetry sends your activities to vendors. Unnecessary services expand your attack surface. Without hardening, your system is vulnerable to known exploits, malware, and remote attacks. Default configs assume trust, not adversaries.';
+            } else if (question.question.includes('application permissions')) {
+                riskExplanation = 'Excessive permissions give apps access to your contacts, location, camera, microphone, and files. Apps can secretly record conversations, track movements, steal data, and spy on activities. Many apps sell this data to brokers. Permissions granted are permissions abused.';
+            } else if (question.question.includes('backup strategy')) {
+                riskExplanation = 'Without backups, ransomware, hardware failure, theft, or accidental deletion means permanent data loss. Unencrypted backups expose all your data if the backup location is compromised. A single point of failure (one backup, one location) is not a backup strategy.';
+            } else if (question.question.includes('secure your network')) {
+                riskExplanation = 'Default router configs have known vulnerabilities. Weak WiFi encryption allows neighbors and attackers to intercept traffic. Without VPN, your ISP logs every site you visit. Unencrypted DNS reveals all domains you access. No network segmentation means one compromised device exposes everything.';
+            } else if (question.question.includes('remote access security')) {
+                riskExplanation = 'Password-based SSH is vulnerable to brute force attacks. Default ports are constantly scanned by bots. Without fail2ban, attackers get unlimited login attempts. Weak remote access is the #1 entry point for ransomware and data breaches. One compromised credential = full system access.';
+            } else if (question.question.includes('intrusion detection')) {
+                riskExplanation = 'Without monitoring, breaches go undetected for months (average: 280 days). Attackers exfiltrate data, install backdoors, and move laterally unnoticed. No logs means no forensics after an incident. You cannot defend against threats you cannot see.';
+            } else if (question.question.includes('DNS security')) {
+                riskExplanation = 'Unencrypted DNS broadcasts every website you visit to your ISP and anyone monitoring the network. DNS is used for censorship and surveillance. Malicious DNS can redirect you to phishing sites. Ads and trackers follow you based on DNS queries. DNS leaks bypass VPN protection.';
+            } else {
+                riskExplanation = 'This security gap exposes you to common attacks and significantly increases your risk profile. Adversaries actively exploit these weaknesses to compromise systems, steal data, and maintain persistent access.';
+            }
+            
+            vulnerabilities.push({
+                category: question.category,
+                question: question.question,
+                userAnswer: answer.text,
+                impact: answer.score === 0 ? 'Critical' : 'High',
+                risk: riskExplanation
+            });
+        }
+    });
+    
+    if (vulnerabilities.length === 0) {
+        container.innerHTML = '<p class="text-green-400">No critical vulnerabilities identified. Keep maintaining your security posture!</p>';
+    } else {
+        vulnerabilities.forEach(vuln => {
+            const vulnDiv = document.createElement('div');
+            vulnDiv.className = 'border border-red-500/30 bg-red-500/10 rounded-lg p-4';
+            vulnDiv.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <i data-lucide="x-circle" class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0"></i>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-xs font-bold px-2 py-0.5 rounded ${vuln.impact === 'Critical' ? 'bg-red-600 text-white' : 'bg-orange-600 text-white'}">${vuln.impact}</span>
+                            <span class="text-xs text-gray-400">${vuln.category}</span>
+                        </div>
+                        <div class="font-semibold text-white mb-1">${vuln.question}</div>
+                        <div class="text-sm text-gray-400 mb-2">Your answer: <span class="text-red-400">${vuln.userAnswer}</span></div>
+                        <div class="text-sm text-gray-300 bg-red-900/20 border-l-2 border-red-500 pl-3 py-2 mt-2">
+                            <strong class="text-red-400">Risk:</strong> ${vuln.risk}
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(vulnDiv);
+        });
+    }
+}
+
+function displayLearningPath(threat) {
+    const container = document.getElementById('learning-path');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    const pathSteps = [];
+    
+    // Determine learning path based on category scores
+    Object.entries(categoryScores).forEach(([category, data]) => {
+        const percentage = (data.score / data.maxScore) * 100;
+        
+        if (percentage < 50) {
+            let guides = [];
+            switch(category) {
+                case "Circle 1: Understanding":
+                    guides = [
+                        { title: "/1.OpSec_101/Part 1: Introduction to OpSec", link: "#/posts/1.OpSec_101/part1.html", priority: 1 },
+                        { title: "/1.OpSec_101/Part 2: Threat Modeling", link: "#/posts/1.OpSec_101/part2.html", priority: 1 }
+                    ];
+                    break;
+                case "Circle 2: Personal Practice":
+                    guides = [
+                        { title: "/1.OpSec_101/Part 3: Digital Hygiene", link: "#/posts/1.OpSec_101/part3.html", priority: 2 }
+                    ];
+                    break;
+                case "Circle 3: Hardware Security":
+                    guides = [
+                        { title: "/2.Operating_Systems/Linux Hardening", link: "#/posts/2.Operating_Systems/linux.html", priority: 3 },
+                        { title: "/2.Operating_Systems/Windows Security", link: "#/posts/2.Operating_Systems/windows.html", priority: 3 },
+                        { title: "/2.Operating_Systems/macOS Security", link: "#/posts/2.Operating_Systems/macos.html", priority: 3 }
+                    ];
+                    break;
+                case "Circle 4: Environmental Defense":
+                    guides = [
+                        { title: "/3.Network_Security/Part 1: VPN Configuration", link: "#/posts/3.Network_Security/part1.html", priority: 4 },
+                        { title: "/3.Network_Security/Part 3: Network Segmentation", link: "#/posts/3.Network_Security/part3.html", priority: 4 },
+                        { title: "/3.Network_Security/Part 4: Secure Remote Access", link: "#/posts/3.Network_Security/part4.html", priority: 4 }
+                    ];
+                    break;
+            }
+            pathSteps.push(...guides.map(g => ({ ...g, percentage, category })));
+        }
+    });
+    
+    // Sort by priority and percentage (lowest percentage = highest priority)
+    pathSteps.sort((a, b) => {
+        if (a.priority !== b.priority) return a.priority - b.priority;
+        return a.percentage - b.percentage;
+    });
+    
+    if (pathSteps.length === 0) {
+        container.innerHTML = '<p class="text-green-400">Excellent! You\'ve covered the fundamentals. Focus on advanced topics and maintaining your security posture.</p>';
+    } else {
+        pathSteps.forEach((step, index) => {
+            const stepDiv = document.createElement('div');
+            stepDiv.className = 'flex items-start gap-4';
+            stepDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-shell-accent/20 flex items-center justify-center flex-shrink-0 border-2 border-shell-accent">
+                    <span class="text-shell-accent font-bold text-sm">${index + 1}</span>
+                </div>
+                <div class="flex-1">
+                    <a href="${step.link}" class="text-shell-accent hover:underline font-semibold">${step.title}</a>
+                    <p class="text-sm text-gray-400 mt-1">Priority: ${step.priority === 1 ? 'Critical - Start Here' : step.priority === 2 ? 'High' : step.priority === 3 ? 'Medium' : 'Advanced'}</p>
+                </div>
+            `;
+            container.appendChild(stepDiv);
+        });
+    }
+}
+
+function displayTimeEstimates(threat) {
+    const initialEl = document.getElementById('time-initial');
+    const learningEl = document.getElementById('time-learning');
+    const masteryEl = document.getElementById('time-mastery');
+    
+    if (initialEl) {
+        initialEl.textContent = threat.level === 'Hardened' ? '1-2 days' : threat.level === 'Vigilant' ? '3-5 days' : threat.level === 'Cautious' ? '1-2 weeks' : '2-3 weeks';
+    }
+    if (learningEl) {
+        learningEl.textContent = threat.learning;
+    }
+    if (masteryEl) {
+        masteryEl.textContent = threat.mastery;
+    }
+}
+
+function displayDailyRoutine(threat) {
+    const container = document.getElementById('daily-routine');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    const routines = [];
+    
+    if (threat.level === 'Critical' || threat.level === 'Exposed') {
+        routines.push(
+            { task: 'Enable full-disk encryption on all devices', duration: 'One-time setup' },
+            { task: 'Set up password manager with unique passwords', duration: '5-10 min' },
+            { task: 'Enable 2FA on critical accounts (email, banking)', duration: '2-3 min' },
+            { task: 'Install encrypted messaging app (Signal)', duration: '5 min' },
+            { task: 'Review and revoke unnecessary app permissions', duration: '5 min' }
+        );
+    } else if (threat.level === 'Cautious') {
+        routines.push(
+            { task: 'Review authentication logs for suspicious activity', duration: '5 min' },
+            { task: 'Update password manager entries', duration: '2-3 min' },
+            { task: 'Check for OS and application updates', duration: '3-5 min' },
+            { task: 'Review firewall logs', duration: '5 min' },
+            { task: 'Backup critical data', duration: '10 min (weekly)' }
+        );
+    } else if (threat.level === 'Vigilant') {
+        routines.push(
+            { task: 'Monitor IDS/HIDS alerts', duration: '10 min' },
+            { task: 'Review centralized security logs', duration: '10 min' },
+            { task: 'Check DNS query logs for anomalies', duration: '5 min' },
+            { task: 'Update blocklists and security rules', duration: '5 min' },
+            { task: 'Verify backup integrity', duration: '5 min (weekly)' }
+        );
+    } else {
+        routines.push(
+            { task: 'Threat intelligence review', duration: '10 min' },
+            { task: 'Security log analysis and correlation', duration: '15 min' },
+            { task: 'Review and tune detection rules', duration: '10 min' },
+            { task: 'Update threat models and risk assessments', duration: '15 min (weekly)' },
+            { task: 'Practice incident response scenarios', duration: '30 min (weekly)' }
+        );
+    }
+    
+    routines.forEach(routine => {
+        const routineDiv = document.createElement('div');
+        routineDiv.className = 'flex items-start gap-2 text-sm';
+        routineDiv.innerHTML = `
+            <i data-lucide="check-circle" class="w-4 h-4 text-shell-accent mt-0.5 flex-shrink-0"></i>
+            <div class="flex-1">
+                <span class="text-gray-300">${routine.task}</span>
+                <span class="text-gray-500 ml-2">(${routine.duration})</span>
+            </div>
+        `;
+        container.appendChild(routineDiv);
+    });
+}
+
+function displayNextSteps(threat) {
+    const container = document.getElementById('next-steps-text');
+    if (!container) return;
+    
+    let nextSteps = '';
+    
+    if (threat.level === 'Hardened') {
+        nextSteps = 'Your security posture is excellent. Focus on maintaining your defenses, staying updated on emerging threats, and practicing incident response scenarios. Consider contributing to the security community by sharing your knowledge and helping others improve their operational security.';
+    } else if (threat.level === 'Vigilant') {
+        nextSteps = 'You have a strong foundation. Start with the advanced topics in your learning path above. Focus on implementing intrusion detection, centralized logging, and network segmentation. These environmental defenses will significantly strengthen your already-solid baseline.';
+    } else if (threat.level === 'Cautious') {
+        nextSteps = 'Begin with Circle 1 (Understanding) if you haven\'t mastered threat modeling. Then systematically work through your learning path. Prioritize enabling full-disk encryption, hardening your operating system, and implementing key-based authentication for remote access. Expect 6-10 weeks of focused learning.';
+    } else if (threat.level === 'Exposed') {
+        nextSteps = 'Start immediately with /1.OpSec_101/Part 1. You need to build a foundation before implementing technical controls. Focus on password management, encrypted communication, and full-disk encryption first. These are your most critical gaps. Block out 1-2 hours daily for the next 10-14 weeks to systematically improve your security posture.';
+    } else {
+        nextSteps = 'Your situation requires immediate action. Start with /1.OpSec_101/Part 1 today. Do not skip ahead to technical topics until you understand fundamental concepts. Your first week should focus exclusively on understanding threats, setting up a password manager, and enabling basic encryption. This is a marathon, not a sprint – commit to 12-16 weeks of steady learning.';
+    }
+    
+    container.textContent = nextSteps;
+}
+
+function resetAssessment() {
+    currentQuestionIndex = 0;
+    answers = [];
+    answerMappings = []; // Clear shuffled answers for new test
+    
+    // Sync with namespace
+    window.SecurityAssessment.currentQuestionIndex = 0;
+    window.SecurityAssessment.answers = [];
+    window.SecurityAssessment.answerMappings = []; // Reset mappings for reshuffling
+    Object.keys(window.SecurityAssessment.categoryScores).forEach(key => {
+        window.SecurityAssessment.categoryScores[key] = { score: 0, maxScore: 0, weight: 0 };
+    });
+    
+    resultsScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+
+<style>
+.answer-option input[type="radio"] {
+    accent-color: #00ff9d;
+}
+</style>

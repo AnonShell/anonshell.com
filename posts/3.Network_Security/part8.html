@@ -1,0 +1,842 @@
+<h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+    <span class="text-gray-500">#</span> 8. Traffic Analysis & D.P.I
+</h1>
+
+<div class="terminal-alert not-prose mb-8">
+    <div class="terminal-alert-header">
+        <i data-lucide="alert-circle" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Why Traffic Analysis Matters</h3>
+    </div>
+    <p class="terminal-alert-content">
+        Modern networks are encrypted, but encryption hides content—not behavior. Traffic analysis reveals what applications are running, when users are active, what sites they visit, and whether malware is calling home. <strong>You cannot defend what you cannot see.</strong> This guide teaches you to read the network like a book.
+    </p>
+</div>
+
+<h2>The Traffic Analysis Mindset</h2>
+
+<p>Network traffic tells stories. Every packet has metadata: source IP, destination IP, port numbers, timing, size, protocol. Even encrypted traffic reveals patterns:</p>
+
+<ul>
+    <li><strong>TLS handshake</strong> leaks the domain name (Server Name Indication)</li>
+    <li><strong>Packet sizes</strong> fingerprint applications (VoIP, streaming, downloads)</li>
+    <li><strong>Timing patterns</strong> reveal user behavior (active hours, keystroke timing)</li>
+    <li><strong>DNS queries</strong> show every domain accessed (even if HTTPS)</li>
+    <li><strong>Port scanning</strong> attempts expose reconnaissance activity</li>
+</ul>
+
+<div class="terminal-info not-prose my-6">
+    <div class="terminal-info-header">
+        <i data-lucide="target" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">What You'll Learn</h3>
+    </div>
+    <p class="terminal-info-content">
+        Master tcpdump for command-line packet capture, Wireshark for deep protocol analysis, identify malware traffic patterns, analyze encrypted traffic metadata, detect data exfiltration, and understand when to use TLS inspection (and its ethical implications).
+    </p>
+</div>
+
+<h2>tcpdump: Command-Line Packet Capture</h2>
+
+<p><strong>Why tcpdump first?</strong> It's installed on nearly every Linux system, works over SSH, uses minimal resources, and teaches you to think in filters. Once you master tcpdump, Wireshark becomes a GUI for concepts you already understand.</p>
+
+<h3>Basic Capture Syntax</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="bash"><code class="language-bash"># Capture all traffic on interface eth0
+# -i specifies network interface (use 'any' for all interfaces)
+sudo tcpdump -i eth0
+
+# Capture and save to file (for later Wireshark analysis)
+# -w writes packets to file instead of displaying them
+# Saved in PCAP format (standard packet capture format)
+sudo tcpdump -i eth0 -w capture.pcap
+
+# Capture with timestamp and don't resolve hostnames (faster)
+# -tttt shows absolute timestamp with date
+# -n disables DNS lookups (shows IPs instead of hostnames - faster)
+sudo tcpdump -i eth0 -tttt -n
+
+# Show packet contents in hex and ASCII
+# -X displays packet payload in hexadecimal and ASCII
+# Useful for reading unencrypted data (HTTP, FTP, Telnet)
+sudo tcpdump -i eth0 -X
+
+# Limit capture to 100 packets
+# -c count: stop after capturing N packets
+# Prevents filling disk with captures
+sudo tcpdump -i eth0 -c 100
+
+# List available interfaces
+# -D shows all network interfaces tcpdump can capture from
+# Useful when you don't know interface names (eth0, wlan0, etc.)
+sudo tcpdump -D</code></pre>
+</div>
+
+<h3>Essential Filters</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="bash"><code class="language-bash"># Capture only traffic to/from specific IP
+# 'host' matches packets where IP is either source or destination
+# Use this to monitor a specific device on your network
+sudo tcpdump -i eth0 host 192.168.1.100
+
+# Capture traffic from specific source
+# 'src' only matches packets originating from this IP
+# Useful for monitoring outbound traffic from suspected compromised host
+sudo tcpdump -i eth0 src 192.168.1.100
+
+# Capture traffic to specific destination
+# 'dst' only matches packets going to this IP
+# Example: monitor all DNS queries going to Google's DNS (8.8.8.8)
+sudo tcpdump -i eth0 dst 8.8.8.8
+
+# Capture specific port (e.g., HTTPS)
+# 'port' matches both source and destination port
+# 443 = HTTPS, 80 = HTTP, 22 = SSH, 53 = DNS
+sudo tcpdump -i eth0 port 443
+
+# Capture specific protocol
+# Filter by transport layer protocol
+sudo tcpdump -i eth0 tcp    # TCP connections (web, SSH, email)
+sudo tcpdump -i eth0 udp    # UDP traffic (DNS, VoIP, streaming)
+sudo tcpdump -i eth0 icmp   # ICMP (ping, traceroute)
+
+# Capture traffic on specific network
+# 'net' matches entire subnet in CIDR notation
+# Example: capture all traffic to/from 192.168.1.0/24 subnet
+sudo tcpdump -i eth0 net 192.168.1.0/24
+
+# Exclude traffic (e.g., ignore SSH to avoid feedback loop)
+# 'not' inverts the filter
+# Critical: if you're SSH'd into the machine, excluding port 22
+# prevents your own SSH session from filling the capture
+sudo tcpdump -i eth0 not port 22
+
+# Combine filters with 'and', 'or', 'not'
+# Capture HTTP traffic to/from specific host
+sudo tcpdump -i eth0 'host 192.168.1.100 and port 80'
+# Capture all web traffic (HTTP or HTTPS)
+sudo tcpdump -i eth0 'tcp and (port 80 or port 443)'</code></pre>
+</div>
+
+<h3>Advanced Filtering</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="bash"><code class="language-bash"># Capture only SYN packets (connection attempts)
+# SYN = first packet in TCP 3-way handshake (client initiates connection)
+# Useful for detecting port scans (many SYNs to different ports)
+# tcp[tcpflags] reads TCP flags field, & is bitwise AND
+sudo tcpdump -i eth0 'tcp[tcpflags] & tcp-syn != 0'
+
+# Capture only TCP packets with data (exclude ACKs)
+# PSH flag indicates packet contains data (not just acknowledgment)
+# Filters out "empty" ACK packets that just acknowledge receipt
+# Useful for seeing actual data transfers
+sudo tcpdump -i eth0 'tcp[tcpflags] & tcp-push != 0'
+
+# Capture packets larger than 1000 bytes (potential data exfiltration)
+# Large packets often indicate file transfers or data uploads
+# Helps detect data exfiltration (stolen files being uploaded)
+# 'greater' filters by total packet size
+sudo tcpdump -i eth0 'greater 1000'
+
+# Capture HTTP GET requests
+# Matches packets containing hex 0x47455420 = ASCII "GET "
+# Complex filter: reads TCP data offset, calculates payload position
+# -A displays ASCII so you can read the HTTP request
+# Shows exactly which URLs are being requested
+sudo tcpdump -i eth0 -A 'tcp port 80 and (tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x47455420)'
+
+# Capture DNS queries
+# DNS uses UDP port 53 (TCP 53 for large responses/zone transfers)
+# Shows every domain name being resolved
+# Critical for detecting malware domains, DNS tunneling
+sudo tcpdump -i eth0 udp port 53
+
+# Capture SSH connection attempts
+# Filters for SYN packets to port 22 (SSH)
+# Useful for detecting SSH brute-force attempts
+# Many SYNs from same IP = potential attack
+sudo tcpdump -i eth0 'tcp port 22 and tcp[tcpflags] & tcp-syn != 0'
+
+# Capture traffic not to common ports (potential malware C2)
+# Excludes normal web/SSH traffic
+# Malware often uses non-standard ports (8080, 4444, random high ports)
+# Helps spot suspicious outbound connections
+sudo tcpdump -i eth0 'tcp and not port 80 and not port 443 and not port 22'</code></pre>
+</div>
+
+<h3>Practical tcpdump Scenarios</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Detect port scanning (many SYN packets to different ports):</p>
+    <pre data-lang="bash"><code class="language-bash">sudo tcpdump -i eth0 -n 'tcp[tcpflags] & tcp-syn != 0' | awk '{print $3}' | cut -d. -f1-4 | sort | uniq -c | sort -rn
+
+# Breakdown:
+# 1. tcpdump captures SYN packets (connection attempts)
+# 2. awk '{print $3}' extracts destination IP:port (field 3)
+# 3. cut -d. -f1-4 removes port, keeps only IP address
+# 4. sort | uniq -c counts occurrences of each IP
+# 5. sort -rn sorts by count (highest first)
+#
+# Look for single IP with high count = scanning your network
+# Example output:
+#     157 192.168.1.100  ← This IP attempted 157 connections (scanner!)
+#      12 8.8.8.8        ← Normal (DNS server)
+#       3 192.168.1.1    ← Normal (router)</code></pre>
+</div>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Monitor outbound connections from specific host (potential compromise):</p>
+    <pre data-lang="bash"><code class="language-bash">sudo tcpdump -i eth0 -n 'src host 192.168.1.50 and tcp[tcpflags] & tcp-syn != 0'
+
+# Shows every NEW outbound connection from 192.168.1.50
+# (SYN flag = initiating connection)
+# -n shows raw IPs instead of resolving hostnames
+#
+# Watch for:
+# - Connections to foreign countries (if unusual for your use case)
+# - Connections to non-standard ports (8080, 4444, 31337)
+# - Connections during off-hours (2 AM when user is sleeping)
+# - Rapid connections to many different IPs (beaconing behavior)
+#
+# Normal: browser connecting to 443 (HTTPS), email to 993 (IMAPS)
+# Suspicious: connections to port 4444 in China at 3 AM</code></pre>
+</div>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Capture all DNS queries to see what domains are being resolved:</p>
+    <pre data-lang="bash"><code class="language-bash">sudo tcpdump -i eth0 -n udp port 53 | grep -E 'A\?|AAAA\?'
+
+# Breakdown:
+# - udp port 53 = DNS queries (DNS uses UDP port 53)
+# - grep 'A\?' = filter for A record queries (IPv4 address lookups)
+# - grep 'AAAA\?' = filter for AAAA record queries (IPv6 address lookups)
+# - The \? escapes the question mark (literal character)
+#
+# Output shows every domain name being resolved:
+# Example: "A? example.com" means "query for IPv4 address of example.com"
+#
+# Look for suspicious patterns:
+# - Long random subdomains: a8f3d92e1b4c7f6a.evil.com (DNS tunneling)
+# - Unusual TLDs: .tk, .ml, .ga (often used by malware)
+# - DGA domains: qwioepjfalskdjf.com (algorithmically generated)
+# - Newly registered domains (check domain age on WHOIS)
+#
+# Normal: google.com, facebook.com, cdn.example.com
+# Suspicious: 192-168-1-100.b64encoded-data-here.attacker.tk</code></pre>
+</div>
+
+<h2>Wireshark: Deep Protocol Analysis</h2>
+
+<p>Wireshark is the industry-standard GUI packet analyzer. Use it when you need to:</p>
+<ul>
+    <li>Decode complex protocols (HTTP, TLS, SMB, SQL)</li>
+    <li>Follow TCP streams (reconstruct full conversations)</li>
+    <li>Analyze encrypted traffic metadata</li>
+    <li>Export specific objects (files transferred over HTTP)</li>
+    <li>Visualize traffic patterns with graphs</li>
+</ul>
+
+<h3>Installation</h3>
+
+<p>Installing Wireshark provides you with the industry-standard graphical packet analysis tool that transforms raw network traffic captures into human-readable protocol dissections, allowing you to drill down through network layers from Ethernet frames up through IP packets, TCP segments, and application-level protocols like HTTP or TLS. The installation process includes both the Wireshark GUI application for interactive analysis and the underlying packet capture libraries (libpcap/WinPcap) that allow non-root users to capture packets when properly configured. On Linux systems, you must explicitly grant packet capture permissions by adding your user account to the wireshark group, because by default only root can put network interfaces into promiscuous mode for security reasons - this permission is necessary but should be granted cautiously since it allows capturing all traffic on the network segment including potentially sensitive data. After installation and group membership configuration (which requires logging out and back in to take effect), Wireshark gives you deep protocol analysis capabilities that are essential for troubleshooting network issues, investigating security incidents, analyzing malware communications, and understanding exactly what data is being transmitted across your network at the packet level.</p>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="bash"><code class="language-bash"># Debian/Ubuntu
+sudo apt update
+sudo apt install wireshark
+
+# During installation, allow non-root users to capture packets (select Yes)
+# Add your user to wireshark group
+sudo usermod -aG wireshark $USER
+
+# Log out and back in for group membership to take effect
+
+# Verify installation
+wireshark --version</code></pre>
+</div>
+
+<h3>Capture Filters vs Display Filters</h3>
+
+<p><strong>Capture filters</strong> (like tcpdump) limit what packets are captured:</p>
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text">Examples (enter in capture options):
+host 192.168.1.100
+port 443
+tcp and not port 22
+net 10.0.0.0/8</code></pre>
+</div>
+
+<p><strong>Display filters</strong> filter already-captured packets (more powerful):</p>
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text">Examples (enter in display filter bar):
+ip.addr == 192.168.1.100
+tcp.port == 443
+http.request.method == "GET"
+dns.qry.name contains "malware"
+tls.handshake.type == 1
+tcp.flags.syn == 1 and tcp.flags.ack == 0</code></pre>
+</div>
+
+<h3>Essential Wireshark Display Filters</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text"># HTTP traffic
+# Shows all unencrypted web traffic
+# You can read URLs, user agents, cookies in plaintext
+http
+
+# HTTPS/TLS traffic
+# Shows encrypted web traffic (can't read content, but see metadata)
+# Useful for analyzing TLS handshakes, certificates, SNI
+tls
+
+# All DNS queries
+# Shows every domain name being resolved
+# DNS is almost always unencrypted (except DoH/DoT)
+dns
+
+# DNS queries for specific domain
+# Filter for queries asking about example.com
+# Use this to track when/how often a domain is accessed
+dns.qry.name == "example.com"
+
+# TLS Client Hello (shows SNI - domain name)
+# Type 1 = Client Hello (first packet in TLS handshake)
+# SNI (Server Name Indication) leaks the domain name in plaintext
+# Even HTTPS doesn't hide which website you're visiting!
+tls.handshake.type == 1
+
+# Packets containing specific string (case-insensitive)
+# Search packet payload for any text
+# ⚠️  Use carefully - can match binary data
+# Example use: search for "password" in unencrypted traffic
+frame contains "password"
+
+# Large packets (potential data exfiltration)
+# Filters packets bigger than 1400 bytes
+# Large packets = file transfers, uploads, downloads
+# Helps detect data theft (employee uploading files to Dropbox)
+frame.len > 1400
+
+# TCP retransmissions (network issues or attacks)
+# Wireshark automatically detects retransmitted packets
+# Many retransmissions = network congestion, packet loss, or DDoS
+# Normal networks have <1% retransmission rate
+tcp.analysis.retransmission
+
+# TCP SYN flood detection
+# SYN=1, ACK=0 = connection initiation
+# Thousands of these per second = SYN flood DDoS attack
+# Attacker overwhelms server with connection requests
+tcp.flags.syn == 1 and tcp.flags.ack == 0
+
+# Failed connection attempts (RST packets)
+# RST (reset) = connection refused or forcibly closed
+# Many RSTs = port scanning, firewall blocks, or dead hosts
+# Normal: occasional RST, Abnormal: thousands per minute
+tcp.flags.reset == 1
+
+# Suspicious ports (not 80, 443, 22)
+# Excludes normal web and SSH traffic
+# Malware often uses non-standard ports (4444, 8080, 31337)
+# Narrows down to potentially malicious connections
+tcp.port != 80 and tcp.port != 443 and tcp.port != 22
+
+# Filter by IP conversation
+# Shows all traffic between these two IPs (bidirectional)
+# Use this to isolate and analyze a specific connection
+# Example: 192.168.1.100 (your PC) talking to 8.8.8.8 (Google DNS)
+ip.addr == 192.168.1.100 and ip.addr == 8.8.8.8</code></pre>
+</div>
+
+<h3>Following TCP Streams</h3>
+
+<p>Right-click any packet → Follow → TCP Stream to see the entire conversation:</p>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text">Use cases:
+- Reconstruct HTTP requests/responses
+- Read plaintext protocols (FTP, Telnet, HTTP)
+- Analyze malware C2 communication
+- Extract credentials sent over unencrypted protocols
+
+Red = Client to Server
+Blue = Server to Client</code></pre>
+</div>
+
+<h3>Exporting Objects</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text">File → Export Objects → HTTP/SMB/TFTP
+
+Extract files transferred over network:
+- Malware payloads
+- Downloaded executables
+- Images, documents, scripts
+- Exfiltrated data
+
+⚠️  Treat exported files as hostile - analyze in isolated VM</code></pre>
+</div>
+
+<h2>Protocol Analysis</h2>
+
+<h3>HTTP/HTTPS Analysis</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text"># View all HTTP requests
+# Shows GET, POST, PUT, DELETE requests
+# Useful for seeing what pages/APIs are being accessed
+http.request
+
+# View HTTP responses with specific status code
+http.response.code == 200  # Success - page loaded
+http.response.code == 404  # Not Found - broken links or scanning
+http.response.code == 500  # Server Error - application bugs
+# Many 404s from same IP = web vulnerability scanner
+# Many 500s = application under attack or misconfigured
+
+# Find HTTP POST requests (potential data upload)
+# POST = sending data to server (login forms, file uploads)
+# Useful for detecting data exfiltration or credential theft
+# Right-click → Follow → HTTP Stream to see what data was sent
+http.request.method == "POST"
+
+# Extract all URLs accessed
+# Shows the path portion of URL (everything after domain)
+# Example: /admin/login.php or /api/upload
+# Useful for seeing what resources are being accessed
+http.request.uri
+
+# Find specific user agents (malware often uses generic ones)
+# User-Agent = client identification string
+# Malware often uses:
+#   - curl (command-line tool)
+#   - python-requests (scripting library)
+#   - Generic strings like "Mozilla/4.0" (outdated)
+# Legitimate browsers have detailed user agent strings
+http.user_agent contains "curl"
+http.user_agent contains "python"</code></pre>
+</div>
+
+<p><strong>For HTTPS:</strong> You can't see content (encrypted), but you CAN see:</p>
+<ul>
+    <li><strong>Server Name Indication (SNI)</strong> - The domain name in plaintext during TLS handshake</li>
+    <li><strong>Certificate details</strong> - Organization, issuer, validity period</li>
+    <li><strong>Packet sizes and timing</strong> - Fingerprint applications</li>
+</ul>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text"># View TLS Client Hello (contains SNI)
+# Client Hello = first packet in TLS handshake
+# SNI (Server Name Indication) reveals the domain name in PLAINTEXT
+# Even though HTTPS encrypts content, it can't hide which site you visit
+# Governments/ISPs use this for censorship and surveillance
+tls.handshake.type == 1
+
+# Extract domain names from SNI
+# Shows exactly which websites are being accessed over HTTPS
+# Example: You'll see "facebook.com" even though content is encrypted
+# This is why DNS-over-HTTPS and encrypted SNI (eSNI) matter
+tls.handshake.extensions_server_name
+
+# Find expired or self-signed certificates (suspicious)
+# Legitimate sites use certificates from trusted CAs (Let's Encrypt, DigiCert)
+# Malware C2 servers often use:
+#   - Self-signed certificates (not issued by CA)
+#   - Expired certificates (too lazy to renew)
+#   - Certificates issued to strange organizations
+# Right-click packet → Expand TLS → Certificate to inspect
+tls.handshake.certificate
+
+# Weak encryption (old TLS versions)
+# TLS 1.0 and 1.1 are deprecated (known vulnerabilities)
+tls.record.version == 0x0301  # TLS 1.0 (obsolete since 2020)
+tls.record.version == 0x0302  # TLS 1.1 (obsolete since 2020)
+# Modern sites use TLS 1.2 (0x0303) or TLS 1.3 (0x0304)
+# Old versions = legacy system, misconfiguration, or malware</code></pre>
+</div>
+
+<h3>DNS Analysis</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text"># All DNS queries
+# Response flag = 0 means this is a question (client asking for IP)
+# Shows every domain name your network is trying to resolve
+# Useful for seeing browsing activity, app connections, malware domains
+dns.flags.response == 0
+
+# All DNS responses
+# Response flag = 1 means this is an answer (server returning IP)
+# Shows the IP addresses returned for each domain
+# Useful for tracking what IPs your devices are connecting to
+dns.flags.response == 1
+
+# Failed DNS queries (NXDOMAIN)
+# Response code 3 = domain doesn't exist
+# Many NXDOMAINs = typos, DGA malware, or scanning
+# DGA (Domain Generation Algorithm) malware tries random domains
+# until it finds one that works (attacker registers a few)
+dns.flags.rcode == 3
+
+# DNS queries for suspicious TLDs
+# These free TLDs are heavily abused by malware/phishing:
+dns.qry.name contains ".tk"  # Tokelau (free, no verification)
+dns.qry.name contains ".ml"  # Mali (free, no verification)
+dns.qry.name contains ".ga"  # Gabon (free, no verification)
+# Also watch for: .cf (Central African Republic), .pw (Palau)
+# Not all .tk domains are malicious, but proportion is very high
+
+# Long DNS queries (potential DNS tunneling)
+# Normal domains: google.com (10 chars), facebook.com (12 chars)
+# DNS tunneling: a8f3d92e1b4c7f6a9d2e5b8c1f4a7d3e9b2c5f8a.evil.com (50+ chars)
+# Matches domains with 50+ characters
+# DNS tunneling encodes data in subdomain names to exfiltrate data
+dns.qry.name matches ".{50,}"
+
+# DNS TXT record queries (often used for C2)
+# TXT records contain arbitrary text (normally used for SPF, DKIM)
+# Malware uses TXT records to receive commands from C2 server
+# Query type 16 = TXT record
+# Example: malware queries command.evil.com TXT, gets "download payload.exe"
+dns.qry.type == 16</code></pre>
+</div>
+
+<h2>Malware Traffic Patterns</h2>
+
+<p>Malware has recognizable network signatures:</p>
+
+<h3>1. Beaconing (Regular Check-Ins)</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text">Indicators:
+- Connections to same IP/domain every X minutes (e.g., every 5 minutes)
+- Small packet sizes (heartbeat packets)
+- Connections at regular intervals even when user is idle
+
+Wireshark detection:
+Statistics → Conversations → Sort by Packets/Bytes
+Look for: High packet count, low byte count, regular timing
+
+tcpdump detection:
+sudo tcpdump -i eth0 -n 'dst host SUSPICIOUS_IP' -tttt | awk '{print $1" "$2}' | uniq -c</code></pre>
+</div>
+
+<h3>2. Port Scanning</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text">Indicators:
+- Many SYN packets to different ports on same host
+- Connections to sequential ports (1-1000)
+- No follow-up data after SYN-ACK (reconnaissance only)
+
+Wireshark filter:
+tcp.flags.syn == 1 and tcp.flags.ack == 0
+
+Look for single source IP connecting to many destination ports</code></pre>
+</div>
+
+<h3>3. Data Exfiltration</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text">Indicators:
+- Large outbound transfers to unusual destinations
+- Transfers during off-hours (2 AM - 5 AM)
+- Encrypted protocols to non-standard ports
+- Uploads to cloud storage services (Dropbox, Mega, etc.)
+
+Wireshark detection:
+Statistics → I/O Graph → Filter by source host
+Look for: Sudden spikes in outbound traffic
+
+Display filter:
+ip.src == 192.168.1.100 and frame.len > 1400
+# Shows large outbound packets from specific host</code></pre>
+</div>
+
+<h3>4. DNS Tunneling</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text">Indicators:
+- Unusually long subdomain names (base64-encoded data)
+- High volume of DNS queries to single domain
+- TXT record requests (can contain commands)
+- Unusual DNS query patterns (every few seconds)
+
+Wireshark filter:
+dns.qry.name matches ".{40,}"  # Queries longer than 40 chars
+
+Export DNS queries:
+Statistics → DNS → Export as CSV
+Analyze in text editor for patterns</code></pre>
+</div>
+
+<h3>5. TLS/SSL Anomalies</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text">Indicators:
+- Self-signed certificates (malware C2 often uses them)
+- Certificates issued to unusual organizations
+- TLS connections to IP addresses (not domains)
+- Weak cipher suites
+- Outdated TLS versions (1.0, 1.1)
+
+Wireshark filters:
+tls.handshake.certificate
+tls.record.version == 0x0301  # TLS 1.0
+tls && ip.dst_host matches "\\d+\\.\\d+\\.\\d+\\.\\d+"  # TLS to IP</code></pre>
+</div>
+
+<h2>Encrypted Traffic Fingerprinting</h2>
+
+<p>Even though HTTPS encrypts content, you can still fingerprint applications by analyzing:</p>
+
+<h3>Packet Size Patterns</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text">Application signatures (packet size sequences):
+
+YouTube: Large packets (1400+ bytes) in steady stream
+VoIP (Zoom, Teams): Small packets (100-300 bytes) at regular intervals
+SSH: Very small packets (50-100 bytes) with keystroke timing
+BitTorrent: Burst of small packets, then large sustained transfers
+HTTP: Mixed sizes, request (small) → response (large)
+
+Wireshark: Statistics → I/O Graph
+Group by: Packet size
+Visualize: Traffic patterns reveal application type</code></pre>
+</div>
+
+<h3>Timing Analysis</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="bash"><code class="language-bash"># Extract inter-packet timing
+tshark -r capture.pcap -T fields -e frame.time_delta | grep -v "^$" | sort -n
+
+# Analyze:
+# Regular intervals = automated process (beaconing)
+# Irregular bursts = human interaction
+# Keystroke timing patterns = SSH/RDP session</code></pre>
+</div>
+
+<h2>TLS Inspection (Ethical Considerations)</h2>
+
+<p><strong>What is TLS inspection?</strong> Man-in-the-middle technique where a proxy decrypts, inspects, and re-encrypts HTTPS traffic.</p>
+
+<div class="terminal-alert not-prose my-6">
+    <div class="terminal-alert-header">
+        <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Legal and Ethical Warning</h3>
+    </div>
+    <p class="terminal-alert-content">
+        TLS inspection breaks end-to-end encryption. Use ONLY on networks you own, with explicit user consent. Inspecting employee traffic without notification is illegal in many jurisdictions. Inspecting third-party networks is a federal crime. This section is for <strong>defensive security on YOUR OWN networks</strong> only.
+    </p>
+</div>
+
+<h3>When TLS Inspection is Justified</h3>
+
+<ul>
+    <li><strong>Corporate networks</strong> with written security policy and user acknowledgment</li>
+    <li><strong>Home lab environment</strong> for security research and training</li>
+    <li><strong>Malware analysis</strong> in isolated sandboxes</li>
+    <li><strong>Incident response</strong> when investigating confirmed compromise</li>
+</ul>
+
+<h3>TLS Inspection with mitmproxy</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="bash"><code class="language-bash"># Install mitmproxy
+sudo apt install mitmproxy
+
+# Start mitmproxy
+mitmproxy
+
+# Or start in web interface mode
+mitmweb
+
+# Configure client device to use proxy:
+# HTTP Proxy: <mitmproxy-ip>:8080
+# HTTPS Proxy: <mitmproxy-ip>:8080
+
+# Install mitmproxy CA certificate on client:
+# 1. Browse to http://mitm.it
+# 2. Download certificate for your OS
+# 3. Install as trusted root CA
+
+# Now all HTTPS traffic is decrypted and visible in mitmproxy</code></pre>
+</div>
+
+<h3>TLS Inspection with Squid + SSL Bump</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="bash"><code class="language-bash"># Install Squid with SSL support
+sudo apt install squid-openssl
+
+# Generate CA certificate
+sudo openssl req -new -newkey rsa:2048 -sha256 -days 3650 -nodes -x509 \
+  -keyout /etc/squid/ca.key -out /etc/squid/ca.crt
+
+# Configure Squid for SSL bump
+sudo nano /etc/squid/squid.conf
+
+# Add:
+http_port 3128 ssl-bump cert=/etc/squid/ca.crt key=/etc/squid/ca.key
+ssl_bump server-first all
+sslcrtd_program /usr/lib/squid/ssl_crtd -s /var/lib/ssl_db -M 4MB
+
+# Initialize SSL database
+sudo /usr/lib/squid/ssl_crtd -c -s /var/lib/ssl_db
+
+# Restart Squid
+sudo systemctl restart squid
+
+# Deploy /etc/squid/ca.crt to all client devices</code></pre>
+</div>
+
+<h3>Alternatives to TLS Inspection</h3>
+
+<p><strong>You can monitor encrypted traffic WITHOUT breaking encryption:</strong></p>
+
+<ul>
+    <li><strong>DNS monitoring</strong> - See domains accessed (Pi-hole, Suricata)</li>
+    <li><strong>SNI analysis</strong> - TLS handshake reveals domain in plaintext</li>
+    <li><strong>IP reputation</strong> - Block connections to known-bad IPs</li>
+    <li><strong>Traffic pattern analysis</strong> - Detect beaconing, exfiltration without decryption</li>
+    <li><strong>Endpoint detection</strong> - Monitor processes, not network (EDR tools)</li>
+</ul>
+
+<h2>Lab Exercise: Complete Traffic Analysis Workflow</h2>
+
+<div class="bg-shell-dark border border-shell-accent/30 rounded-lg p-5 my-6">
+    <h3 class="text-shell-accent mt-0 mb-3">Goal: Investigate suspicious network activity</h3>
+    
+    <p class="text-gray-300 mb-4"><strong>Scenario:</strong></p>
+    <p class="text-gray-300 mb-4">Your IDS flagged unusual outbound traffic from workstation 192.168.10.50. Investigate using traffic analysis.</p>
+    
+    <p class="text-gray-300 mb-2"><strong>Steps:</strong></p>
+    <ol class="text-gray-300 space-y-2">
+        <li><strong>Capture traffic:</strong> <code>sudo tcpdump -i eth0 host 192.168.10.50 -w suspicious.pcap</code></li>
+        <li><strong>Open in Wireshark:</strong> <code>wireshark suspicious.pcap</code></li>
+        <li><strong>Analyze DNS queries:</strong> Display filter: <code>dns and ip.src == 192.168.10.50</code></li>
+        <li><strong>Check for beaconing:</strong> Statistics → Conversations → Sort by Packets</li>
+        <li><strong>Inspect TLS connections:</strong> Filter: <code>tls.handshake.type == 1</code>, examine SNI</li>
+        <li><strong>Look for large uploads:</strong> Filter: <code>ip.src == 192.168.10.50 and frame.len > 1400</code></li>
+        <li><strong>Follow suspicious streams:</strong> Right-click → Follow → TCP Stream</li>
+        <li><strong>Export objects:</strong> File → Export Objects → HTTP/SMB</li>
+        <li><strong>Document findings:</strong> IPs contacted, ports used, data transferred, timestamps</li>
+        <li><strong>Cross-reference with threat intel:</strong> Check IPs on VirusTotal, AbuseIPDB</li>
+    </ol>
+</div>
+
+<h2>tshark: Wireshark for Automation</h2>
+
+<p>tshark is Wireshark's command-line version. Use it for scripting and automation:</p>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="bash"><code class="language-bash"># Extract all HTTP URLs from capture
+# -r reads from file, -Y applies display filter
+# -T fields outputs only specific fields (not full packet)
+# -e specifies which fields to extract (host + URI = full URL)
+# Output: google.com /search?q=test
+tshark -r capture.pcap -Y http.request -T fields -e http.host -e http.request.uri
+
+# Extract all DNS queries
+# Gets list of all domain names queried
+# sort | uniq removes duplicates
+# Useful for generating domain watchlist or checking against threat intel
+# Output: One domain per line
+tshark -r capture.pcap -Y dns.qry.name -T fields -e dns.qry.name | sort | uniq
+
+# Find TLS connections with self-signed certs
+# Extracts certificate data from TLS handshakes
+# Output is hex-encoded certificate
+# Useful for finding malware C2 using self-signed certs
+# Can decode certificate with: openssl x509 -inform DER -text
+tshark -r capture.pcap -Y "tls.handshake.certificate" -T fields -e tls.handshake.certificate
+
+# Count packets per IP
+# Extracts source IP from every packet
+# uniq -c counts occurrences, sort -rn shows highest first
+# Output: "  1523 192.168.1.100" (this IP sent 1523 packets)
+# Useful for finding chattiest hosts (potential data exfiltration)
+tshark -r capture.pcap -T fields -e ip.src | sort | uniq -c | sort -rn
+
+# Extract all TLS SNI (domain names)
+# Gets list of all HTTPS websites accessed
+# Even though content is encrypted, SNI reveals the domain
+# Output: List of domains (google.com, facebook.com, etc.)
+# Useful for seeing browsing history from encrypted traffic
+tshark -r capture.pcap -Y "tls.handshake.extensions_server_name" -T fields -e tls.handshake.extensions_server_name | sort | uniq
+
+# Find large transfers
+# Shows source IP, destination IP, and packet size for packets >1400 bytes
+# Large packets = file transfers, uploads, downloads
+# Output: "192.168.1.100 8.8.8.8 1500" (1500-byte packet from .100 to .8.8)
+# Useful for detecting data exfiltration
+tshark -r capture.pcap -Y "frame.len > 1400" -T fields -e ip.src -e ip.dst -e frame.len
+
+# Export HTTP objects
+# Extracts all files transferred over HTTP (images, executables, documents)
+# --export-objects protocol,destination_folder
+# Files are saved to /tmp/extracted_http/ with original filenames
+# ⚠️  Treat exported files as hostile - analyze in isolated VM
+# Useful for extracting malware payloads, stolen documents
+tshark -r capture.pcap --export-objects http,/tmp/extracted_http</code></pre>
+</div>
+
+<h2>Best Practices</h2>
+
+<div class="terminal-info not-prose my-6">
+    <div class="terminal-info-header">
+        <i data-lucide="check-circle" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">Traffic Analysis Guidelines</h3>
+    </div>
+    <div class="terminal-info-content space-y-2">
+        <p><strong>1. Capture only what you need</strong> - Use filters to reduce noise and storage</p>
+        <p><strong>2. Never capture passwords</strong> - Even for debugging, avoid plaintext credentials</p>
+        <p><strong>3. Anonymize captures before sharing</strong> - Redact internal IPs, usernames, domains</p>
+        <p><strong>4. Store captures securely</strong> - Encrypt capture files (they contain sensitive data)</p>
+        <p><strong>5. Follow legal guidelines</strong> - Only capture traffic on networks you own/manage</p>
+        <p><strong>6. Document everything</strong> - Timestamp, scope, justification for forensic validity</p>
+        <p><strong>7. Use read-only copies</strong> - Never analyze original evidence files</p>
+    </div>
+</div>
+
+<h2>Tools Summary</h2>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text">Command-Line Capture:
+- tcpdump: Universal packet capture, low overhead
+- tshark: Wireshark CLI, powerful automation
+- ngrep: Grep for network traffic (search packet contents)
+
+GUI Analysis:
+- Wireshark: Industry standard, protocol dissection
+- NetworkMiner: Extract files, credentials, hosts from captures
+- CapAnalysis: Web-based PCAP analysis
+
+Specialized:
+- Zeek (Bro): Network security monitoring, generates logs from traffic
+- Moloch: Large-scale PCAP indexing and searching
+- Arkime: Full packet capture and analysis platform
+- Snort: Real-time traffic analysis and intrusion detection</code></pre>
+</div>
+
+<div class="terminal-success not-prose my-6">
+    <div class="terminal-success-header">
+        <i data-lucide="check-circle" class="terminal-success-icon"></i>
+        <h3 class="terminal-success-title">What You've Learned</h3>
+    </div>
+    <p class="terminal-success-content">
+        You can now capture network traffic with tcpdump, perform deep protocol analysis with Wireshark, recognize malware traffic patterns, fingerprint encrypted traffic by metadata, understand when TLS inspection is appropriate, and automate analysis with tshark. You've learned to read the network like a security professional.
+    </p>
+</div>
+
+<blockquote>
+    "Encryption hides the content of your conversations, not the fact that you're having them. Traffic analysis sees patterns, timing, relationships—the metadata that reveals intent without breaking a single cipher."
+</blockquote>
+
+<div class="flex justify-between mt-12 pt-6 border-t border-shell-border">
+    <a href="#/posts/3.Network_Security/part7.html" class="text-shell-accent hover:underline">← Part 7: DNS Security & Privacy</a>
+    <a href="#/posts/3.Network_Security/part9.html" class="text-gray-500 hover:underline">Part 9: Wireless Security & Rogue AP Detection (Coming Soon) →</a>
+</div>

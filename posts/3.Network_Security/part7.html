@@ -1,0 +1,696 @@
+<h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+    <span class="text-gray-500">#</span> 7. DNS Security & Privacy
+</h1>
+
+<div class="terminal-alert not-prose mb-8">
+    <div class="terminal-alert-header">
+        <i data-lucide="alert-circle" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Why DNS Security Matters</h3>
+    </div>
+    <p class="terminal-alert-content">
+        Every website you visit, every API call your applications make, every email you send—all of it starts with a DNS query. Your ISP sees every domain you resolve. Governments log DNS queries for surveillance. Attackers use DNS tunneling for command-and-control. <strong>Unencrypted DNS is a privacy catastrophe and a security vulnerability.</strong>
+    </p>
+</div>
+
+<h2>The DNS Privacy Problem</h2>
+
+<p>Traditional DNS queries are sent in <strong>plaintext over UDP port 53</strong>. This means:</p>
+
+<ul>
+    <li><strong>Your ISP logs every domain you visit</strong> - They know your browsing habits, health searches, political interests</li>
+    <li><strong>Network administrators see all DNS traffic</strong> - Schools, employers, coffee shops monitor your activity</li>
+    <li><strong>Governments can mandate DNS logging</strong> - Mass surveillance programs capture DNS metadata</li>
+    <li><strong>DNS spoofing/hijacking is trivial</strong> - Man-in-the-middle attacks redirect you to malicious sites</li>
+    <li><strong>DNS-based censorship is widespread</strong> - Authoritarian regimes block domains via DNS manipulation</li>
+</ul>
+
+<div class="terminal-info not-prose my-6">
+    <div class="terminal-info-header">
+        <i data-lucide="shield" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">Defense Strategy</h3>
+    </div>
+    <p class="terminal-info-content">
+        Encrypt your DNS queries using DoH/DoT, use trusted resolvers (not your ISP), implement DNS-based ad/tracker blocking with Pi-hole, monitor DNS traffic for anomalies, and understand DNS exfiltration techniques used by malware.
+    </p>
+</div>
+
+<h2>DNS Encryption Technologies</h2>
+
+<h3>1. DNS-over-HTTPS (DoH)</h3>
+
+<p><strong>What it is:</strong> DNS queries sent over HTTPS (port 443), making them indistinguishable from regular web traffic.</p>
+
+<p><strong>Advantages:</strong></p>
+<ul>
+    <li>Encrypted end-to-end (your ISP cannot see what domains you're resolving)</li>
+    <li>Uses standard HTTPS port (harder to block than dedicated DNS ports)</li>
+    <li>Supported by major browsers (Firefox, Chrome) and operating systems</li>
+    <li>Bypasses DNS-based censorship in many countries</li>
+</ul>
+
+<p><strong>Disadvantages:</strong></p>
+<ul>
+    <li>Centralization concern: Many users default to Google/Cloudflare resolvers</li>
+    <li>Application-level implementation (not system-wide unless configured)</li>
+    <li>Slightly higher latency than traditional DNS</li>
+</ul>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Configure Firefox to use DNS-over-HTTPS (Quad9 resolver):</p>
+    <pre data-lang="text"><code class="language-text">1. Open Firefox → Settings → Privacy & Security
+2. Scroll to "DNS over HTTPS"
+3. Select "Max Protection"
+4. Choose provider: "Quad9" (privacy-focused, GDPR-compliant)
+   Alternative: "Cloudflare" (fast) or "NextDNS" (customizable blocking)
+
+To verify it's working:
+Visit: https://www.dnsleaktest.com/
+Click "Standard Test" - you should see Quad9 servers, NOT your ISP</code></pre>
+</div>
+
+<h3>2. DNS-over-TLS (DoT)</h3>
+
+<p><strong>What it is:</strong> DNS queries sent over TLS (port 853), dedicated port for encrypted DNS.</p>
+
+<p><strong>Advantages:</strong></p>
+<ul>
+    <li>Encrypted queries (ISP cannot see domains, only that you're using DoT)</li>
+    <li>System-wide implementation (all applications benefit)</li>
+    <li>Simpler protocol than DoH (dedicated DNS port, easier to configure firewalls)</li>
+</ul>
+
+<p><strong>Disadvantages:</strong></p>
+<ul>
+    <li>Easier to detect and block (distinct port 853)</li>
+    <li>ISP knows you're using encrypted DNS (metadata leak)</li>
+    <li>Less browser support than DoH</li>
+</ul>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Configure systemd-resolved for DNS-over-TLS (Quad9):</p>
+    <pre data-lang="bash"><code class="language-bash"># Edit systemd-resolved configuration
+# sudo nano = edit with root privileges
+# /etc/systemd/resolved.conf = systemd DNS resolver configuration
+sudo nano /etc/systemd/resolved.conf
+# Expected output: Opens nano editor with systemd-resolved config
+# Why: Configure system-wide encrypted DNS
+# Use when: Want all applications to use DoT automatically
+# Note: systemd-resolved built into modern Linux distros
+
+# Add these lines to [Resolve] section:
+[Resolve]
+# DNS = Primary DNS servers with hostnames for TLS verification
+# 9.9.9.9#dns.quad9.net = Quad9 IP with hostname for certificate verification
+# 149.112.112.112#dns.quad9.net = Quad9 secondary server
+DNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net
+# Why: Quad9 = privacy-focused, GDPR-compliant, malware blocking
+# Alternative: 1.1.1.1#cloudflare-dns.com (Cloudflare, faster but US-based)
+# Format: IP#hostname (hostname required for TLS certificate validation)
+
+# FallbackDNS = Backup DNS if primary fails
+FallbackDNS=1.1.1.1#cloudflare-dns.com
+# Why: Redundancy if Quad9 unreachable
+# Note: Also uses DoT (encrypted)
+
+# DNSOverTLS = Enable DNS-over-TLS
+DNSOverTLS=yes
+# Why: Encrypt all DNS queries (port 853)
+# Options: yes (enabled), opportunistic (try TLS, fall back to plaintext), no (disabled)
+# Security: 'yes' enforces TLS (fails if TLS unavailable)
+
+# DNSSEC = Enable DNS Security Extensions
+DNSSEC=yes
+# Why: Cryptographically verify DNS responses (prevents spoofing)
+# Use: Detects man-in-the-middle DNS attacks
+# Note: Requires DNS servers support DNSSEC (Quad9 and Cloudflare do)
+
+# Restart systemd-resolved to apply configuration
+# sudo systemctl restart = restart service
+sudo systemctl restart systemd-resolved
+# Expected output: No output on success
+# Why: Load new DNS configuration
+# Use when: After editing /etc/systemd/resolved.conf
+# Verify: resolvectl status (should show DoT enabled, Quad9 servers)
+sudo systemctl restart systemd-resolved
+
+# Verify configuration
+resolvectl status
+
+# Test DNS resolution
+dig @127.0.0.53 example.com
+
+# Verify TLS connection (should see port 853 connections)
+sudo ss -tunlp | grep 853</code></pre>
+</div>
+
+<h3>3. DNSCrypt</h3>
+
+<p><strong>What it is:</strong> Older protocol for encrypting DNS queries, predates DoH/DoT.</p>
+
+<p><strong>Status:</strong> Less commonly used now that DoH/DoT are standardized, but still supported by some privacy-focused resolvers.</p>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Install and configure dnscrypt-proxy (Debian/Ubuntu):</p>
+    <pre data-lang="bash"><code class="language-bash"># Install dnscrypt-proxy
+sudo apt update
+sudo apt install dnscrypt-proxy
+
+# Edit configuration
+sudo nano /etc/dnscrypt-proxy/dnscrypt-proxy.toml
+
+# Key settings:
+server_names = ['cloudflare', 'quad9-dnscrypt-ip4-nofilter-pri']
+listen_addresses = ['127.0.0.1:53']
+require_dnssec = true
+require_nolog = true  # Only use no-logging resolvers
+
+# Start service
+sudo systemctl enable dnscrypt-proxy
+sudo systemctl start dnscrypt-proxy
+
+# Configure system to use local resolver
+sudo nano /etc/resolv.conf
+nameserver 127.0.0.1
+
+# Make resolv.conf immutable (prevent DHCP from overwriting)
+sudo chattr +i /etc/resolv.conf
+
+# Test
+dig example.com</code></pre>
+</div>
+
+<h2>Pi-hole: Network-Wide Ad & Tracker Blocking</h2>
+
+<p><strong>What it is:</strong> DNS-based ad blocker that runs on your network, filtering ads/trackers at the DNS level before they reach your devices.</p>
+
+<p><strong>Why use it:</strong></p>
+<ul>
+    <li>Blocks ads on ALL devices (phones, tablets, smart TVs, IoT devices)</li>
+    <li>No browser extensions needed</li>
+    <li>Faster page loads (ads never download)</li>
+    <li>Reduces tracking across your network</li>
+    <li>Provides DNS query statistics and monitoring</li>
+</ul>
+
+<div class="terminal-alert not-prose my-6">
+    <div class="terminal-alert-header">
+        <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Pi-hole Limitations</h3>
+    </div>
+    <p class="terminal-alert-content">
+        Pi-hole can be bypassed if attackers/malware use hardcoded IPs or their own DNS resolvers. It's a <strong>defense-in-depth layer</strong>, not a complete security solution. Combine with host-based firewalls and browser privacy extensions.
+    </p>
+</div>
+
+<h3>Pi-hole Installation (Raspberry Pi or VM)</h3>
+
+<p>Installing Pi-hole transforms a Raspberry Pi, virtual machine, or spare computer into a network-wide DNS sinkhole that blocks advertisements, trackers, and malicious domains at the DNS level before they can reach any device on your network. The installation process downloads and runs Pi-hole's automated installer which configures the DNS server software (dnsmasq), web server for the administration interface (lighttpd), gravity database for blocklists, and query logging engine, then prompts you through an interactive setup wizard where you choose your network interface, select upstream DNS providers for legitimate queries, enable blocklists, and configure the web admin panel. Once installed, Pi-hole intercepts all DNS queries from devices on your network, checks them against curated blocklists containing millions of known tracking and advertising domains, returns a null response for blocked domains (preventing the connection entirely), and forwards legitimate queries to your chosen encrypted DNS provider. This installation creates a single point of control for DNS filtering across all devices including smartphones, tablets, smart TVs, and IoT devices that can't run ad blockers themselves, dramatically improving privacy and reducing attack surface by blocking malicious domains at the network perimeter.</p>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Install Pi-hole on Debian/Ubuntu/Raspberry Pi OS:</p>
+    <pre data-lang="bash"><code class="language-bash"># Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Pi-hole (interactive installer)
+curl -sSL https://install.pi-hole.net | bash
+
+# During installation:
+# 1. Choose network interface (eth0 or wlan0)
+# 2. Select upstream DNS provider (Quad9, Cloudflare, or custom)
+# 3. Enable IPv4/IPv6 blocklists
+# 4. Install web admin interface (yes)
+# 5. Install lighttpd web server (yes)
+# 6. Enable query logging (yes, needed for monitoring)
+# 7. Set privacy mode (show everything - you're the admin)
+
+# Installation will display:
+# - Pi-hole admin password
+# - Web interface URL: http://pi.hole/admin or http://192.168.x.x/admin
+
+# Change admin password
+pihole -a -p
+
+# Update blocklists
+pihole -g
+
+# View recent queries
+pihole -t</code></pre>
+</div>
+
+<h3>Configure Devices to Use Pi-hole</h3>
+
+<p><strong>Option 1: Configure router DHCP to distribute Pi-hole as DNS server</strong> (recommended - all devices automatically use Pi-hole)</p>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="text"><code class="language-text"># Router configuration (varies by router brand):
+# 1. Log into router admin panel
+# 2. Navigate to DHCP settings
+# 3. Set Primary DNS to Pi-hole IP (e.g., 192.168.10.5)
+# 4. Set Secondary DNS to 1.1.1.1 or 9.9.9.9 (fallback if Pi-hole is down)
+# 5. Save and reboot router
+# 6. Renew DHCP leases on all devices (disconnect/reconnect to WiFi)</code></pre>
+</div>
+
+<p><strong>Option 2: Manually configure DNS on each device</strong> (per-device control)</p>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Linux (systemd-resolved):</p>
+    <pre data-lang="bash"><code class="language-bash">sudo nano /etc/systemd/resolved.conf
+
+[Resolve]
+DNS=192.168.10.5  # Your Pi-hole IP
+FallbackDNS=9.9.9.9
+
+sudo systemctl restart systemd-resolved</code></pre>
+</div>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <p class="text-gray-400 text-sm mb-2">Windows:</p>
+    <pre data-lang="text"><code class="language-text"># Settings → Network & Internet → Ethernet/WiFi → Change adapter options
+# Right-click adapter → Properties → IPv4 → Properties
+# Select "Use the following DNS server addresses"
+# Preferred DNS: 192.168.10.5 (Pi-hole)
+# Alternate DNS: 9.9.9.9 (Quad9 fallback)</code></pre>
+</div>
+
+<h3>Pi-hole + DNS-over-HTTPS (Ultimate Privacy)</h3>
+
+<p>Configure Pi-hole to use DoH upstream, combining ad/tracker blocking with encrypted DNS queries beyond your network:</p>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="bash"><code class="language-bash"># Install cloudflared (Cloudflare's DoH proxy) on Pi-hole server
+# wget = download file
+# https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+# Expected output: Downloads .deb package
+# Why: cloudflared acts as DoH proxy (encrypts DNS to Quad9/Cloudflare)
+# Use when: Want Pi-hole ad blocking + encrypted upstream queries
+
+# sudo dpkg -i = install .deb package
+sudo dpkg -i cloudflared-linux-amd64.deb
+# Expected output: Installs cloudflared binary
+# Why: Install DoH proxy daemon
+# Note: dpkg = Debian package manager
+
+# Create dedicated user for cloudflared (security best practice)
+# sudo useradd = create new user
+# -s /usr/sbin/nologin = no shell (can't login)
+# -r = system user (non-interactive)
+# -M = don't create home directory
+sudo useradd -s /usr/sbin/nologin -r -M cloudflared
+# Expected output: No output on success
+# Why: Run service as unprivileged user (principle of least privilege)
+# Security: If cloudflared compromised, attacker can't get shell
+
+# Configure cloudflared DoH proxy settings
+# sudo nano = edit with root privileges
+# /etc/default/cloudflared = environment variables for service
+sudo nano /etc/default/cloudflared
+# Expected output: Opens nano editor
+# Why: Configure upstream DoH servers and listening port
+
+# Add this line to /etc/default/cloudflared:
+# CLOUDFLARED_OPTS = command-line options for cloudflared
+# --port 5053 = listen on port 5053 (Pi-hole will query this)
+# --upstream https://9.9.9.9/dns-query = use Quad9 DoH endpoint
+# --upstream https://149.112.112.112/dns-query = Quad9 secondary
+CLOUDFLARED_OPTS=--port 5053 --upstream https://9.9.9.9/dns-query --upstream https://149.112.112.112/dns-query
+# Why: Local DoH proxy (Pi-hole → cloudflared → Quad9 encrypted)
+# Port 5053: Doesn't conflict with Pi-hole (listens on 53)
+# Alternative: Use Cloudflare 1.1.1.1/dns-query for faster performance
+
+# Create systemd service for cloudflared
+# sudo nano = edit with root privileges
+# /etc/systemd/system/cloudflared.service = systemd unit file
+sudo nano /etc/systemd/system/cloudflared.service
+# Expected output: Opens nano editor for new service file
+# Why: Manage cloudflared as systemd service (auto-start, restart on failure)
+
+# cloudflared.service contents:
+[Unit]
+Description=cloudflared DNS over HTTPS proxy
+# After = start after these services
+After=syslog.target network-online.target
+# Why: Ensure network available before starting
+
+[Service]
+Type=simple
+# User = run as non-root user
+User=cloudflared
+# Why: Security - run as unprivileged user
+
+# EnvironmentFile = load environment variables from file
+EnvironmentFile=/etc/default/cloudflared
+# Why: Loads CLOUDFLARED_OPTS variable
+
+# ExecStart = command to run
+ExecStart=/usr/local/bin/cloudflared proxy-dns $CLOUDFLARED_OPTS
+# Why: Start DoH proxy with configured options
+# proxy-dns = DoH proxy mode
+
+# Restart = restart policy
+Restart=on-failure
+# Why: Auto-restart if crashes
+
+# RestartSec = wait time before restart
+RestartSec=10
+# Why: Don't restart immediately (prevents rapid restart loops)
+
+# KillMode = how to stop process
+KillMode=process
+# Why: Only kill main process
+
+[Install]
+# WantedBy = when to start
+WantedBy=multi-user.target
+# Why: Start in multi-user mode (normal boot)
+
+# Enable cloudflared to start on boot
+# sudo systemctl enable = create auto-start symlinks
+sudo systemctl enable cloudflared
+# Expected output: Created symlink messages
+# Why: Ensure DoH proxy starts automatically after reboot
+
+# Start cloudflared service now
+# sudo systemctl start = start service immediately
+sudo systemctl start cloudflared
+# Expected output: No output on success
+# Why: Begin DoH proxy operation
+
+# Verify cloudflared is running
+# sudo systemctl status = show service status
+sudo systemctl status cloudflared
+# Expected output: "active (running)" with recent log entries
+# Why: Confirm DoH proxy operational
+# Troubleshooting: If failed, check logs with 'journalctl -u cloudflared'
+
+# Configure Pi-hole to use cloudflared as upstream DNS:
+# 1. Open Pi-hole web admin: http://pi.hole/admin
+# 2. Navigate to Settings → DNS tab
+# 3. Uncheck all Upstream DNS Servers (Google, Cloudflare, etc.)
+# 4. Under "Custom 1 (IPv4)", enter: 127.0.0.1#5053
+#    Why: 127.0.0.1 = localhost, #5053 = cloudflared port
+# 5. Click "Save"
+# 
+# Result: Network architecture now:
+#   Device → Pi-hole (blocks ads/trackers on port 53)
+#   → cloudflared (encrypts DNS on port 5053)
+#   → Quad9 (DoH over HTTPS to 9.9.9.9/dns-query)
+# 
+# Benefits:
+#   - Ad/tracker blocking (Pi-hole)
+#   - Encrypted DNS beyond network (cloudflared DoH)
+#   - No ISP/government visibility of DNS queries
+#   - Malware blocking (Quad9 feature)</code></pre>
+</div>
+
+<h2>DNS Query Monitoring</h2>
+
+<p>Monitor DNS traffic to detect malware, data exfiltration, and anomalous behavior.</p>
+
+<h3>Pi-hole Query Log Analysis</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="bash"><code class="language-bash"># View recent queries (live tail)
+pihole -t
+
+# View query statistics
+pihole -c
+
+# Query logs are stored in:
+/var/log/pihole/pihole.log
+
+# Analyze top domains
+pihole -t | awk '{print $6}' | sort | uniq -c | sort -rn | head -20
+
+# Find queries to suspicious TLDs (.ru, .cn, .tk)
+grep -E '\.(ru|cn|tk|ml|ga)$' /var/log/pihole/pihole.log
+
+# Detect DNS tunneling (long subdomain queries - potential C2)
+awk '$6 ~ /\..*\..*\..*\..*\..*\./ {print $6}' /var/log/pihole/pihole.log | head -20
+
+# Monitor blocked queries (potential malware callbacks)
+pihole -t | grep "blocked"</code></pre>
+</div>
+
+<h3>DNS Query Logging with tcpdump</h3>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="bash"><code class="language-bash"># Capture and analyze DNS traffic with tcpdump
+# sudo tcpdump = packet capture utility (requires root)
+# -i any = capture on all network interfaces
+# -n = don't resolve hostnames (faster, avoids DNS lookups for DNS analysis!)
+# port 53 = only capture DNS traffic (port 53)
+# -w dns_capture.pcap = write to file (pcap format)
+sudo tcpdump -i any -n port 53 -w dns_capture.pcap
+# Expected output: Captures DNS packets to file
+# Why: Record DNS traffic for offline analysis
+# Use when: Investigating DNS anomalies, malware C2 detection
+# Note: Press Ctrl+C to stop capture
+# Warning: Can generate large files on busy networks
+# Alternatives: -c 1000 (capture 1000 packets), -G 300 (rotate files every 5 min)
+
+# Analyze DNS queries with tshark (Wireshark command-line)
+# tshark = terminal-based packet analyzer
+# -r dns_capture.pcap = read from capture file
+# -Y "dns.qry.name" = display filter (only show DNS query names)
+# -T fields = output as fields
+# -e dns.qry.name = extract query name field
+# sort | uniq -c = count unique queries
+# sort -rn = sort numerically, reverse (highest first)
+tshark -r dns_capture.pcap -Y "dns.qry.name" -T fields -e dns.qry.name | sort | uniq -c | sort -rn
+# Expected output: List of domains with query counts
+# Example:
+#   423 google.com
+#   187 facebook.com
+#    54 suspicious-domain.xyz
+# Why: Identify most-queried domains (detect C2, data exfiltration)
+# Use when: Investigating malware, identifying chatty devices
+# Note: High count to unknown domain = investigation needed
+
+# Detect DNS tunneling by analyzing query length
+# awk '{print length, $0}' = prepend query length to each line
+# sort -rn = sort by length (longest first)
+# head -20 = show top 20 longest queries
+tshark -r dns_capture.pcap -Y "dns.qry.name" -T fields -e dns.qry.name | awk '{print length, $0}' | sort -rn | head -20
+# Expected output: Longest DNS queries with character count
+# Example:
+#   78 a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0.evil.com
+#   65 data-exfil-encoded-base64-string-here.attacker.com
+#   15 www.google.com
+# Why: DNS tunneling uses long subdomains to encode data
+# Use when: Detecting data exfiltration, C2 over DNS
+# Note: Normal domains < 30 chars, tunneling domains often > 50 chars</code></pre>
+</div>
+
+<h2>DNS Exfiltration Detection</h2>
+
+<p>Attackers and malware use DNS queries to exfiltrate data or establish command-and-control (C2) channels. DNS tunneling encodes data in subdomain queries.</p>
+
+<h3>Indicators of DNS Exfiltration:</h3>
+
+<ul>
+    <li><strong>Unusually long subdomain names</strong> - Normal: <code>mail.google.com</code>, Suspicious: <code>a8f3d92e1b4c7f6a9d2e5b8c1f4a7d3e9b2c5f8a1d4e7b9c2f5a8d1e4b7c9f2.evil.com</code></li>
+    <li><strong>High volume of queries to single domain</strong> - 1000+ queries/minute to obscure domain</li>
+    <li><strong>Queries to newly registered domains (NRDs)</strong> - Domain registered within last 30 days</li>
+    <li><strong>Queries with encoded data</strong> - Base64, hex, or custom encoding in subdomain</li>
+    <li><strong>TXT record requests</strong> - C2 servers use TXT records to send commands</li>
+</ul>
+
+<h3>Detecting DNS Tunneling with Suricata</h3>
+
+<p>Suricata can detect DNS tunneling patterns using custom rules:</p>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="bash"><code class="language-bash"># Create custom DNS exfiltration detection rules
+# sudo nano = edit with root privileges
+# /etc/suricata/rules/dns-exfiltration.rules = custom rule file
+sudo nano /etc/suricata/rules/dns-exfiltration.rules
+# Expected output: Opens nano editor for new rules file
+# Why: Create targeted rules for DNS tunneling/exfiltration detection
+# Use when: Setting up DNS security monitoring with Suricata
+
+# === DNS Exfiltration Rules ===
+
+# Rule 1: Detect long DNS queries (potential tunneling)
+# alert dns = alert on DNS traffic
+# any any -> any any = from any source to any destination
+# msg = alert message text
+# dns.query = match DNS query packets
+# content:"."; depth:100 = look for dot within first 100 bytes
+# pcre = Perl-compatible regular expression
+# /^[a-zA-Z0-9\-]{50,}/ = subdomain 50+ characters (tunneling indicator)
+# classtype:policy-violation = alert classification
+# sid:1000001 = unique Suricata rule ID (1000000+ for custom rules)
+alert dns any any -> any any (msg:"Potential DNS Tunneling - Long Query"; dns.query; content:"."; depth:100; pcre:"/^[a-zA-Z0-9\-]{50,}/"; classtype:policy-violation; sid:1000001; rev:1;)
+# Why: Long subdomains rare in legitimate traffic (normal < 30 chars)
+# Use: Detect data exfiltration encoded in DNS queries
+# Note: May false-positive on CDNs with long hostnames (tune threshold)
+
+# Rule 2: Detect high frequency DNS queries to single domain
+# threshold = rate limiting for alerts
+# type both = track connections and packets
+# track by_src = track per source IP
+# count 100, seconds 60 = alert if 100+ queries in 60 seconds
+alert dns any any -> any any (msg:"DNS Exfiltration - High Query Rate"; dns.query; threshold:type both, track by_src, count 100, seconds 60; classtype:policy-violation; sid:1000002; rev:1;)
+# Why: Normal browsing = few DNS queries, tunneling = high volume
+# Use: Detect C2 beaconing, continuous data exfiltration
+# Threshold: Tune based on network (busy networks may need higher count)
+
+# Rule 3: Detect TXT record queries (C2 communication)
+# dns.query.type:TXT = match TXT record queries
+alert dns any any -> any any (msg:"Suspicious DNS TXT Query"; dns.query; dns.query.type:TXT; classtype:policy-violation; sid:1000003; rev:1;)
+# Why: TXT records rarely used in normal browsing
+# Use: C2 servers use TXT records to send commands to malware
+# Note: Some legitimate uses (SPF, DKIM email records) - expect false positives
+
+# Enable custom rules in Suricata configuration
+# sudo nano = edit with root privileges
+# /etc/suricata/suricata.yaml = main Suricata configuration
+sudo nano /etc/suricata/suricata.yaml
+# Expected output: Opens suricata.yaml in nano
+# Why: Tell Suricata to load custom DNS rules
+
+# Add under rule-files section:
+rule-files:
+  - /etc/suricata/rules/dns-exfiltration.rules
+# Why: Include custom rule file in Suricata ruleset
+# Note: Should already have other rule files listed (emerging-threats.rules, etc.)
+
+# Restart Suricata to load new rules
+# sudo systemctl restart = restart service
+sudo systemctl restart suricata
+# Expected output: No output on success
+# Why: Apply configuration changes and load new rules
+# Verify: sudo suricata -T (test config without starting)
+
+# Monitor DNS exfiltration alerts in real-time
+# sudo tail -f = follow log file (show new entries)
+# /var/log/suricata/fast.log = Suricata alerts (one-line format)
+# grep DNS = filter for DNS-related alerts
+sudo tail -f /var/log/suricata/fast.log | grep DNS
+# Expected output: Live stream of DNS alerts
+# Example:
+#   [**] [1:1000001:1] Potential DNS Tunneling - Long Query [**]
+#   [**] [1:1000002:1] DNS Exfiltration - High Query Rate [**]
+# Why: Real-time monitoring of DNS anomalies
+# Use when: Active investigation, testing rule effectiveness
+# Note: Press Ctrl+C to stop</code></pre>
+</div>
+
+<h2>DNS Best Practices</h2>
+
+<div class="terminal-info not-prose my-6">
+    <div class="terminal-info-header">
+        <i data-lucide="check-circle" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">Recommendations</h3>
+    </div>
+    <div class="terminal-info-content space-y-2">
+        <p><strong>1. Always use encrypted DNS (DoH or DoT)</strong> - Never send plaintext DNS queries to your ISP</p>
+        <p><strong>2. Choose privacy-respecting resolvers</strong> - Quad9 (no logging), Mullvad DNS, or self-hosted Unbound</p>
+        <p><strong>3. Deploy Pi-hole for network-wide blocking</strong> - Reduces tracking and ad exposure</p>
+        <p><strong>4. Monitor DNS traffic for anomalies</strong> - Watch for tunneling, high query rates, suspicious TLDs</p>
+        <p><strong>5. Enable DNSSEC validation</strong> - Prevents DNS spoofing/cache poisoning attacks</p>
+        <p><strong>6. Use split-horizon DNS</strong> - Internal domains resolved locally, external via encrypted resolver</p>
+        <p><strong>7. Block DNS at firewall (except your resolver)</strong> - Prevent devices from bypassing Pi-hole</p>
+    </div>
+</div>
+
+<h2>Advanced: Self-Hosted Unbound Recursive Resolver</h2>
+
+<p>For maximum privacy, run your own recursive DNS resolver. Instead of trusting third-party resolvers (Cloudflare, Quad9), Unbound queries authoritative DNS servers directly.</p>
+
+<div class="bg-shell-dark p-4 rounded-lg my-4">
+    <pre data-lang="bash"><code class="language-bash"># Install Unbound
+sudo apt install unbound
+
+# Configure Unbound for recursive resolution
+sudo nano /etc/unbound/unbound.conf.d/pi-hole.conf
+
+server:
+    # Listen on localhost for Pi-hole
+    interface: 127.0.0.1
+    port: 5335
+    do-ip4: yes
+    do-udp: yes
+    do-tcp: yes
+    
+    # Security settings
+    harden-glue: yes
+    harden-dnssec-stripped: yes
+    use-caps-for-id: no
+    edns-buffer-size: 1232
+    prefetch: yes
+    num-threads: 1
+    
+    # Privacy settings
+    hide-identity: yes
+    hide-version: yes
+    qname-minimisation: yes
+    
+    # Access control (only localhost)
+    access-control: 127.0.0.1/32 allow
+    access-control: ::1 allow
+    
+    # Root hints (download latest)
+    root-hints: "/var/lib/unbound/root.hints"
+
+# Download root hints
+sudo wget -O /var/lib/unbound/root.hints https://www.internic.net/domain/named.root
+
+# Test configuration
+sudo unbound-checkconf
+
+# Start Unbound
+sudo systemctl enable unbound
+sudo systemctl start unbound
+
+# Configure Pi-hole to use Unbound
+# Pi-hole Admin → Settings → DNS
+# Uncheck all upstream providers
+# Add custom DNS: 127.0.0.1#5335
+
+# Test: Your queries now go directly to root servers
+# No third-party resolver sees your DNS queries</code></pre>
+</div>
+
+<h2>Lab Exercise: Complete DNS Security Stack</h2>
+
+<div class="bg-shell-dark border border-shell-accent/30 rounded-lg p-5 my-6">
+    <h3 class="text-shell-accent mt-0 mb-3">Goal: Deploy encrypted, monitored, ad-blocking DNS infrastructure</h3>
+    
+    <p class="text-gray-300 mb-4"><strong>Network architecture:</strong></p>
+    <ul class="text-gray-300 mb-4">
+        <li>Pi-hole VM (192.168.10.5) - Primary DNS server for network</li>
+        <li>Unbound running on same VM (127.0.0.1:5335) - Recursive resolver</li>
+        <li>Cloudflared optional (127.0.0.1:5053) - DoH fallback</li>
+        <li>Suricata monitoring DNS queries for exfiltration</li>
+    </ul>
+    
+    <p class="text-gray-300 mb-2"><strong>Steps:</strong></p>
+    <ol class="text-gray-300 space-y-2">
+        <li>Install Pi-hole on dedicated VM or Raspberry Pi</li>
+        <li>Install Unbound recursive resolver</li>
+        <li>Configure Pi-hole to use Unbound as upstream DNS</li>
+        <li>Update DHCP settings on router to distribute Pi-hole as DNS server</li>
+        <li>Add custom blocklists (tracking, malware, crypto mining)</li>
+        <li>Configure Suricata with DNS exfiltration detection rules</li>
+        <li>Test DNS resolution, ad blocking, and query logging</li>
+        <li>Simulate DNS tunneling and verify Suricata alerts fire</li>
+    </ol>
+</div>
+
+<div class="terminal-success not-prose my-6">
+    <div class="terminal-success-header">
+        <i data-lucide="check-circle" class="terminal-success-icon"></i>
+        <h3 class="terminal-success-title">What You've Learned</h3>
+    </div>
+    <p class="terminal-success-content">
+        You now understand why DNS privacy matters, how to encrypt DNS queries with DoH/DoT, deploy network-wide ad blocking with Pi-hole, monitor DNS traffic for anomalies, detect DNS exfiltration attempts, and run a self-hosted recursive resolver for maximum privacy. DNS is no longer your weakest link.
+    </p>
+</div>
+
+<div class="flex justify-between mt-12 pt-6 border-t border-shell-border">
+    <a href="#/posts/3.Network_Security/part6.html" class="text-shell-accent hover:underline">← Part 6: Security Monitoring & Incident Response</a>
+    <a href="#/posts/3.Network_Security/part8.html" class="text-gray-500 hover:underline">Part 8: Traffic Analysis & Deep Packet Inspection (Coming Soon) →</a>
+</div>

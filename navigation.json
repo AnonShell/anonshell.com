@@ -1,0 +1,217 @@
+{
+  "posts": [
+    {
+      "name": "1.OpSec_101",
+      "path": "posts/1.OpSec_101",
+      "type": "folder",
+      "children": [
+        {
+          "name": "part1.html",
+          "path": "posts/1.OpSec_101/part1.html",
+          "type": "file",
+          "title": "1. Understanding the basics",
+          "content": "1. Understanding the basics # 1. Understanding the basics Personal Observation Personally, I consider Windows the least secure mainstream operating system. Microsoft has acknowledged that more than 30% of Windows 11’s code now ships via AI-assisted generation. That is a lot of opaque logic running on your machine. The platform increasingly behaves like spyware masquerading as an OS. Windows 11 “Copilot” is being wired into the shell, clipboard, and browser to collect your activity so it can “ass",
+          "hidden": false
+        },
+        {
+          "name": "part2.html",
+          "path": "posts/1.OpSec_101/part2.html",
+          "type": "file",
+          "title": "2. The Advanced Privacy Guide",
+          "content": "2. The Advanced Privacy Guide # 2. The Advanced Privacy Guide Tactical digital defense for everyday users who refuse to hand control of their data to anyone else. This playbook speaks to journalists, Linux and BSD operators, advocates, and anyone facing adversaries that watch everything. It favors discipline over drama and assumes you already operate inside terminals, encrypted vaults, and compartmentalized workflows. Operational Security Matrix (Quick Reference) Use this matrix to quickly ident",
+          "hidden": false
+        },
+        {
+          "name": "part3.html",
+          "path": "posts/1.OpSec_101/part3.html",
+          "type": "file",
+          "title": "3. OpSec Pre-Flight Checklist",
+          "content": "3. OpSec Pre-Flight Checklist # 3. OpSec Pre-Flight Checklist You have read the theory. You understand the threats. Now it is time to act. This checklist breaks security implementation into five progressive levels, from basic hygiene to maximum operational security. Start where you are comfortable, then level up as your threat model evolves. How to Use This Checklist Start at Level 1 regardless of your technical skill. The fundamentals matter more than advanced techniques. Complete each level fu",
+          "hidden": false
+        },
+        {
+          "name": "part4.html",
+          "path": "posts/1.OpSec_101/part4.html",
+          "type": "file",
+          "title": "4. Hardware & Disposable OpSec",
+          "content": "4. Hardware & Disposable OpSec # 4. Hardware & Disposable OpSec Software security means nothing if your hardware is compromised. This guide covers hardware selection, disposable device strategies, and On-The-Go (OTG) operational security for high-risk scenarios where your physical equipment must be untraceable, verifiable, and sacrificial. Why Hardware Matters The NSA's ANT catalog revealed decades of supply chain interdiction: packages intercepted during shipping, implants installed in firmware",
+          "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "2.Operating_Systems",
+      "path": "posts/2.Operating_Systems",
+      "type": "folder",
+      "children": [
+        {
+          "name": "linux.html",
+          "path": "posts/2.Operating_Systems/linux.html",
+          "type": "file",
+          "title": "4. Linux",
+          "content": "4. Linux # 4. Linux Security Audit Linux is the only mainstream operating system that grants users complete architectural control. Every line of kernel code is auditable. Every service can be disabled. Every packet can be inspected. This transparency enables verifiable security but demands technical competence. Linux does not protect you from yourself—it empowers you to implement exactly the security model your threat model requires. Architecture and Kernel Security Linux uses a monolithic kerne",
+          "hidden": false
+        },
+        {
+          "name": "macos.html",
+          "path": "posts/2.Operating_Systems/macos.html",
+          "type": "file",
+          "title": "3. MacOS",
+          "content": "3. MacOS # 3. MacOS Security Audit MacOS occupies the middle ground between Windows surveillance and Linux freedom. Apple builds competent security architecture but wraps it in proprietary control systems that restrict user agency. The platform excels at protecting you from external threats while simultaneously tracking your behavior for Apple's benefit. This audit examines both sides of that trade-off. Architecture and Kernel Security MacOS runs on XNU, a hybrid kernel combining the Mach microk",
+          "hidden": false
+        },
+        {
+          "name": "readfirst.html",
+          "path": "posts/2.Operating_Systems/readfirst.html",
+          "type": "file",
+          "title": "1. OS Matrix",
+          "content": "1. OS Matrix # 1. OS Matrix Your operating system is the foundation of every security decision that follows. A compromised OS renders encryption, VPNs, and hardened applications meaningless. This section provides technical security assessments of Windows, macOS, and Linux to help you understand the trust boundaries, attack surfaces, and operational realities of each platform. What This Section Covers Each operating system review dissects the platform through the lens of someone who has hardened ",
+          "hidden": false
+        },
+        {
+          "name": "windows.html",
+          "path": "posts/2.Operating_Systems/windows.html",
+          "type": "file",
+          "title": "2. Windows",
+          "content": "2. Windows # 2. Windows Security Audit Critical Assessment Windows 11 represents the least defensible mainstream operating system for privacy-conscious users. Microsoft has systematically removed user control, embedded surveillance into core system functions, and architected the platform to resist hardening. If your threat model includes corporate tracking, state surveillance, or behavioral profiling, Windows 11 is fundamentally incompatible with your security requirements. This audit dissects W",
+          "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "3.Network_Security",
+      "path": "posts/3.Network_Security",
+      "type": "folder",
+      "children": [
+        {
+          "name": "part1.html",
+          "path": "posts/3.Network_Security/part1.html",
+          "type": "file",
+          "title": "1. VPN Configuration & Usage",
+          "content": "#1. VPN Configuration & Usage Circle 4: Environmental Defense This guide assumes you have completed Circles 1-3. You should understand threat modeling, practice good digital hygiene, and have hardened your operating system before implementing network-level defenses. What is a VPN? A Virtual Private Network (VPN) creates an encrypted tunnel between your device and a remote server. All network traffic passes through this tunnel, hiding your real IP address and encrypting data in transit. Your Inte",
+          "hidden": false
+        },
+        {
+          "name": "part2.html",
+          "path": "posts/3.Network_Security/part2.html",
+          "type": "file",
+          "title": "2. Tor Network & Anonymity",
+          "content": "#2. Tor Network & Anonymity Prerequisites Complete Part 1 (VPN Configuration) before this guide. Understanding VPN limitations is essential for knowing when to use Tor. This guide assumes you have a hardened operating system and practice good operational security. What is Tor? The Onion Router (Tor) is an anonymity network that routes traffic through multiple encrypted relays, making it extremely difficult to link you to your destination. Unlike VPNs, Tor provides anonymity, not just privacy. Ho",
+          "hidden": false
+        },
+        {
+          "name": "part3.html",
+          "path": "posts/3.Network_Security/part3.html",
+          "type": "file",
+          "title": "3. Segmentation & Firewall Rules",
+          "content": "# 3. Segmentation & Firewall Rules Prerequisites Complete Parts 1-2 (VPN and Tor) before this guide. You should understand encrypted tunnels and anonymity networks. This guide assumes you have a router with custom firmware support or a dedicated firewall device. What is Network Segmentation? Network segmentation divides your network into isolated zones with different trust levels. A compromised IoT device can't access your encrypted laptop if they're on separate network segments with firewall ru",
+          "hidden": false
+        },
+        {
+          "name": "part4.html",
+          "path": "posts/3.Network_Security/part4.html",
+          "type": "file",
+          "title": "4. Secure Remote Access",
+          "content": "# 4. Secure Remote Access Prerequisites Complete Parts 1-3 (VPN, Tor, and Network Segmentation) before this guide. You should understand encrypted tunnels, firewall rules, and network isolation. This guide assumes you have a segmented home network or remote servers requiring secure management. Threat Model: Remote Access Remote access is a high-value target. An exposed SSH port receives thousands of brute-force attempts daily. Weak authentication, default ports, and unpatched services create att",
+          "hidden": false
+        },
+        {
+          "name": "part5.html",
+          "path": "posts/3.Network_Security/part5.html",
+          "type": "file",
+          "title": "5. NIDS, HIDS, IDS/IPS Systems",
+          "content": "# 5. NIDS, HIDS, IDS/IPS Systems Prerequisites Complete Parts 1-4 (VPN, Tor, Network Segmentation, and Secure Remote Access) before this guide. You should have a segmented network with hardened access controls. This guide covers detection systems that identify intrusions in real-time. Defense in Depth: Detection Layer Prevention fails. Hardened systems get compromised through zero-days, social engineering, and supply chain attacks. Detection is your second line of defense: catching intrusions ea",
+          "hidden": false
+        },
+        {
+          "name": "part6.html",
+          "path": "posts/3.Network_Security/part6.html",
+          "type": "file",
+          "title": "6. Monitoring & Incident Response",
+          "content": "# 6. Monitoring & Incident Response Prerequisites Complete Part 5 (Intrusion Detection Systems) before this guide. You should have Suricata (NIDS), Wazuh (HIDS), AIDE (file integrity), and Auditd (system call monitoring) configured and generating alerts. This guide covers aggregating, analyzing, and responding to those alerts. From Detection to Action Intrusion detection systems generate alerts. Security monitoring turns those alerts into actionable intelligence. Without centralized logging, cor",
+          "hidden": false
+        },
+        {
+          "name": "part7.html",
+          "path": "posts/3.Network_Security/part7.html",
+          "type": "file",
+          "title": "7. DNS Security & Privacy",
+          "content": "# 7. DNS Security & Privacy Why DNS Security Matters Every website you visit, every API call your applications make, every email you send—all of it starts with a DNS query. Your ISP sees every domain you resolve. Governments log DNS queries for surveillance. Attackers use DNS tunneling for command-and-control. Unencrypted DNS is a privacy catastrophe and a security vulnerability. The DNS Privacy Problem Traditional DNS queries are sent in plaintext over UDP port 53. This means: Your ISP logs eve",
+          "hidden": false
+        },
+        {
+          "name": "part8.html",
+          "path": "posts/3.Network_Security/part8.html",
+          "type": "file",
+          "title": "8. Traffic Analysis & D.P.I",
+          "content": "# 8. Traffic Analysis & D.P.I Why Traffic Analysis Matters Modern networks are encrypted, but encryption hides content—not behavior. Traffic analysis reveals what applications are running, when users are active, what sites they visit, and whether malware is calling home. You cannot defend what you cannot see. This guide teaches you to read the network like a book. The Traffic Analysis Mindset Network traffic tells stories. Every packet has metadata: source IP, destination IP, port numbers, timin",
+          "hidden": false
+        },
+        {
+          "name": "part9.html",
+          "path": "posts/3.Network_Security/part9.html",
+          "type": "file",
+          "title": "9. Wireless Security & Rogue AP",
+          "content": "# 9. Wireless Security & Rogue AP Why Wireless Security Matters WiFi networks broadcast your data through walls to anyone within range. Weak encryption allows neighbors and attackers to intercept traffic. Rogue access points trick you into connecting, stealing credentials and monitoring communications. An insecure wireless network is an open door to your entire digital life. The Wireless Threat Landscape WiFi operates on radio frequencies (2.4GHz, 5GHz, 6GHz) that are accessible to anyone with a",
+          "hidden": false
+        }
+      ]
+    },
+    {
+      "name": "assessment.html",
+      "path": "posts/assessment.html",
+      "type": "file",
+      "title": "Security Posture Assessment",
+      "content": "# Security Posture Assessment Evaluate Your Current Security Posture This assessment evaluates your operational security practices across all circles: understanding, personal practice, hardware security, and environmental defense. Answer honestly – your results are never transmitted or stored. Based on your answers, we'll identify your threat level, recommend specific learning paths, and estimate the time investment required to improve your security posture. What You'll Learn Your Threat Level: ",
+      "hidden": false
+    },
+    {
+      "name": "contact.html",
+      "path": "posts/contact.html",
+      "type": "file",
+      "title": "Contact Us",
+      "content": "# Contact Us Reach out to AnonShell for security disclosures, content suggestions, or general inquiries. Choose your preferred secure communication method below. Secure Contact Methods ⚠ Verification Notice: We only use SimpleX to communicate publicly! SimpleX Messenger SimpleX is a privacy-focused messaging platform with no user identifiers, no phone numbers, and no centralized servers. Messages are end-to-end encrypted and metadata is protected through multiple relay servers. Scan the QR code ",
+      "hidden": true
+    },
+    {
+      "name": "donate.html",
+      "path": "posts/donate.html",
+      "type": "file",
+      "title": "Support AnonShell",
+      "content": "# Support AnonShell Help keep this platform free and independent. Your donations support hosting, content creation, and maintaining a completely ad-free, tracking-free experience for everyone. Privacy-Respecting Donations We only accept cryptocurrency donations to protect both your privacy and ours. No payment processors, no tracking, no personal information required. Simply send funds to any address below. Annual Operating Costs Expense Category Annual Cost Server Hosting €85/year Build & Test ",
+      "hidden": true
+    },
+    {
+      "name": "labreqs.html",
+      "path": "posts/labreqs.html",
+      "type": "file",
+      "title": "Lab Requirements & Setup",
+      "content": "# Lab Requirements & Setup Critical: Do NOT Use Cloud/VPS Providers Without Authorization Using cloud servers (AWS, Azure, DigitalOcean, Linode, Vultr) or VPS providers for security testing is EXTREMELY DANGEROUS without explicit written authorization. Offensive activities (port scanning, exploit testing, brute-force attempts) and even defensive activities (running IDS, honeypots, analyzing malware samples) can trigger automatic abuse detection systems. This will result in: Immediate account sus",
+      "hidden": false
+    },
+    {
+      "name": "privacy.html",
+      "path": "posts/privacy.html",
+      "type": "file",
+      "title": "Privacy Policy",
+      "content": "# Privacy Policy AnonShell practices what it preaches: absolute privacy by design. We don't collect visitor data because we've engineered our infrastructure to make collection technically impossible. The Simple Truth: We Have No Logs Because We Don't Create Them Most privacy policies explain what data they collect and how they \"protect\" it. This one is different. We don't collect any data, period. Not because we promise to delete it later. Not because we encrypt it well. But because our server c",
+      "hidden": true
+    },
+    {
+      "name": "toc.html",
+      "path": "posts/toc.html",
+      "type": "file",
+      "title": "Table of Contents",
+      "content": "# Table of Contents Learning by Doing: Failure is Part of the Process These guides do NOT hold your hand. They are designed to make you do your own research, to better understand concepts first-hand, and to learn how things can go sideways real quick and how to fix them on-the-fly. I have built this entire knowledge base in a way that will FORCE you to learn by doing it yourself. You will encounter errors. Commands will fail. Configurations will break. That's intentional. Remember: Failure is ju",
+      "hidden": false
+    },
+    {
+      "name": "tos.html",
+      "path": "posts/tos.html",
+      "type": "file",
+      "title": "Terms of Service",
+      "content": "# Terms of Service AnonShell provides free operational security education. These terms define the relationship between the site and its users. They're written in plain language because legal obfuscation is antithetical to the transparency we advocate. 1. Acceptance of Terms By accessing AnonShell.com, you agree to these Terms of Service. If you disagree with any part of these terms, you should not use the site. These terms apply to all visitors, readers, and users of the site. 2. Educational Pur",
+      "hidden": true
+    }
+  ]
+}

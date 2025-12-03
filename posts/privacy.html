@@ -1,0 +1,210 @@
+<h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+    <span class="text-gray-500">#</span> Privacy Policy
+</h1>
+
+<p class="text-xl text-shell-accent/90 leading-relaxed mb-8">
+    AnonShell practices what it preaches: absolute privacy by design. We don't collect visitor data because we've engineered our infrastructure to make collection technically impossible.
+</p>
+
+<h2>The Simple Truth: We Have No Logs Because We Can't Create Them</h2>
+<p>
+    Most privacy policies explain what data they collect and how they "protect" it. This one is different. <strong>We don't collect any data, period.</strong> Not because we promise to delete it later. Not because we encrypt it well. But because our static site architecture has no server-side processing, no databases, and no logging infrastructure. There's nothing to log because there's no backend to do the logging.
+</p>
+
+<h2>What We Don't Collect (And Can't, Even If We Wanted To)</h2>
+
+<div class="terminal-info not-prose my-6">
+    <div class="terminal-info-header">
+        <i data-lucide="server-off" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">Zero Data Collection</h3>
+    </div>
+    <ul class="terminal-info-content list-disc pl-5 space-y-2">
+        <li><strong>No IP address logging:</strong> Static sites on Cloudflare Pages have no server-side logging. Your IP address is never written to any database or log file under our control.</li>
+        <li><strong>No request logging:</strong> The pages you visit, the order you visit them, how long you stay - none of this is recorded by us. There's no application server to track requests.</li>
+        <li><strong>No server-side processing:</strong> Every page is a static HTML file. No PHP, no Python, no Node.js backend generating personalized content or tracking sessions.</li>
+        <li><strong>No user agent tracking:</strong> Your browser type, operating system, and device information are never stored. Static files can't inspect or log request headers.</li>
+        <li><strong>No referrer tracking:</strong> We don't log where you came from before visiting AnonShell. There's no backend to receive or store referrer data.</li>
+        <li><strong>No database:</strong> AnonShell has zero databases. No SQL, no NoSQL, no key-value stores. Nothing to query, nothing to breach, nothing to subpoena.</li>
+    </ul>
+</div>
+
+<h2>Zero Cookies, Zero Tracking Scripts, Zero Surveillance Capitalism</h2>
+<p>
+    AnonShell serves static HTML, CSS, and JavaScript files. That's it. No tracking pixels. No analytics frameworks. No third-party scripts phoning home to surveillance infrastructure.
+</p>
+
+<div class="bg-shell-dark border border-shell-border rounded-lg p-5 my-6">
+    <h3 class="text-shell-accent mb-3">What We Use (All Hosted Locally)</h3>
+    <ul class="list-disc pl-5 space-y-2 text-gray-300">
+        <li><strong>Tailwind CSS:</strong> Frontend framework for styling (local file, no CDN)</li>
+        <li><strong>Highlight.js:</strong> Syntax highlighting for code blocks (local file, no CDN)</li>
+        <li><strong>Lucide Icons:</strong> Icon library (local file, no CDN)</li>
+    </ul>
+    <p class="mt-4 text-sm text-gray-400">
+        All JavaScript libraries are served from our own server. No requests leave our infrastructure. No CDN providers see your IP address.
+    </p>
+</div>
+
+<h2>No Cookies = No Consent Banner</h2>
+<p>
+    You won't see a cookie consent popup on AnonShell because <strong>we don't use cookies</strong>. Not session cookies. Not authentication cookies. Not tracking cookies. Not "necessary" cookies. No cookies at all.
+</p>
+<p>
+    Your browser visits the site, loads the HTML/CSS/JS, displays content, and that's the end of the relationship. Nothing persists. Nothing tracks. Nothing follows you.
+</p>
+
+<h2>No localStorage, No sessionStorage, No Browser Fingerprinting</h2>
+<p>
+    AnonShell doesn't use browser storage APIs to track your behavior. We don't store data in <code>localStorage</code> or <code>sessionStorage</code>. We don't implement browser fingerprinting techniques (canvas fingerprinting, WebGL fingerprinting, audio fingerprinting, font enumeration, etc.).
+</p>
+
+<h2>Static Site Architecture: Privacy by Design</h2>
+<p>
+    AnonShell is deployed as a fully static site on Cloudflare Pages. This architecture choice eliminates entire categories of privacy risks:
+</p>
+
+<div class="bg-shell-dark border border-shell-border rounded-lg p-5 my-6">
+    <h3 class="text-shell-accent mb-3">Why Static Hosting Guarantees Privacy</h3>
+    <ul class="list-disc pl-5 space-y-2 text-gray-300">
+        <li><strong>No application server:</strong> Traditional web servers (Apache, Nginx, IIS) log every request. Static hosting serves pre-built HTML files from a CDN with no logging under our control.</li>
+        <li><strong>No server-side code execution:</strong> No PHP scripts, no Python applications, no Node.js servers. Every visitor gets identical HTML files. There's no personalization, therefore no tracking.</li>
+        <li><strong>No session management:</strong> Sessions require server-side state. Static sites are stateless. We can't track you across pages because there's no backend to maintain session data.</li>
+        <li><strong>No database queries:</strong> Database logs are a common surveillance vector. AnonShell has no database, so there's nothing to log, leak, or subpoena.</li>
+        <li><strong>Build-time generation:</strong> The site is built once (when we update content), then served as static files. Your visit doesn't trigger any server-side processing.</li>
+    </ul>
+</div>
+
+<p>
+    Even if an attacker compromised our GitHub repository or Cloudflare account, there are no visitor logs to exfiltrate because <strong>the architecture cannot create them</strong>. You can't steal data that was never collected.
+</p>
+
+<h2>What Happens When You Visit AnonShell</h2>
+<ol class="list-decimal pl-5 space-y-3 my-6">
+    <li><strong>Your browser connects</strong> to Cloudflare's CDN over HTTPS (TLS 1.3 encryption).</li>
+    <li><strong>Cloudflare serves static files</strong> (HTML/CSS/JS) from their edge cache. These files are identical for every visitor - no personalization, no server-side generation.</li>
+    <li><strong>No log entry reaches us.</strong> Cloudflare may log requests internally (see section below), but we don't receive, store, or have access to their logs. Our deployment has no logging infrastructure.</li>
+    <li><strong>Your browser renders the page</strong> entirely client-side. The single-page application (SPA) routing happens in JavaScript using the pre-generated navigation.json file.</li>
+    <li><strong>You navigate the site.</strong> Clicking internal links loads content via JavaScript fetch() requests to static HTML files. Everything happens in your browser - no server-side tracking.</li>
+    <li><strong>You close the tab.</strong> Nothing remains anywhere. No session cookies, no localStorage data, no server-side profile, no database entries. It's as if you were never here.</li>
+</ol>
+
+<h2>Third-Party Services: None</h2>
+<p>
+    AnonShell doesn't integrate with any third-party services that could compromise your privacy:
+</p>
+
+<div class="terminal-success not-prose my-6">
+    <div class="terminal-success-header">
+        <i data-lucide="shield-check" class="terminal-success-icon"></i>
+        <h3 class="terminal-success-title">What We Don't Use</h3>
+    </div>
+    <ul class="terminal-success-content list-disc pl-5 space-y-2">
+        <li><strong>No Google Analytics:</strong> No visitor tracking, no behavior analysis, no advertising profiles.</li>
+        <li><strong>No Facebook Pixel:</strong> No social media tracking, no cross-site surveillance.</li>
+        <li><strong>No Cloudflare Analytics:</strong> Disabled on our account. We don't receive traffic reports, visitor counts, or request logs from Cloudflare.</li>
+        <li><strong>No third-party CDNs:</strong> All JavaScript libraries (Tailwind, Highlight.js, Lucide Icons) are hosted as static files on Cloudflare Pages. No external CDN requests.</li>
+        <li><strong>No comment systems:</strong> No Disqus, no Facebook Comments, no third-party embeds.</li>
+        <li><strong>No email newsletter tracking:</strong> We don't have a newsletter. No email collection, no open-rate tracking.</li>
+        <li><strong>No payment processors:</strong> The site is free. No Stripe, no PayPal, no transaction logging.</li>
+    </ul>
+</div>
+
+<h2>Content Delivery: Cloudflare Pages Hosting</h2>
+<p>
+    AnonShell is hosted on <strong>Cloudflare Pages</strong>, a static site hosting platform. Here's the complete privacy picture:
+</p>
+
+<div class="bg-shell-dark border border-shell-border rounded-lg p-5 my-6">
+    <h3 class="text-shell-accent mb-3">What Cloudflare Pages Knows</h3>
+    <ul class="list-disc pl-5 space-y-2 text-gray-300">
+        <li><strong>Your IP address:</strong> Cloudflare's CDN sees your IP when you request files (unavoidable for any web hosting). However, we don't have access to Cloudflare's logs.</li>
+        <li><strong>Request metadata:</strong> Cloudflare logs requests internally (timestamp, user agent, requested path) for DDoS protection and caching. We have <strong>disabled Cloudflare Analytics</strong> and don't receive any of this data.</li>
+        <li><strong>TLS handshake details:</strong> Cloudflare terminates TLS connections at their edge servers to serve cached content efficiently. This is standard for any CDN.</li>
+    </ul>
+</div>
+
+<div class="bg-shell-dark border border-shell-border rounded-lg p-5 my-6">
+    <h3 class="text-shell-accent mb-3">What We Don't Know</h3>
+    <ul class="list-disc pl-5 space-y-2 text-gray-300">
+        <li><strong>Who visited the site:</strong> We have no IP logs, no visitor database, no analytics dashboard.</li>
+        <li><strong>What pages were viewed:</strong> Cloudflare serves files directly from cache. We don't see request logs.</li>
+        <li><strong>When you visited:</strong> No timestamps are logged on our end. The static site has no backend to receive timing data.</li>
+        <li><strong>Your location or device:</strong> We can't correlate visits, build user profiles, or track behavior patterns because we have zero data.</li>
+    </ul>
+</div>
+
+<p>
+    <strong>Why we chose Cloudflare Pages:</strong> Static hosting on a CDN eliminates the traditional server (Apache/Nginx) that would log every request. While Cloudflare <em>can</em> see traffic (as any hosting provider must), <strong>we</strong> have no access to their logs and have disabled all analytics integrations. This is a strict improvement over self-hosted servers where logs exist under our control.
+</p>
+
+<p class="text-sm text-gray-400 italic mt-4">
+    <strong>Trust model:</strong> You must trust Cloudflare not to abuse their position (same as trusting any ISP, VPN, or hosting provider). However, Cloudflare's privacy policy states they don't sell user data and delete most logs within 24 hours. We've verified our Pages deployment has zero analytics or tracking enabled on our account.
+</p>
+
+<p class="text-sm text-gray-400 italic mt-4">
+    <strong>Mitigation:</strong> If you don't trust Cloudflare, use Tor Browser to hide your IP and traffic patterns from all network observers. Tor exit nodes can't correlate your visit to your identity, and Cloudflare only sees the exit node's IP.
+</p>
+
+<h2>Government Requests & Law Enforcement</h2>
+<p>
+    Because AnonShell is a static site with no backend, no database, and no logging infrastructure, we have <strong>no visitor data to provide</strong> to law enforcement, intelligence agencies, or civil litigants. If served with a subpoena, court order, or National Security Letter demanding:
+</p>
+
+<ul class="list-disc pl-5 space-y-2 my-6">
+    <li><strong>Visitor IP addresses:</strong> We don't have them. Cloudflare may have them, but we can't compel Cloudflare to provide data on our behalf (and wouldn't).</li>
+    <li><strong>User accounts or profiles:</strong> The site has no user accounts. There's no registration, no login, no authentication system.</li>
+    <li><strong>Viewing history or behavior:</strong> Static sites can't track navigation patterns. There's no server-side session to analyze.</li>
+    <li><strong>Private messages or communications:</strong> AnonShell has no messaging system, no forms that email us, no contact database.</li>
+</ul>
+
+<p>
+    The honest answer to any data request is: <strong>the architecture cannot create that data.</strong> It's not that we deleted it or encrypted it beyond recovery - it's that static HTML files served from a CDN have no mechanism to capture visitor information.
+</p>
+
+<div class="terminal-alert not-prose my-6">
+    <div class="terminal-alert-header">
+        <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Transparency Commitment</h3>
+    </div>
+    <p class="terminal-alert-content">
+        If we ever receive a legal request for data, we will publish it in a transparency report (after any gag order expires). However, since we log nothing, there would be nothing to provide even if compelled.
+    </p>
+</div>
+
+<h2>Your Operational Security Is Your Responsibility</h2>
+<p>
+    While AnonShell doesn't track you, your <strong>internet service provider (ISP)</strong>, <strong>VPN provider</strong>, <strong>browser</strong>, and <strong>operating system</strong> still can. AnonShell's privacy policy only covers what we do (and don't do). To achieve true anonymity:
+</p>
+
+<ul class="list-disc pl-5 space-y-2 my-6">
+    <li>Use <strong>Tor Browser</strong> to prevent your ISP from seeing what sites you visit.</li>
+    <li>Use a <strong>privacy-respecting VPN</strong> (like Mullvad) if you prefer VPNs over Tor.</li>
+    <li>Disable JavaScript fingerprinting in your browser settings (uMatrix, NoScript, or Tor Browser's Safest mode).</li>
+    <li>Clear cookies and site data regularly (though AnonShell sets none).</li>
+    <li>Don't log into tracking-heavy services (Google, Facebook) in the same browser session you use to read AnonShell.</li>
+</ul>
+
+<h2>Changes to This Privacy Policy</h2>
+<p>
+    If our privacy practices change (for example, if we add user accounts, comments, or analytics), we will update this page and note the change date at the bottom. The current policy reflects the site's architecture as of <strong>December 3, 2025</strong> (migrated to Cloudflare Pages static hosting).
+</p>
+
+<div class="bg-shell-dark border border-shell-border rounded-lg p-5 my-6">
+    <h3 class="text-shell-accent mb-3">How to Verify Our Claims</h3>
+    <ul class="list-disc pl-5 space-y-2 text-gray-300">
+        <li><strong>Inspect the source code:</strong> Right-click → View Page Source. Every page is static HTML with no server-side templating.</li>
+        <li><strong>Audit network requests:</strong> Open Developer Tools → Network tab. You'll see requests for HTML/CSS/JS files, nothing to analytics domains.</li>
+        <li><strong>Check for cookies:</strong> Developer Tools → Application → Cookies. AnonShell sets zero cookies.</li>
+        <li><strong>Examine localStorage:</strong> Developer Tools → Application → Local Storage. Should be empty (or only browser defaults).</li>
+    </ul>
+</div>
+
+<h2>Questions or Concerns?</h2>
+<p>
+    If you believe we've made a claim in this privacy policy that contradicts our actual implementation, please report it. Anonymity is built on trust, and trust is built on verifiable truth.
+</p>
+
+<p class="text-shell-accent font-semibold mt-8">
+    Last Updated: December 3, 2025<br>
+    <span class="text-sm text-gray-400 font-normal">Migration to Cloudflare Pages static hosting</span>
+</p>

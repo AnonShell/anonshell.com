@@ -1,0 +1,678 @@
+<h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+    <span class="text-gray-500">#</span>1. VPN Configuration & Usage
+</h1>
+
+<div class="terminal-alert not-prose">
+    <div class="terminal-alert-header">
+        <i data-lucide="shield-alert" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Circle 4: Environmental Defense</h3>
+    </div>
+    <p class="terminal-alert-content">
+        This guide assumes you have completed Circles 1-3. You should understand threat modeling, practice good digital hygiene, and have hardened your operating system before implementing network-level defenses.
+    </p>
+</div>
+
+<h2>What is a VPN?</h2>
+
+<p>A Virtual Private Network (VPN) creates an encrypted tunnel between your device and a remote server. All network traffic passes through this tunnel, hiding your real IP address and encrypting data in transit. Your Internet Service Provider (ISP) sees only encrypted traffic to the VPN server, not the websites you visit.</p>
+
+<p><strong>What VPNs protect against:</strong></p>
+<ul>
+    <li>ISP surveillance and traffic logging</li>
+    <li>Network-level adversaries (coffee shop WiFi attackers, workplace monitoring)</li>
+    <li>Geographic IP blocking and censorship</li>
+    <li>Traffic correlation when combined with proper operational security</li>
+</ul>
+
+<p><strong>What VPNs do NOT protect against:</strong></p>
+<ul>
+    <li>Browser fingerprinting and tracking cookies</li>
+    <li>Malware and compromised applications</li>
+    <li>Correlation attacks if you reuse accounts across VPN sessions</li>
+    <li>The VPN provider itself (they see your real IP and can log traffic)</li>
+    <li>DNS leaks if misconfigured</li>
+</ul>
+
+<div class="terminal-info not-prose">
+    <div class="terminal-info-header">
+        <i data-lucide="info" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">Threat Model Considerations</h3>
+    </div>
+    <p class="terminal-info-content">
+        VPNs shift trust from your ISP to the VPN provider. Choose a provider in a jurisdiction outside your adversary's reach, with a verified no-logs policy, and open-source client software. For high-risk scenarios, combine VPN with Tor (covered in Part 2).
+    </p>
+</div>
+
+<h2>Choosing a VPN Provider</h2>
+
+<p>Most commercial VPNs are marketing operations that make false security claims. Use these criteria:</p>
+
+<h3>Technical Requirements</h3>
+<ul>
+    <li><strong>Open-source client software.</strong> WireGuard or OpenVPN protocols. Closed-source VPN clients are black boxes.</li>
+    <li><strong>Modern encryption.</strong> ChaCha20-Poly1305 or AES-256-GCM. Avoid outdated protocols like PPTP or L2TP/IPsec.</li>
+    <li><strong>IPv6 leak protection.</strong> Many VPNs leak IPv6 traffic. Test with <code>https://ipleak.net</code>.</li>
+    <li><strong>DNS leak protection.</strong> VPN should route DNS queries through the tunnel, not your ISP.</li>
+    <li><strong>Kill switch.</strong> Blocks all traffic if VPN connection drops, preventing IP leaks.</li>
+</ul>
+
+<h3>Legal and Jurisdictional Requirements</h3>
+<ul>
+    <li><strong>No-logs policy audited by third party.</strong> Verify with court cases or transparency reports.</li>
+    <li><strong>Jurisdiction outside Five Eyes/Nine Eyes/Fourteen Eyes.</strong> Avoid US, UK, Canada, Australia, New Zealand, and extended surveillance alliance countries.</li>
+    <li><strong>Accepts anonymous payment.</strong> Monero preferred, Bitcoin acceptable if mixed properly.</li>
+    <li><strong>No account linking requirements.</strong> Email registration should be optional or accept disposable addresses.</li>
+</ul>
+
+<h3>Recommended Providers</h3>
+
+<div class="terminal-success not-prose">
+    <div class="terminal-success-header">
+        <i data-lucide="check-circle" class="terminal-success-icon"></i>
+        <h3 class="terminal-success-title">Mullvad VPN (Recommended)</h3>
+    </div>
+    <p class="terminal-success-content">
+        <strong>Website:</strong> <code>https://mullvad.net</code><br>
+        <strong>Jurisdiction:</strong> Sweden (outside Fourteen Eyes, strong privacy laws)<br>
+        <strong>Protocol:</strong> WireGuard (modern, audited, fast)<br>
+        <strong>Client:</strong> Open-source (GPL-3.0)<br>
+        <strong>Payment:</strong> Cash, Monero, Bitcoin<br>
+        <strong>Account:</strong> Anonymous account numbers, no email required<br>
+        <strong>Audit:</strong> Regular third-party audits published on website
+    </p>
+</div>
+
+<div class="terminal-success not-prose">
+    <div class="terminal-success-header">
+        <i data-lucide="check-circle" class="terminal-success-icon"></i>
+        <h3 class="terminal-success-title">ProtonVPN (Alternative)</h3>
+    </div>
+    <p class="terminal-success-content">
+        <strong>Website:</strong> <code>https://protonvpn.com</code><br>
+        <strong>Jurisdiction:</strong> Switzerland (strong privacy laws)<br>
+        <strong>Protocol:</strong> WireGuard, OpenVPN, IKEv2<br>
+        <strong>Client:</strong> Open-source<br>
+        <strong>Payment:</strong> Bitcoin, credit card<br>
+        <strong>Features:</strong> Secure Core (multi-hop), Tor over VPN<br>
+        <strong>Note:</strong> Free tier available (limited servers, slower speeds)
+    </p>
+</div>
+
+<h2>Installation: Mullvad VPN</h2>
+
+<p>Mullvad is recommended for most users. It requires no personal information and uses account numbers instead of email addresses.</p>
+
+<h3>Linux (Debian/Ubuntu)</h3>
+
+<p>Before we can use Mullvad VPN to protect our network traffic, we need to install the client software on our system. This installation process involves adding Mullvad's official repository to ensure we receive authentic, signed packages and automatic updates directly from the vendor, then downloading and installing the VPN client application itself which includes both the graphical interface for easy management and command-line tools for advanced configuration and scripting. By installing from the official repository rather than third-party sources, we verify package authenticity through GPG signatures and ensure we're running genuine Mullvad software that hasn't been tampered with by adversaries.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Download Mullvad GPG signing key to verify package authenticity
+# -f = fail silently on server errors
+# -s = silent mode (no progress bar)
+# -S = show errors even in silent mode  
+# -L = follow redirects
+# -o = output to specific file
+sudo curl -fsSLo /usr/share/keyrings/mullvad-keyring.asc https://repository.mullvad.net/deb/mullvad-keyring.asc
+# Expected output: Silent download, file saved to /usr/share/keyrings/
+# Why: Verifies packages are signed by Mullvad, prevents tampered packages
+# Use when: Initial setup of Mullvad VPN on Debian/Ubuntu systems
+
+# Add Mullvad repository to APT sources with GPG verification
+# signed-by = specify which GPG key to use for verification
+# arch = only install packages for current architecture
+# dpkg --print-architecture = get system architecture (amd64, arm64, etc)
+# lsb_release -cs = get distribution codename (jammy, focal, etc)
+echo "deb [signed-by=/usr/share/keyrings/mullvad-keyring.asc arch=$( dpkg --print-architecture )] https://repository.mullvad.net/deb/stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/mullvad.list
+# Expected output: Repository line written to /etc/apt/sources.list.d/mullvad.list
+# Why: Enables installing and updating Mullvad from official repository
+# Use when: Adding Mullvad repository for first time
+# Warning: Requires internet connection and valid distribution codename
+
+# Update package list to include Mullvad repository
+sudo apt update
+# Expected output: Package lists downloaded, including Mullvad packages
+# Why: Refreshes available package list from all repositories
+
+# Install Mullvad VPN client
+sudo apt install mullvad-vpn
+# Expected output: Downloads ~50MB, installs mullvad-vpn package
+# Why: Installs open-source VPN client with GUI and CLI tools
+# Use when: Ready to install after adding repository
+# Warning: Requires ~150MB disk space for installation
+
+# Launch Mullvad VPN graphical interface
+mullvad-vpn
+# Expected output: Mullvad GUI window opens, prompts for account number
+# Why: Starts VPN configuration and connection interface
+# Use when: First-time setup or managing VPN connections
+# Note: Can also use CLI with 'mullvad' command for scriptable control</code></pre>
+
+<h3>macOS</h3>
+
+<p>macOS users have two installation paths: using the Homebrew package manager for automated installation and updates, or downloading the official .pkg installer directly from Mullvad's website for manual installation. Homebrew simplifies the process and handles dependency management, making it ideal for users who already have the development environment set up, while the direct installer approach gives you more control and doesn't require any additional software. Regardless of the method chosen, verifying the code signature is critical on macOS because unsigned or improperly signed applications can be malware disguised as legitimate software, and Apple's Gatekeeper security system relies on these signatures to determine if an application should be trusted to run on your system.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Install Mullvad using Homebrew package manager
+# brew = Homebrew command for macOS package management
+# --cask = install GUI application (not command-line tool)
+# mullvadvpn = application identifier in Homebrew cask repository
+brew install --cask mullvadvpn
+# Expected output: Downloads ~50MB, installs to /Applications/Mullvad VPN.app
+# Why: Simplest installation method on macOS with automatic updates
+# Use when: You have Homebrew installed (most developers do)
+# Warning: Requires Xcode command-line tools and admin privileges
+
+# Alternative: Download .pkg installer directly from mullvad.net
+# More control over installation, doesn't require Homebrew
+# Download from: https://mullvad.net/download/macos
+
+# Verify code signature before running installer (security best practice)
+# codesign = Apple's code signing verification tool
+# -dv = display verbose certificate info
+# --verbose=4 = maximum verbosity (shows all signature details)
+codesign -dv --verbose=4 /Applications/Mullvad\ VPN.app
+# Expected output: Certificate details showing "Mullvad VPN AB" as signer
+# Why: Confirms app is legitimately signed by Mullvad, not malware
+# Use when: Installing from .pkg or verifying existing installation
+# Warning: If signature is invalid or missing, DO NOT run the app
+# Look for: Authority=Developer ID Application: Mullvad VPN AB</code></pre>
+
+<h3>Windows</h3>
+
+<p>Windows installation requires downloading the executable installer directly from Mullvad's website and verifying its Authenticode digital signature before execution to ensure the file hasn't been compromised during download. This verification step is particularly important on Windows because the platform is a prime target for malware, and attackers frequently disguise malicious executables as legitimate software installers by using similar filenames or hosting fake download sites. The installer requires administrative privileges because VPN software needs to install kernel-mode network drivers that intercept and route all network traffic through the encrypted tunnel, which is a system-level operation that standard user accounts cannot perform. Always verify signatures before running any executable, especially network security software that will have deep system access.</p>
+
+<pre data-lang="powershell"><code class="language-powershell"># Download installer from https://mullvad.net/download/windows
+# Save to Downloads folder, note exact filename
+
+# Verify Authenticode digital signature before running installer
+# Get-AuthenticodeSignature = PowerShell cmdlet for signature verification
+# MullvadVPN-*.exe = wildcard pattern matching installer filename
+# * = matches any version number (e.g., MullvadVPN-2023.5.exe)
+Get-AuthenticodeSignature "MullvadVPN-*.exe"
+# Expected output:
+#   SignerCertificate : CN=Mullvad VPN AB, O=Mullvad VPN AB, ...
+#   Status           : Valid
+#   StatusMessage    : Signature verified
+# Why: Confirms installer is legitimately signed by Mullvad, not malware
+# Use when: After downloading, before running ANY executable
+# Warning: If Status is not "Valid", DELETE the file immediately
+
+# Should show:
+# SignerCertificate: Mullvad VPN AB
+# Status: Valid
+
+# Run installer with administrative privileges (required for VPN drivers)
+# .\ = current directory (PowerShell syntax)
+# * = wildcard matching version number
+.\MullvadVPN-*.exe
+# Expected output: Windows UAC prompt, then installer wizard opens
+# Why: Installs VPN client and network adapter drivers
+# Use when: After verifying signature is valid
+# Warning: Requires Administrator rights, will install kernel-mode driver
+# Note: Installer may prompt for network adapter installation - click "Yes"</code></pre>
+
+<h2>Initial Configuration</h2>
+
+<h3>1. Generate Account Number</h3>
+
+<p>Mullvad uses anonymous account numbers instead of email addresses.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Generate account number (returns 16-digit account number)
+# Do this from the Mullvad website: mullvad.net/account/create
+# OR from GUI: Click "Create account" button in app
+# Process:
+#   1. Click "Generate account number"
+#   2. 16-digit number appears instantly (no email, no personal info)
+#   3. SAVE THIS NUMBER IMMEDIATELY - it's your ONLY credential
+#   4. No password reset option - lose this number = lose account
+# Expected output: 16-digit number in format: 1234 5678 9012 3456
+# Why: Anonymity - no email, no name, no payment info linked to account
+# Use when: Initial signup or creating additional accounts
+# Warning: Write this down offline, store in password manager with backup
+# Security: Account number alone grants access - treat like a password
+
+# Example account number format:
+# 1234 5678 9012 3456
+# 
+# Storage recommendations:
+#   - Password manager (KeePassXC, Bitwarden)
+#   - Encrypted note on phone
+#   - Paper backup in secure location
+#   - DO NOT store in cloud unencrypted</code></pre>
+
+<h3>2. Fund Account Anonymously</h3>
+
+<p><strong>Cash payment (most anonymous):</strong></p>
+<ul>
+    <li>Print account number on paper</li>
+    <li>Mail cash in envelope to Mullvad's address (see website)</li>
+    <li>Include note with account number</li>
+    <li>No return address required</li>
+    <li>Credit appears 7-10 days after receipt</li>
+</ul>
+
+<p><strong>Cryptocurrency payment:</strong></p>
+<pre data-lang="bash"><code class="language-bash"># Pay with Monero (RECOMMENDED - private by default)
+# Monero uses ring signatures and stealth addresses for anonymity
+# Website generates unique payment address per transaction
+# Process:
+#   1. Log into Mullvad account on website
+#   2. Select "Cryptocurrency" → "Monero (XMR)"
+#   3. Amount auto-calculated based on subscription length
+#   4. Unique payment address generated (looks like: 4xxxxx...xxxxx)
+#   5. Send exact amount from Monero wallet
+#   6. Account credited within 10 minutes (after 10 confirmations)
+# Why: Monero is untraceable - no blockchain analysis can link payment to you
+# Use when: Maximum anonymity required, paying from clean XMR
+# Note: Buy Monero with cash via LocalMonero.co for full anonymity
+
+# Pay with Bitcoin (requires mixing for privacy - less anonymous than Monero)
+# Bitcoin blockchain is transparent - all transactions are public
+# MUST mix coins first to break transaction history linkage
+# Recommended mixers:
+#   - Wasabi Wallet (CoinJoin mixing built-in)
+#   - Samourai Wallet (Whirlpool mixing)
+#   - JoinMarket (decentralized CoinJoin)
+# Process:
+#   1. Mix coins through 3+ CoinJoin rounds (takes 1-2 days)
+#   2. Send mixed coins to new address
+#   3. Wait 24 hours (adds temporal separation)
+#   4. Pay Mullvad from mixed wallet
+# Why: Breaks link between your identity and VPN payment
+# Use when: Already have Bitcoin, willing to spend time on mixing
+# DO NOT pay from exchange account - directly links your identity to VPN payment
+# Warning: Centralized exchanges (Coinbase, Binance) KYC = no anonymity
+# Warning: Bitcoin mixing is detectable and may trigger exchange account freeze</code></pre>
+
+<h3>3. Enable Kill Switch</h3>
+
+<p>The kill switch blocks all network traffic if VPN disconnects, preventing IP leaks.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Enable lockdown mode (kill switch) to block ALL traffic when VPN disconnects
+# This prevents IP leaks if VPN connection drops unexpectedly
+mullvad lockdown-mode set on
+# Expected output: "Lockdown mode: on"
+# Why: Critical security feature - blocks internet if VPN fails
+# Use when: Always enable immediately after installation
+# Warning: Blocks ALL network traffic when VPN is off (including LAN)
+
+# Verify kill switch is active and enforcing
+mullvad lockdown-mode get
+# Expected output: "on"
+# Why: Confirms lockdown mode is enabled and will block traffic
+# Use when: After enabling, and periodically to verify it hasn't been disabled
+# Note: If shows "off", re-enable immediately
+
+# Test kill switch functionality by disconnecting VPN
+mullvad disconnect
+# Expected output: "Disconnected"
+# Why: Intentionally drops VPN to verify kill switch blocks traffic
+
+# Attempt to retrieve public IP - should FAIL if kill switch works
+# curl = command-line HTTP client
+# ifconfig.me = service that returns your public IP address
+curl ifconfig.me
+# Expected output: "curl: (6) Could not resolve host: ifconfig.me" or timeout
+# Why: Kill switch should block DNS resolution and all network traffic
+# Use when: Testing kill switch after initial setup and after updates
+# Warning: If this succeeds and shows your real IP, kill switch is BROKEN
+# Fix: Reconnect VPN immediately and troubleshoot lockdown mode</code></pre>
+
+<p><strong>GUI method (all platforms):</strong></p>
+<ul>
+    <li>Open Mullvad VPN app</li>
+    <li>Settings → Advanced → Enable "Always require VPN"</li>
+    <li>This blocks all traffic when VPN is off</li>
+</ul>
+
+<h3>4. Configure DNS Settings</h3>
+
+<p>Use Mullvad's DNS servers to prevent DNS leaks.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Configure Mullvad to use custom DNS server (Mullvad's own)
+# 10.64.0.1 = Mullvad's internal DNS server accessible through VPN tunnel
+mullvad dns set custom 10.64.0.1
+# Expected output: "Custom DNS server: 10.64.0.1"
+# Why: Prevents DNS leaks by routing queries through VPN tunnel
+# Use when: Setting up VPN for first time or changing DNS preferences
+# Note: Alternative to using default DNS or content-blocking DNS
+
+# Alternative: Enable content-blocking DNS with ad/tracker/malware filtering
+# --block-ads = blocks advertising domains
+# --block-trackers = blocks tracking and analytics domains  
+# --block-malware = blocks known malware and phishing domains
+mullvad dns set default --block-ads --block-trackers --block-malware
+# Expected output: "DNS: default with ad blocking, tracker blocking, malware blocking"
+# Why: Adds network-level blocking for ads, trackers, and malicious sites
+# Use when: Want additional privacy/security without Pi-hole
+# Warning: May break some websites that require ads to function
+
+# Verify DNS configuration is correctly applied
+mullvad dns get
+# Expected output: Shows current DNS settings (custom or default with filters)
+# Why: Confirms DNS changes took effect
+# Use when: After changing DNS settings, troubleshooting connection issues
+# Note: Check this after every VPN update as settings may reset</code></pre>
+
+<h3>5. Disable IPv6 (Prevent Leaks)</h3>
+
+<p>Many VPNs leak IPv6 traffic. Mullvad handles this, but verify:</p>
+
+<pre data-lang="bash"><code class="language-bash"># Check if IPv6 is tunneled through VPN (leak prevention)
+# IPv6 leaks are common - many VPNs only protect IPv4 traffic
+mullvad tunnel ipv6 get
+# Expected output: "on" means IPv6 is routed through VPN tunnel
+# Why: Ensures IPv6 traffic doesn't bypass VPN and leak your real IP
+# Use when: Initial setup and after VPN updates
+# Warning: If output is "off", your IPv6 traffic leaks outside VPN!
+
+# Should return: on
+
+# Test for IPv6 leaks by retrieving your IPv6 address
+# -6 = force IPv6 connection only (IPv4 won't be used)
+# ifconfig.co = service that returns your IP address
+mullvad connect
+curl -6 ifconfig.co
+# Expected output: VPN server's IPv6 address (e.g., 2a03:1b20:8:f011::a01f)
+# Why: Verifies IPv6 traffic goes through VPN, not your ISP
+# Use when: Testing for IPv6 leaks after setup or configuration changes
+# Warning: If this shows your ISP's IPv6 or fails, you have an IPv6 leak
+# Fix: Disable IPv6 entirely if VPN doesn't support it properly
+# Should return Mullvad's IPv6 address, not yours</code></pre>
+
+<h2>Operational Usage</h2>
+
+<h3>Connecting to VPN</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Connect to nearest VPN server automatically (fastest connection)
+# Mullvad selects optimal server based on latency and load
+mullvad connect
+# Expected output: "Connected to xx-xxx-xxx-xxx.mullvad.net in [Country]"
+# Why: Establishes encrypted tunnel, hides your IP from websites/ISP
+# Use when: Starting VPN session, after disconnect, or switching servers
+# Note: First connection may take 5-10 seconds
+
+# Connect to VPN server in specific country
+# 'us' = United States country code (2-letter ISO code)
+mullvad relay set location us
+# Expected output: "Relay location: United States"
+# Why: Choose server location for geo-unblocking or latency optimization
+# Use when: Need to appear in specific country for content access
+# Warning: Some countries have slower speeds or fewer servers
+
+# Connect to VPN server in specific city within country
+# 'us nyc' = New York City, United States
+mullvad relay set location us nyc
+# Expected output: "Relay location: United States, New York City"
+# Why: Further optimize latency by selecting nearby city
+# Use when: Want best performance from specific geographic location
+# Note: Not all countries have city-level granularity
+
+# Verify VPN connection status and details
+mullvad status
+# Expected output: "Connected" with server name, IP, and location
+# Why: Confirms VPN tunnel is active and shows which server you're using
+# Use when: Verifying connection, troubleshooting, checking server location
+# Should show: Connected to [server]
+
+# Check your current public IP address (should show VPN server IP)
+# This verifies your real IP is hidden
+curl ifconfig.me
+# Expected output: VPN server's public IP (not your real IP)
+# Why: Final verification that traffic is routed through VPN
+# Use when: After connecting, before sensitive activities, periodic checks
+# Warning: If this shows your ISP's IP, VPN is NOT working!</code></pre>
+
+<h3>Server Selection Strategy</h3>
+
+<p><strong>For general privacy:</strong> Use servers in your country or nearby. This minimizes latency and avoids suspicion (why is your IP suddenly in Romania?).</p>
+
+<p><strong>For censorship evasion:</strong> Use servers in countries with strong free speech protections and no cooperation agreements with your adversary.</p>
+
+<p><strong>For anonymity:</strong> Rotate servers frequently. Avoid patterns (don't always connect to same server at same time of day).</p>
+
+<h3>Multi-Hop (Advanced)</h3>
+
+<p>Multi-hop routes traffic through two VPN servers for defense against timing correlation attacks.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Enable multi-hop (WireGuard only - not available with OpenVPN)
+# Multi-hop = traffic goes through TWO VPN servers in sequence
+# Your computer → Entry server → Exit server → Destination
+# Note: Doubles latency (ping increases 2x), halves speed (bandwidth divided by 2)
+# Why: Entry server sees your real IP but not destination
+#      Exit server sees destination but not your real IP
+#      VPN provider must correlate both servers to link you to destination
+# Use when: High-risk scenarios (journalism, whistleblowing, activism)
+# Warning: Significant performance penalty - only use when threat model requires it
+
+# GUI method recommended (easiest configuration):
+# 1. Open Mullvad app
+# 2. Settings → VPN Settings → Enable "Multi-hop"
+# 3. Select entry country (where first server is located)
+# 4. Select exit country (where second server is located)
+# Example: Entry=Sweden, Exit=Switzerland
+# Result: Your IP → Sweden server → Switzerland server → Destination
+# Expected output: Connection shows "Multi-hop" with both countries
+
+# CLI method (advanced users):
+# Enable multi-hop via bridge mode
+mullvad bridge set state on
+# Then configure entry and exit relays
+mullvad relay set location se  # Entry: Sweden
+mullvad bridge set location ch  # Exit: Switzerland
+# Expected output: Multi-hop enabled with selected locations
+
+# Use case scenarios:
+# - High-risk journalism in authoritarian countries
+# - Whistleblowing where VPN logs could be subpoenaed
+# - Avoiding traffic analysis by compromised VPN server
+# - Defense against timing correlation attacks
+
+# How multi-hop defeats correlation:
+# Single-hop: Attacker sees traffic enter VPN = traffic exits VPN → YOU
+# Multi-hop: Attacker must compromise BOTH servers and correlate timing
+# Much harder to execute, requires nation-state resources</code></pre>
+
+<h2>Leak Testing</h2>
+
+<p>Always test for leaks after configuration changes.</p>
+
+<h3>IP Leak Test</h3>
+
+<pre data-lang="bash"><code class="language-bash"># First, connect to VPN before testing for leaks
+mullvad connect
+# Expected output: "Connected to [server]"
+# Why: Must establish VPN connection before leak testing
+
+# Test IPv4 leak - check if your real IPv4 address is exposed
+# -4 = force IPv4 connection only
+# ifconfig.me = returns your public IP address
+curl -4 ifconfig.me
+# Expected output: VPN server's IPv4 address (e.g., 185.65.134.XX)
+# Why: Verifies IPv4 traffic is routed through VPN tunnel
+# Use when: After connecting, troubleshooting, periodic security checks
+# Warning: If shows your ISP's IP, you have an IPv4 leak!
+# Should show VPN server IP, not your real IP
+
+# Test IPv6 leak - check if your real IPv6 address is exposed
+# -6 = force IPv6 connection only
+# ifconfig.co = returns your IPv6 address
+curl -6 ifconfig.co
+# Expected output: VPN server's IPv6 (e.g., 2a03:1b20:8:f011::a01f) OR error if IPv6 disabled
+# Why: Many VPNs leak IPv6 even when IPv4 is protected
+# Use when: Initial setup, after OS updates, periodic verification
+# Warning: If shows your ISP's IPv6, DISABLE IPv6 or fix VPN config
+# Should show VPN server IPv6 or fail (if IPv6 disabled)
+
+# Comprehensive leak test via browser (all-in-one verification)
+# Visit this URL in browser to check for IP, DNS, WebRTC leaks
+# Visit: https://mullvad.net/en/check
+# Expected output: "You are connected to Mullvad" with green checkmark
+# Why: Tests all leak vectors in one place (IP, DNS, WebRTC)
+# Use when: Initial setup verification, periodic security audits
+# Should show: You are connected to Mullvad</code></pre>
+
+<h3>DNS Leak Test</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Test which DNS servers are being used for domain resolution
+# +short = show only the answer, no additional query details
+# dig = DNS lookup utility (domain information groper)
+# mullvad.net = test domain to resolve
+dig +short mullvad.net
+# Expected output: IP addresses resolved using VPN's DNS servers
+# Why: Verifies DNS queries go through VPN, not your ISP's DNS
+# Use when: After VPN connection, troubleshooting DNS issues
+# Warning: If resolution fails or uses ISP DNS, you have a DNS leak
+
+# Should resolve using Mullvad DNS (10.64.0.1)
+# NOT your ISP's DNS servers
+
+# Comprehensive DNS leak test via browser
+# Visit: https://dnsleaktest.com
+# Click: "Extended test" button for thorough analysis
+# Expected output: All DNS servers belong to your VPN provider (Mullvad)
+# Why: Detects if any DNS queries leak to ISP or third-party DNS
+# Use when: Initial setup, after network changes, periodic audits
+# Run extended test
+# All servers should belong to your VPN provider
+# Warning: If you see your ISP's name or Google/Cloudflare DNS, YOU HAVE A LEAK</code></pre>
+
+<h3>WebRTC Leak Test</h3>
+
+<p>WebRTC can leak your real IP even when VPN is active. Test and disable:</p>
+
+<pre data-lang="javascript"><code class="language-javascript">// Browser test - verify WebRTC doesn't expose your real IP:
+// Visit: https://browserleaks.com/webrtc
+// What to check:
+//   - "Your IP Addresses" section should ONLY show VPN server IP
+//   - Should NOT show your real local IP (192.168.x.x) or public IP
+//   - If you see multiple IPs, you have a WebRTC leak!
+// Why: WebRTC uses STUN servers to discover your real IP for peer connections
+// Use when: After VPN setup, before video calls, periodic security checks
+// Expected: Only VPN server IP visible, no local network IPs
+// Should NOT show your real IP
+
+// Firefox: disable WebRTC to prevent IP leaks
+// 1. Type in address bar: about:config
+// 2. Click "Accept the Risk and Continue"
+// 3. Search for: media.peerconnection.enabled
+// 4. Double-click to set value to: false
+// 5. Search for: media.navigator.enabled  
+// 6. Double-click to set value to: false
+// Expected result: WebRTC completely disabled, browserleaks shows no IP
+// Why: Prevents WebRTC from bypassing VPN tunnel
+// Trade-off: Breaks video calling (Zoom, Meet, Discord voice)
+// Use when: Privacy more important than video calling functionality
+
+// Alternative Firefox method (less restrictive - allows some WebRTC):
+// about:config → media.peerconnection.ice.default_address_only = true
+// Why: Limits WebRTC to VPN interface only, doesn't disable completely
+// Use when: Need video calls but want leak protection
+// Trade-off: WebRTC works but only through VPN tunnel
+// about:config → media.peerconnection.enabled → false
+
+// Chrome/Brave: Install WebRTC Leak Shield extension
+// Chrome doesn't have built-in WebRTC disable, requires extension
+// 1. Visit Chrome Web Store: chrome.google.com/webstore
+// 2. Search: \"WebRTC Leak Shield\" or \"WebRTC Network Limiter\"
+// 3. Click \"Add to Chrome\" or \"Add to Brave\"
+// 4. Extension icon appears in toolbar (shield icon)
+// 5. Click icon → Select \"Disable non-proxied UDP\"
+// Expected result: WebRTC traffic forced through VPN proxy
+// Why: Prevents WebRTC from discovering your real IP via STUN
+// Use when: Need Chrome/Brave for work but want leak protection
+// Note: Extension must remain installed and enabled at all times
+//
+// Alternative extensions that work:
+//   - uBlock Origin: Settings → Privacy → \"Prevent WebRTC from leaking local IP addresses\"
+//   - WebRTC Control: Toggle WebRTC on/off with one click
+//   - WebRTC Leak Prevent: Automatically prevents leaks
+//
+// Edge: Use same Chrome extensions (Edge is Chromium-based)
+// 1. Visit Chrome Web Store (compatible with Edge)
+// 2. Click \"Allow extensions from other stores\" if prompted
+// 3. Install WebRTC Leak Shield (works identically to Chrome)
+// 4. Configure same settings as Chrome instructions above
+// Why: Edge has no native WebRTC disable option
+//
+// VERIFY WebRTC is properly disabled/protected:
+// 1. Connect to Mullvad VPN
+// 2. Visit: https://browserleaks.com/webrtc
+// 3. Check \"Your IP Addresses\" section carefully
+// Expected: ONLY VPN server IP OR \"IP not detected\"
+// Warning: If your real IP (ISP) appears = WebRTC IS STILL LEAKING!
+// Fix: Reinstall extension, verify it's active, try different extension</code></pre>
+
+<h2>Maintenance and Best Practices</h2>
+
+<h3>Regular Updates</h3>
+
+<p>Keeping your VPN client software up to date is a critical security practice because outdated VPN clients can contain known vulnerabilities that attackers actively exploit to bypass the encrypted tunnel, leak your real IP address, or compromise your system entirely. VPN software sits at a privileged position in your network stack with deep system access to intercept and route all traffic, making it a high-value target for exploitation if security flaws exist. Regular updates provide security patches for discovered vulnerabilities, fix bugs that could cause connection failures or leaks, add support for newer encryption standards and protocols, and improve performance and compatibility with operating system updates. Check for updates weekly at minimum, or immediately when Mullvad announces security updates through their website or newsletter, as threat actors often move quickly to exploit newly disclosed vulnerabilities before users have patched their systems.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Update package lists and upgrade Mullvad VPN to latest version (Linux)
+# This ensures you have latest security patches and features
+sudo apt update && sudo apt upgrade mullvad-vpn
+# Expected output: Downloads and installs latest Mullvad version if available
+# Why: Security patches, bug fixes, new features, protocol improvements
+# Use when: Weekly/monthly, or when Mullvad announces security updates
+# Note: May require VPN reconnection after update
+
+# Update Mullvad VPN on macOS using Homebrew package manager
+brew upgrade mullvadvpn
+# Expected output: Downloads and installs latest version from Homebrew
+# Why: Keep VPN software patched against vulnerabilities
+# Use when: Regularly checking for updates (brew update && brew upgrade)
+# Note: Homebrew cask updates may lag behind official releases
+
+# Check for Mullvad updates on Windows
+# Windows: Updates checked automatically through app
+# Manual check: App checks for updates automatically
+# Or manually: Settings → About → Check for updates
+# Expected output: "You're up to date" or prompts to download new version
+# Why: Windows version auto-updates but manual check ensures no delays
+# Use when: Monthly security review or after hearing about vulnerabilities
+# Note: Windows updates require app restart to apply</code></pre>
+
+<h3>VPN Hygiene</h3>
+
+<ul>
+    <li><strong>Always connect before browsing.</strong> Enable "Always require VPN" in settings.</li>
+    <li><strong>Rotate servers periodically.</strong> Don't use same server for months.</li>
+    <li><strong>Test for leaks monthly.</strong> Configuration drift and OS updates can break kill switch.</li>
+    <li><strong>Use split tunneling carefully.</strong> Excluding apps from VPN creates correlation opportunities.</li>
+    <li><strong>Don't trust public WiFi.</strong> VPN encrypts traffic, but evil twin attacks can still capture credentials if you ignore certificate warnings.</li>
+</ul>
+
+<h3>When VPN is Not Enough</h3>
+
+<p>VPNs hide your IP from websites but don't provide anonymity against sophisticated adversaries. Use Tor for true anonymity (covered in Part 2).</p>
+
+<p><strong>VPN fails against:</strong></p>
+<ul>
+    <li>Browser fingerprinting (canvas, WebGL, audio context)</li>
+    <li>Account correlation (logging into Google links sessions)</li>
+    <li>Timing attacks (ISP sees VPN connection at same time website sees visitor)</li>
+    <li>Compromised VPN provider (they can log everything)</li>
+</ul>
+
+<div class="terminal-alert not-prose">
+    <div class="terminal-alert-header">
+        <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Critical Reminder</h3>
+    </div>
+    <p class="terminal-alert-content">
+        VPN + logged-in Google account = Google knows your browsing history. VPN + reused Reddit account = Reddit links all sessions. VPN + same browser fingerprint = websites track you across sessions. VPNs are not magic. They're one layer in a defense-in-depth strategy.
+    </p>
+</div>
+
+<h2>Next Steps</h2>
+
+<p>You now have a properly configured VPN with leak protection. Part 2 covers Tor: how it works, when to use it, and how to combine VPN + Tor for maximum protection against traffic analysis.</p>
+
+<blockquote>
+    "A VPN hides your location from websites. Tor hides your identity from everyone. Know which threat model you're defending against."
+</blockquote>
+
+<div class="flex justify-between mt-12 pt-6 border-t border-shell-border">
+    <a href="#/posts/2.Operating_Systems/readfirst.html" class="text-gray-500 hover:underline">← Circle 3: Hardware Security</a>
+    <a href="#/posts/3.Network_Security/part2.html" class="text-shell-accent hover:underline">Part 2: Tor Network & Anonymity →</a>
+</div>

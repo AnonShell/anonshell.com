@@ -1,0 +1,341 @@
+<h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+    <span class="text-gray-500">#</span> Table of Contents
+</h1>
+
+<div class="terminal-alert not-prose mb-8" style="border-color: #fbbf24; background-color: rgba(251, 191, 36, 0.1);">
+    <div class="terminal-alert-header">
+        <i data-lucide="lightbulb" class="terminal-alert-icon" style="color: #fbbf24;"></i>
+        <h3 class="terminal-alert-title" style="color: #fbbf24;">Learning by Doing: Failure is Part of the Process</h3>
+    </div>
+    <div class="terminal-alert-content space-y-3">
+        <p><strong>These guides do NOT hold your hand.</strong> They are designed to make you do your own research, to better understand concepts first-hand, and to learn how things can go sideways real quick and how to fix them on-the-fly.</p>
+        <p>I have built this entire knowledge base in a way that will <strong>FORCE you to learn by doing it yourself</strong>. You will encounter errors. Commands will fail. Configurations will break. That's intentional.</p>
+        <p class="mb-0"><strong>Remember:</strong> Failure is just a step in the way. No one has 100% success ratings or gets it right on the first shot. Trust yourself. Debug. Research. Adapt. That's how you become competent.</p>
+        <p class="mb-0">And always document what ever you are doing because when stuff breaks (and they will!) you can recall exactly how you fixed it.</p>
+    </div>
+</div>
+
+<div class="terminal-info not-prose mb-8">
+    <div class="terminal-info-header">
+        <i data-lucide="map" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">The Concentric Circles Learning Path</h3>
+    </div>
+    <p class="terminal-info-content">
+        Operational security follows a natural progression, like ripples expanding outward from a stone dropped in water. Start at the center with foundational concepts, then move outward through increasingly complex layers of defense. Each circle builds on the previous. Numbers indicate the recommended learning order.
+    </p>
+</div>
+
+<div class="space-y-8">
+    <!-- Circle 1 & 2: Understanding & Personal Practice -->
+    <div class="border-2 border-shell-accent/50 rounded-lg p-6 bg-shell-accent/5">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full bg-shell-accent/20 flex items-center justify-center border-2 border-shell-accent">
+                <span class="text-shell-accent font-bold text-lg">1-2</span>
+            </div>
+            <div>
+                <h2 class="m-0 text-shell-accent">Understanding & Personal Practice</h2>
+                <p class="text-sm text-gray-400 m-0">The Foundation: Learn concepts and implement daily habits</p>
+            </div>
+        </div>
+        
+        <div class="bg-shell-black/50 border border-shell-accent/30 rounded-lg p-5 mb-4">
+            <div class="flex items-center gap-2 mb-3">
+                <i data-lucide="book-open" class="w-5 h-5 text-shell-accent"></i>
+                <code class="text-shell-accent font-bold text-lg">/1.OpSec_101/</code>
+                <span class="text-shell-accent text-xs font-bold bg-shell-accent/30 px-3 py-1 rounded ml-auto">START HERE</span>
+            </div>
+            <p class="text-gray-300 mb-4">
+                Foundational operational security guides for beginners. Master these concepts before moving to technical implementations.
+            </p>
+            
+            <div class="space-y-3 ml-4 border-l-2 border-shell-accent/30 pl-4">
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Part 1: Introduction to OpSec</div>
+                    <p class="text-sm text-gray-400">What is operational security, why it matters, and the mindset required for effective privacy protection.</p>
+                </div>
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Part 2: Threat Modeling</div>
+                    <p class="text-sm text-gray-400">Identify your adversaries, understand their capabilities, and build proportional defenses.</p>
+                </div>
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Part 3: Digital Hygiene</div>
+                    <p class="text-sm text-gray-400">Daily security practices: password management, encrypted communication, browser hardening, and compartmentalization.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="lightbulb" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Why Start Here?</h3>
+            </div>
+            <p class="terminal-success-content">
+                You cannot secure your operating system if you don't understand threat models. You cannot implement hardware security if you haven't mastered password hygiene. Technical defenses fail without foundational knowledge.
+            </p>
+        </div>
+    </div>
+
+    <!-- Circle 3: Hardware Security -->
+    <div class="border-2 border-shell-accent/40 rounded-lg p-6 bg-shell-accent/5">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full bg-shell-accent/20 flex items-center justify-center border-2 border-shell-accent/70">
+                <span class="text-shell-accent font-bold text-lg">3</span>
+            </div>
+            <div>
+                <h2 class="m-0 text-shell-accent">Hardware Security</h2>
+                <p class="text-sm text-gray-400 m-0">Harden the devices you depend on</p>
+            </div>
+        </div>
+        
+        <div class="bg-shell-black/50 border border-shell-accent/30 rounded-lg p-5 mb-4">
+            <div class="flex items-center gap-2 mb-3">
+                <i data-lucide="monitor" class="w-5 h-5 text-shell-accent"></i>
+                <code class="text-shell-accent font-bold text-lg">/2.Operating_Systems/</code>
+            </div>
+            <p class="text-gray-300 mb-4">
+                OS-specific security audits and hardening procedures. Real commands, detailed rationale, step-by-step lockdown guides.
+            </p>
+            
+            <div class="space-y-3 ml-4 border-l-2 border-shell-accent/30 pl-4">
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Windows Security Audit</div>
+                    <p class="text-sm text-gray-400">Disable telemetry, harden Windows Defender, lock down services, implement application control.</p>
+                </div>
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Linux Hardening Guide</div>
+                    <p class="text-sm text-gray-400">Kernel security, firewall configuration, service management, mandatory access control (SELinux/AppArmor).</p>
+                </div>
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">macOS Security Configuration</div>
+                    <p class="text-sm text-gray-400">Gatekeeper, FileVault, Little Snitch alternatives, privacy controls, system integrity protection.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">Prerequisites</h3>
+            </div>
+            <p class="terminal-alert-content">
+                Complete <strong>/1.OpSec_101/</strong> first. These guides assume you understand threat modeling and have implemented basic digital hygiene practices.
+            </p>
+        </div>
+    </div>
+
+    <!-- Circle 4: Environmental Defense -->
+    <div class="border-2 border-shell-accent/40 rounded-lg p-6 bg-shell-accent/5">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full bg-shell-accent/20 flex items-center justify-center border-2 border-shell-accent/70">
+                <span class="text-shell-accent font-bold text-lg">4</span>
+            </div>
+            <div>
+                <h2 class="m-0 text-shell-accent">Environmental Defense</h2>
+                <p class="text-sm text-gray-400 m-0">Network security, physical security, advanced tradecraft</p>
+            </div>
+        </div>
+        
+        <div class="bg-shell-black/50 border border-shell-accent/30 rounded-lg p-5 mb-4">
+            <div class="flex items-center gap-2 mb-3">
+                <i data-lucide="network" class="w-5 h-5 text-shell-accent"></i>
+                <code class="text-shell-accent font-bold text-lg">/3.Network_Security/</code>
+            </div>
+            <p class="text-gray-300 mb-4">
+                Network-layer security hardening: anonymity tools, traffic encryption, network segmentation, intrusion detection, and security monitoring.
+            </p>
+            
+            <div class="space-y-3 ml-4 border-l-2 border-shell-accent/30 pl-4">
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Part 1: VPN Configuration & Usage</div>
+                    <p class="text-sm text-gray-400">Provider selection, leak testing, kill switches, DNS configuration, operational usage patterns.</p>
+                </div>
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Part 2: Tor Network & Anonymity</div>
+                    <p class="text-sm text-gray-400">Tor Browser setup, security levels, bridges, onion services, VPN+Tor configurations, common mistakes.</p>
+                </div>
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Part 3: Network Segmentation & Firewall Rules</div>
+                    <p class="text-sm text-gray-400">Trust zones, VLAN design, OpenWrt/pfSense configuration, advanced firewall rules, traffic isolation.</p>
+                </div>
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Part 4: Secure Remote Access</div>
+                    <p class="text-sm text-gray-400">WireGuard VPN, SSH hardening, Fail2Ban, 2FA, key management, bastion hosts.</p>
+                </div>
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Part 5: Intrusion Detection Systems</div>
+                    <p class="text-sm text-gray-400">Suricata (NIDS), Wazuh (HIDS), AIDE file integrity monitoring, Auditd system call auditing.</p>
+                </div>
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Part 6: Security Monitoring & Incident Response</div>
+                    <p class="text-sm text-gray-400">Centralized logging (Syslog-ng), automated alerting, automated IP blocking, log analysis, real-time threat detection, incident response procedures.</p>
+                </div>
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Part 7: DNS Security & Privacy</div>
+                    <p class="text-sm text-gray-400">DNS-over-HTTPS (DoH), DNS-over-TLS (DoT), DNSCrypt-Proxy, Pi-hole network-wide ad blocking, DNS query monitoring, DNS exfiltration detection with Suricata.</p>
+                </div>
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Part 8: Traffic Analysis & Deep Packet Inspection</div>
+                    <p class="text-sm text-gray-400">Wireshark fundamentals, tcpdump mastery, protocol analysis, malware traffic patterns, encrypted traffic fingerprinting, TLS inspection.</p>
+                </div>
+                <div>
+                    <div class="text-shell-accent font-semibold mb-1">Part 9: Wireless Security & Rogue AP Detection</div>
+                    <p class="text-sm text-gray-400">WPA3 configuration, aircrack-ng suite, wireless IDS (Kismet/Snort), rogue AP detection, deauth attack monitoring, evil twin detection, 802.11w management frame protection.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">Prerequisites</h3>
+            </div>
+            <p class="terminal-alert-content">
+                Complete <strong>/1.OpSec_101/</strong> and <strong>/2.Operating_Systems/</strong> first. Network security assumes you've hardened your endpoints and understand operational security fundamentals.
+            </p>
+        </div>
+    </div>
+
+    <!-- Circle 5: Advanced Tradecraft (Coming Soon) -->
+    <div class="border-2 border-gray-600/40 rounded-lg p-6 bg-gray-800/20 opacity-60">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full bg-gray-600/20 flex items-center justify-center border-2 border-gray-600">
+                <span class="text-gray-400 font-bold text-lg">5</span>
+            </div>
+            <div>
+                <h2 class="m-0 text-gray-400">Advanced Tradecraft</h2>
+                <p class="text-sm text-gray-500 m-0">Physical security, OPSEC automation, compartmentalized identities</p>
+            </div>
+        </div>
+        
+        <div class="bg-shell-black/30 border border-gray-600/30 rounded-lg p-5">
+            <div class="flex items-center gap-2 mb-3">
+                <i data-lucide="shield-check" class="w-5 h-5 text-gray-500"></i>
+                <code class="text-gray-500 font-bold text-lg">/4.Advanced_Tradecraft/</code>
+                <span class="text-gray-500 text-xs font-semibold bg-gray-600/20 px-3 py-1 rounded ml-auto">COMING SOON</span>
+            </div>
+            <p class="text-gray-400 mb-4">
+                Physical security (hardware tokens, tamper detection), identity compartmentalization (separate personas), metadata scrubbing automation, secure data destruction, mobile device security.
+            </p>
+        </div>
+    </div>
+
+    <!-- Circle 6: Blue Team Operations (Coming Soon) -->
+    <div class="border-2 border-gray-600/40 rounded-lg p-6 bg-gray-800/20 opacity-60">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full bg-gray-600/20 flex items-center justify-center border-2 border-gray-600">
+                <span class="text-gray-400 font-bold text-lg">6</span>
+            </div>
+            <div>
+                <h2 class="m-0 text-gray-400">Blue Team Operations</h2>
+                <p class="text-sm text-gray-500 m-0">Defensive security, threat hunting, SOC operations</p>
+            </div>
+        </div>
+        
+        <div class="bg-shell-black/30 border border-gray-600/30 rounded-lg p-5">
+            <div class="flex items-center gap-2 mb-3">
+                <i data-lucide="shield" class="w-5 h-5 text-gray-500"></i>
+                <code class="text-gray-500 font-bold text-lg">/5.Blue_Team/</code>
+                <span class="text-gray-500 text-xs font-semibold bg-gray-600/20 px-3 py-1 rounded ml-auto">COMING SOON</span>
+            </div>
+            <p class="text-gray-400 mb-4">
+                Security architecture design, SIEM deployment (Elastic Security, Splunk), threat hunting methodologies, SOC workflows, incident response playbooks, threat intelligence integration (MISP, OpenCTI), vulnerability management programs.
+            </p>
+        </div>
+    </div>
+
+    <!-- Circle 7: Red Team Operations (Coming Soon) -->
+    <div class="border-2 border-gray-600/40 rounded-lg p-6 bg-gray-800/20 opacity-60">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full bg-gray-600/20 flex items-center justify-center border-2 border-gray-600">
+                <span class="text-gray-400 font-bold text-lg">7</span>
+            </div>
+            <div>
+                <h2 class="m-0 text-gray-400">Red Team Operations</h2>
+                <p class="text-sm text-gray-500 m-0">Offensive security: Think like an attacker to defend better</p>
+            </div>
+        </div>
+        
+        <div class="bg-shell-black/30 border border-gray-600/30 rounded-lg p-5">
+            <div class="flex items-center gap-2 mb-3">
+                <i data-lucide="swords" class="w-5 h-5 text-gray-500"></i>
+                <code class="text-gray-500 font-bold text-lg">/6.Red_Team/</code>
+                <span class="text-gray-500 text-xs font-semibold bg-gray-600/20 px-3 py-1 rounded ml-auto">COMING SOON</span>
+            </div>
+            <p class="text-gray-400 mb-4">
+                Penetration testing fundamentals, vulnerability assessment, exploit development basics, social engineering defense (by understanding attacks), red team operations, adversary emulation, security research methodologies, responsible disclosure.
+            </p>
+        </div>
+    </div>
+
+    <!-- Circle 8: Organizational Security & Governance (Coming Soon) -->
+    <div class="border-2 border-gray-600/40 rounded-lg p-6 bg-gray-800/20 opacity-60">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full bg-gray-600/20 flex items-center justify-center border-2 border-gray-600">
+                <span class="text-gray-400 font-bold text-lg">8</span>
+            </div>
+            <div>
+                <h2 class="m-0 text-gray-400">Organizational Security & Governance</h2>
+                <p class="text-sm text-gray-500 m-0">Scale security practices, compliance, policy development</p>
+            </div>
+        </div>
+        
+        <div class="bg-shell-black/30 border border-gray-600/30 rounded-lg p-5">
+            <div class="flex items-center gap-2 mb-3">
+                <i data-lucide="building-2" class="w-5 h-5 text-gray-500"></i>
+                <code class="text-gray-500 font-bold text-lg">/7.Organizational_Security/</code>
+                <span class="text-gray-500 text-xs font-semibold bg-gray-600/20 px-3 py-1 rounded ml-auto">COMING SOON</span>
+            </div>
+            <p class="text-gray-400 mb-4">
+                Zero-trust architecture, security policy development, compliance frameworks (ISO 27001, NIST), risk assessment methodologies, security awareness training programs, vendor security assessment, business continuity planning.
+            </p>
+        </div>
+    </div>
+
+    <!-- Circle 9: Cloud Security & DevSecOps (Coming Soon) -->
+    <div class="border-2 border-gray-600/40 rounded-lg p-6 bg-gray-800/20 opacity-60">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full bg-gray-600/20 flex items-center justify-center border-2 border-gray-600">
+                <span class="text-gray-400 font-bold text-lg">9</span>
+            </div>
+            <div>
+                <h2 class="m-0 text-gray-400">Cloud Security & DevSecOps</h2>
+                <p class="text-sm text-gray-500 m-0">Secure cloud infrastructure, container security, CI/CD pipeline hardening</p>
+            </div>
+        </div>
+        
+        <div class="bg-shell-black/30 border border-gray-600/30 rounded-lg p-5">
+            <div class="flex items-center gap-2 mb-3">
+                <i data-lucide="cloud" class="w-5 h-5 text-gray-500"></i>
+                <code class="text-gray-500 font-bold text-lg">/8.Cloud_Security/</code>
+                <span class="text-gray-500 text-xs font-semibold bg-gray-600/20 px-3 py-1 rounded ml-auto">COMING SOON</span>
+            </div>
+            <p class="text-gray-400 mb-4">
+                AWS/Azure/GCP security hardening, IAM best practices, container security (Docker/Kubernetes), serverless security, infrastructure as code (Terraform/Ansible), CI/CD pipeline security, secrets management (Vault/SOPS), supply chain security, cloud threat detection (GuardDuty/Security Hub).
+            </p>
+        </div>
+    </div>
+
+    <!-- Circle 10: Cryptography & Secure Communications (Coming Soon) -->
+    <div class="border-2 border-gray-600/40 rounded-lg p-6 bg-gray-800/20 opacity-60">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full bg-gray-600/20 flex items-center justify-center border-2 border-gray-600">
+                <span class="text-gray-400 font-bold text-lg">10</span>
+            </div>
+            <div>
+                <h2 class="m-0 text-gray-400">Cryptography & Secure Communications</h2>
+                <p class="text-sm text-gray-500 m-0">Applied cryptography, secure protocols, covert channels</p>
+            </div>
+        </div>
+        
+        <div class="bg-shell-black/30 border border-gray-600/30 rounded-lg p-5">
+            <div class="flex items-center gap-2 mb-3">
+                <i data-lucide="lock-keyhole" class="w-5 h-5 text-gray-500"></i>
+                <code class="text-gray-500 font-bold text-lg">/9.Cryptography/</code>
+                <span class="text-gray-500 text-xs font-semibold bg-gray-600/20 px-3 py-1 rounded ml-auto">COMING SOON</span>
+            </div>
+            <p class="text-gray-400 mb-4">
+                Practical cryptography fundamentals, GPG/PGP key management, TLS/SSL deep dive, perfect forward secrecy, certificate pinning, encrypted communication protocols (Signal Protocol, Matrix), steganography basics, covert channel construction, dead drops, cryptocurrency operations security (CoinJoin, Monero privacy).
+            </p>
+        </div>
+    </div>
+</div>

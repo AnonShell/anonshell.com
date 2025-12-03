@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en" class="overflow-x-hidden">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AnonShell - Free Operational Security & Privacy Education</title>
+    <link rel="icon" href="logo.png" type="image/png">
+    
+    <!-- Link to Main CSS -->
+    <link rel="stylesheet" href="css/main.css">
+    
+    <!-- Highlight.js Atom One Dark Theme -->
+    <link rel="stylesheet" href="css/highlight.min.css">
+    
+    <!-- Tailwind CSS -->
+    <script src="js/tailwind.min.js"></script>
+    
+    <!-- Table Style Overrides (must come after Tailwind) -->
+    <style>
+        /* Ultra-specific overrides to beat Tailwind prose defaults */
+        .prose table,
+        .prose-invert table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 0.85rem !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            text-align: left !important;
+        }
+
+        .prose table thead tr,
+        .prose-invert table thead tr {
+            background-color: #111 !important;
+            border-bottom-width: 0 !important;
+        }
+
+        .prose table th,
+        .prose-invert table th {
+            text-align: left !important;
+            padding: 0.5rem 0.75rem !important;
+            border-bottom: 1px solid #333 !important;
+            color: #00ff9d !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.04em !important;
+            background-color: transparent !important;
+        }
+
+        .prose table td,
+        .prose-invert table td {
+            padding: 0.5rem 0.75rem !important;
+            border-bottom: 1px solid #222 !important;
+            color: #c9d1d9 !important;
+        }
+
+        .prose table tbody tr,
+        .prose-invert table tbody tr {
+            border-bottom-width: 0 !important;
+        }
+
+        .prose table tbody tr:last-child td,
+        .prose-invert table tbody tr:last-child td {
+            border-bottom: none !important;
+        }
+
+        /* Prevent horizontal overflow on mobile */
+        * {
+            max-width: 100%;
+        }
+        
+        pre, code, .prose pre {
+            overflow-x: auto !important;
+            word-wrap: normal !important;
+        }
+
+        table {
+            overflow-x: auto !important;
+            display: block !important;
+        }
+
+        @media (max-width: 768px) {
+            table {
+                font-size: 0.75rem !important;
+            }
+        }
+    </style>
+    
+    <!-- Icons -->
+    <script src="js/lucide.min.js"></script>
+    
+    <!-- Highlight.js Full Bundle (all languages included) -->
+    <script src="js/highlight.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        shell: {
+                            black: '#0a0a0a',
+                            dark: '#111111',
+                            panel: '#161616',
+                            border: '#333333',
+                            text: '#c9d1d9',
+                            accent: '#00ff9d', 
+                            accentDim: 'rgba(0, 255, 157, 0.1)',
+                            alert: '#ff5f56'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-shell-black text-shell-text h-screen flex flex-col md:flex-row antialiased selection:bg-shell-accent selection:text-black overflow-x-hidden">
+
+    <div class="scanlines"></div>
+
+    <!-- Mobile Header -->
+    <div class="md:hidden flex items-center justify-between p-4 border-b border-shell-border bg-shell-panel">
+        <a href="/" class="font-bold text-xl text-white tracking-tight hover:text-shell-accent transition-colors decoration-0">
+            AnonShell<span class="text-shell-accent">.com</span>
+        </a>
+        <button id="menu-toggle" class="text-white hover:text-shell-accent transition">
+            <i data-lucide="menu"></i>
+        </button>
+    </div>
+
+    <!-- SIDEBAR -->
+    <!-- CHANGED: Increased width from w-72 (18rem) to w-[22rem] (22rem) for ~20% more space -->
+    <aside id="sidebar" class="w-full md:w-[22rem] bg-shell-panel border-r border-shell-border flex flex-col h-[calc(100vh-60px)] md:h-screen fixed md:relative transform -translate-x-full md:translate-x-0 transition-transform duration-300 z-40">
+        
+        <div class="p-5 border-b border-shell-border flex justify-between items-start">
+            <div>
+                <h1 class="font-bold text-xl text-white tracking-tight">
+                    <a href="/" class="hover:text-shell-accent transition-colors decoration-0">
+                        AnonShell<span class="text-shell-accent">.com</span>
+                    </a>
+                </h1>
+                <p class="text-xs text-gray-500 mt-1 font-mono">Privacy through operational security</p>
+            </div>
+            
+            <button id="menu-close" class="md:hidden text-gray-400 hover:text-white">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <!-- SEARCH BAR -->
+        <div class="px-4 pt-4 pb-2 border-b border-shell-border md:border-none">
+            <div class="relative group">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-2 text-gray-600 group-focus-within:text-shell-accent transition-colors">
+                    <i data-lucide="search" class="w-3 h-3"></i>
+                </span>
+                <input type="text" id="file-search" 
+                    class="w-full bg-shell-black border border-shell-border rounded py-1.5 pl-8 pr-2 text-xs text-shell-text focus:border-shell-accent focus:outline-none placeholder-gray-700 transition-colors" 
+                    placeholder="grep 'post' ./">
+            </div>
+        </div>
+
+        <!-- NAVIGATION AREA -->
+        <div class="flex-1 overflow-hidden relative">
+            <!-- Navigation Stack Container -->
+            <div id="nav-stack" class="h-full transition-transform duration-300 ease-in-out">
+                
+                <!-- Level 0: Root Navigation -->
+                <div class="nav-level absolute inset-0 overflow-y-auto p-4 space-y-6" data-level="0" style="transform: translateX(0);">
+                    
+                    <!-- Back Button (hidden at root) -->
+                    <button id="back-btn-0" class="hidden w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-shell-accent hover:bg-shell-dark rounded transition-colors mb-4">
+                        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                        <span id="back-label-0">Back</span>
+                    </button>
+                    
+                    <!-- SECTION 1: FILE SYSTEM (from /posts/) -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <div id="tree-label-posts" class="text-xs font-bold text-gray-500 uppercase tracking-wider">File System</div>
+                            <button onclick="initFileSystem()" class="text-xs text-shell-accent hover:underline" title="Refresh"><i data-lucide="refresh-cw" class="w-3 h-3"></i></button>
+                        </div>
+                        <nav id="file-tree-posts" class="space-y-1 text-sm">
+                            <div class="text-gray-600 italic px-2">Reading manifest...</div>
+                        </nav>
+                    </div>
+
+                </div>
+                
+            </div>
+        </div>
+
+        <div class="p-3 border-t border-shell-border bg-shell-dark text-[11px] text-gray-400 flex justify-center gap-4">
+            <a href="#/posts/privacy.html" class="text-shell-accent hover:underline">Privacy Policy</a>
+            <span class="text-gray-600">·</span>
+            <a href="#/posts/tos.html" class="text-shell-accent hover:underline">Terms of Service</a>
+            <span class="text-gray-600">·</span>
+            <a href="#/posts/contact.html" class="text-shell-accent hover:underline">Contact</a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 flex flex-col h-[calc(100vh-60px)] md:h-screen relative overflow-hidden bg-shell-black">
+        
+        <!-- Top Bar -->
+        <div class="h-12 border-b border-shell-border bg-shell-dark flex items-center px-4 justify-between shrink-0">
+            <div class="flex items-center space-x-2 text-sm text-gray-400 min-w-0 flex-1">
+                <i data-lucide="terminal" class="w-4 h-4 text-shell-accent flex-shrink-0"></i>
+                <span id="current-path" class="cursor-pointer hover:text-shell-accent transition-colors truncate" title="Click to copy link">./index.html</span>
+                <span id="copy-success" class="text-shell-accent text-xs hidden whitespace-nowrap">Link copied to clipboard...</span>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                <a href="https://github.com/AnonShell/anonshell.com" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-400/30 rounded text-xs md:text-sm text-blue-300 font-medium transition-colors whitespace-nowrap flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="flex-shrink-0">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    <span class="hidden sm:inline">GitHub Repo</span>
+                    <span class="sm:hidden">GitHub</span>
+                </a>
+                <a href="#/posts/donate.html" class="px-3 py-1.5 bg-shell-accent/10 hover:bg-shell-accent/20 border border-shell-accent/30 rounded text-xs md:text-sm text-shell-accent font-medium transition-colors whitespace-nowrap">
+                    <span class="hidden sm:inline">Donate with crypto</span>
+                    <span class="sm:hidden">Donate</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div id="content-area" class="flex-1 overflow-y-auto overflow-x-hidden p-6 md:p-12 scroll-smooth">
+            <div id="content-wrapper" class="w-full max-w-none opacity-100 transition-opacity duration-500 prose prose-invert break-words">
+                
+                <!-- LANDING CONTENT -->
+                <h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+                    <span class="text-gray-500">#</span> Welcome to AnonShell
+                </h1>
+
+                <div class="terminal-info not-prose">
+                    <div class="terminal-info-header">
+                        <i data-lucide="map" class="terminal-info-icon"></i>
+                        <h3 class="terminal-info-title">Start with the Table of Contents</h3>
+                    </div>
+                    <p class="terminal-info-content text-gray-300 mb-4">
+                        This site follows the <strong>concentric circles methodology</strong>: start at the center with foundational concepts, then move outward through increasingly complex layers of defense. Reading order matters.
+                    </p>
+                    <p class="terminal-info-content text-gray-300">
+                        <strong>New to operational security?</strong> Visit the <a href="#/posts/toc.html" class="text-shell-accent hover:underline font-semibold">Table of Contents</a> to understand the learning path and see which circle you should start with. Each guide builds on concepts from previous layers.
+                    </p>
+                </div>
+
+                <h2>The Concentric Circles Methodology</h2>
+                <p>
+                    Operational security is not learned in isolation. It follows a natural progression, like ripples expanding outward from a stone dropped in water. Start at the center with foundational concepts, then move outward through increasingly complex layers of defense.
+                </p>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr class="border-b border-shell-accent/30">
+                                <th class="text-left py-3 px-4 text-shell-accent font-semibold" style="width: 110px;">Circle</th>
+                                <th class="text-left py-3 px-4 text-shell-accent font-semibold">Threat Mitigations</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-gray-300">
+                            <tr class="border-b border-gray-700/30">
+                                <td class="py-3 px-4 font-medium whitespace-nowrap">Circle 1</td>
+                                <td class="py-3 px-4">Mitigates ignorance-based vulnerabilities through threat modeling, security frameworks, and understanding adversary capabilities</td>
+                            </tr>
+                            <tr class="border-b border-gray-700/30">
+                                <td class="py-3 px-4 font-medium whitespace-nowrap">Circle 2</td>
+                                <td class="py-3 px-4">Mitigates credential theft, plaintext exposure, and identity correlation through encrypted communications and compartmentalization</td>
+                            </tr>
+                            <tr class="border-b border-gray-700/30">
+                                <td class="py-3 px-4 font-medium whitespace-nowrap">Circle 3</td>
+                                <td class="py-3 px-4">Mitigates device compromise, data exfiltration, and malware through OS hardening, encryption, and privilege control</td>
+                            </tr>
+                            <tr class="border-b border-gray-700/30">
+                                <td class="py-3 px-4 font-medium whitespace-nowrap">Circle 4</td>
+                                <td class="py-3 px-4">Mitigates network surveillance, physical intrusion, and traffic analysis through layered defenses and environmental controls</td>
+                            </tr>
+                            <tr class="border-b border-gray-700/30">
+                                <td class="py-3 px-4 font-medium whitespace-nowrap">Circle 5</td>
+                                <td class="py-3 px-4">Mitigates detection and attribution through operational tradecraft, covert channels, and advanced evasion techniques</td>
+                            </tr>
+                            <tr class="border-b border-gray-700/30">
+                                <td class="py-3 px-4 font-medium whitespace-nowrap">Circle 6</td>
+                                <td class="py-3 px-4">Mitigates active attacks through defensive monitoring, incident response, threat hunting, and security operations</td>
+                            </tr>
+                            <tr class="border-b border-gray-700/30">
+                                <td class="py-3 px-4 font-medium whitespace-nowrap">Circle 7</td>
+                                <td class="py-3 px-4">Mitigates false security assumptions through offensive testing, vulnerability assessment, and penetration techniques</td>
+                            </tr>
+                            <tr class="border-b border-gray-700/30">
+                                <td class="py-3 px-4 font-medium whitespace-nowrap">Circle 8</td>
+                                <td class="py-3 px-4">Mitigates organizational vulnerabilities through security governance, policy enforcement, and compliance frameworks</td>
+                            </tr>
+                            <tr class="border-b border-gray-700/30">
+                                <td class="py-3 px-4 font-medium whitespace-nowrap">Circle 9</td>
+                                <td class="py-3 px-4">Mitigates cloud-specific threats through infrastructure security, container hardening, and automated security pipelines</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 font-medium whitespace-nowrap">Circle 10</td>
+                                <td class="py-3 px-4">Mitigates cryptographic weaknesses through proper algorithm selection, key management, and secure protocol implementation</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p>
+                    Each circle builds on the previous. You cannot secure your network if your operating system is compromised. You cannot harden your OS if you don't practice good password hygiene. And none of it matters if you don't understand the threats you face. Start at the center. Move outward methodically. Master each layer before advancing to the next.
+                </p>
+
+                <h2>What You'll Find Here</h2>
+                <p>
+                    Every guide includes the security rationale behind each recommendation. We don't tell you to "use a password manager" without explaining credential stuffing attacks. We don't recommend Signal without discussing metadata leakage. We don't push full-disk encryption without covering cold boot attacks.
+                </p>
+
+                <p>
+                    This site practices what it preaches. Zero analytics. Zero cookies. Zero third-party scripts. Minimal server logs that contain no identifying information. We can't track you because we don't collect the data needed to track you.
+                </p>
+
+                <div class="terminal-success not-prose">
+                    <div class="terminal-success-header">
+                        <i data-lucide="shield-check" class="terminal-success-icon"></i>
+                        <h3 class="terminal-success-title">Getting Started</h3>
+                    </div>
+                    <p class="terminal-success-content">
+                        New to operational security? Start with <strong>/1.OpSec_101/Part 1</strong> for foundational concepts and threat modeling. Already familiar with the basics? Jump to <strong>/2.Operating_Systems/</strong> for platform-specific hardening guides.
+                    </p>
+                    <p class="terminal-success-content">
+                        Browse the file tree on the left. Every guide includes practical commands, security rationale, and links to audited open-source tools. No theory without implementation. No recommendations without explanation.
+                    </p>
+                </div>
+
+                <blockquote>
+                    "Every encrypted message is an act of defiance. Every hardened system is a declaration of autonomy. Privacy is not dead: it's a choice we make every day."
+                </blockquote>
+                
+                <p class="text-sm text-gray-500 italic mt-8">
+                    AnonShell, broadcasting from the encrypted depths
+                </p>
+                <!-- END LANDING CONTENT -->
+
+            </div>
+            
+            <div id="loader-state" class="hidden absolute inset-0 bg-shell-black flex items-center justify-center">
+                <div class="text-shell-accent font-mono">
+                    <span class="mr-2">> FETCHING DATA STREAM...</span>
+                    <span class="loader inline-block align-middle"></span>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="overlay" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden glass"></div>
+
+    <script>
+        const MANIFEST_URL = 'navigation.json'; 
+
+        // Tree Containers
+        const treePosts = document.getElementById('file-tree-posts');
+ 
+        
+        const contentArea = document.getElementById('content-wrapper');
+        const contentScroll = document.getElementById('content-area');
+        const currentPathEl = document.getElementById('current-path');
+        const copySuccessEl = document.getElementById('copy-success');
+
+        // Add click handler to copy link to clipboard
+        currentPathEl.addEventListener('click', async () => {
+            const currentHash = window.location.hash;
+            if (currentHash && currentHash !== '#/') {
+                const fullUrl = `https://anonshell.com${currentHash}`;
+                try {
+                    await navigator.clipboard.writeText(fullUrl);
+                    copySuccessEl.classList.remove('hidden');
+                    setTimeout(() => {
+                        copySuccessEl.classList.add('hidden');
+                    }, 3000);
+                } catch (err) {
+                    console.error('Failed to copy:', err);
+                }
+            }
+        });
+        const loader = document.getElementById('loader-state');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        
+        // Search Elements
+        const searchInput = document.getElementById('file-search');
+        const labelPosts = document.getElementById('tree-label-posts');
+
+        // Navigation Stack State
+        let navStack = [];
+        let currentLevel = 0;
+
+        const escapeHtml = (value = '') => value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        const escapeRegExp = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Global State
+        let globalData = { posts: [] };
+
+        lucide.createIcons();
+        hljs.highlightAll();
+
+        async function loadManifest() {
+            try {
+                const response = await fetch(MANIFEST_URL + '?t=' + new Date().getTime());
+                if (!response.ok) throw new Error('Manifest not found');
+                return await response.json();
+            } catch (e) {
+                console.error("Manifest Error:", e);
+                return null;
+            }
+        }
+
+        // Recursive Flatten for Search
+        function getAllFiles(items) {
+            let files = [];
+            items.forEach(item => {
+                if (item.type === 'file') {
+                    files.push(item);
+                } else if (item.type === 'folder' && item.children) {
+                    files = files.concat(getAllFiles(item.children));
+                }
+            });
+            return files;
+        }
+
+        async function initFileSystem() {
+            treePosts.innerHTML = '<div class="text-shell-accent animate-pulse px-2">Reading Index...</div>';
+            const data = await loadManifest();
+            
+            if (data) {
+                globalData = data; // Store both sections
+                
+                // Build Posts Tree
+                treePosts.innerHTML = ''; 
+                if(data.posts && data.posts.length > 0) {
+                    await buildTreeUI(data.posts, treePosts);
+                } else {
+                    treePosts.innerHTML = '<div class="px-2 text-xs text-gray-600 italic">No system files.</div>';
+                }
+
+
+
+            } else {
+                treePosts.innerHTML = '<div class="text-red-500 text-xs px-2">Index Error.<br>Check navigation.json</div>';
+            }
+        }
+
+        // SEARCH LOGIC
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            
+            if (!term) {
+                // Reset tree
+                treePosts.innerHTML = '';
+                
+                buildTreeUI(globalData.posts, treePosts);
+                
+                labelPosts.textContent = "File System";
+                return;
+            }
+
+            // Show "Press Enter" state in sidebar
+            labelPosts.textContent = "Search Mode";
+            
+            treePosts.innerHTML = `
+                <div class="mt-4 px-2">
+                     <input type="text" placeholder="Press ENTER to search..." class="bg-transparent border-none outline-none text-gray-500 text-sm w-full cursor-default select-none italic" disabled>
+                </div>
+            `;
+        });
+
+        // Trigger Search on Enter
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const term = e.target.value.toLowerCase().trim();
+                if (term) {
+                    performSearch(term);
+                    // FIX: Clear the input field after triggering search
+                    searchInput.value = ''; 
+                    
+                    // Manually trigger reset logic since setting .value programmatically doesn't fire 'input' event
+                    treePosts.innerHTML = '';
+                    buildTreeUI(globalData.posts, treePosts);
+                    labelPosts.textContent = "File System";
+                }
+            }
+        });
+
+        function performSearch(term) {
+            // Show Loader & Clear Content
+            loader.classList.remove('hidden');
+            contentArea.style.opacity = '0';
+            currentPathEl.textContent = `./search_results.html --query="${term}"`;
+
+            // Flatten all files
+            const allFiles = [
+                ...getAllFiles(globalData.posts)
+            ];
+            
+            // Search Logic
+            const matches = allFiles.filter(file => 
+                file.name.toLowerCase().includes(term) || 
+                (file.title && file.title.toLowerCase().includes(term)) ||
+                (file.content && file.content.toLowerCase().includes(term))
+            );
+
+            // Build HTML Results
+            const safeTerm = escapeHtml(term);
+            let html = `
+                <div class="mb-6 pb-4 border-b border-shell-border">
+                    <h1 class="font-mono text-2xl text-white mb-2">Search Results: "<span class="text-shell-accent">${safeTerm}</span>"</h1>
+                    <p class="text-gray-500 text-sm">${matches.length} file(s) found</p>
+                </div>
+                <div class="space-y-6">
+            `;
+
+            if (matches.length === 0) {
+                html += `<p class="text-gray-400 italic">No files found matching your query.</p>`;
+            } else {
+                matches.forEach(file => {
+                    // Generate Snippet
+                    let snippet = "";
+                    if (file.content) {
+                        const lowerContent = file.content.toLowerCase();
+                        const index = lowerContent.indexOf(term);
+                        if (index !== -1) {
+                            const start = Math.max(0, index - 60);
+                            const end = Math.min(file.content.length, index + 100);
+                            snippet = file.content.substring(start, end);
+                            snippet = "..." + snippet + "...";
+                        } else {
+                            snippet = file.content.substring(0, 150) + "...";
+                        }
+                    }
+
+                    const safeTitle = escapeHtml(file.title || file.name || 'Untitled');
+                    const safePathAttr = escapeHtml(file.path || '');
+                    const safePathText = escapeHtml(file.path || '');
+                    let safeSnippet = escapeHtml(snippet);
+
+                    if (term && safeSnippet) {
+                        const regex = new RegExp(escapeRegExp(term), 'gi');
+                        safeSnippet = safeSnippet.replace(regex, match => `<span class="bg-yellow-900 text-yellow-200 px-1 rounded">${match}</span>`);
+                    }
+
+                    // Result Item
+                    html += `
+                        <div class="group cursor-pointer hover:bg-shell-panel p-4 rounded-md transition-colors border border-transparent hover:border-shell-border js-load-post" data-path="${safePathAttr}" data-title="${safeTitle}">
+                            <h3 class="text-xl text-shell-accent font-bold mb-1 group-hover:underline decoration-shell-accent">${safeTitle}</h3>
+                            <p class="text-sm text-gray-400 leading-relaxed mb-2">${safeSnippet}</p>
+                            <div class="text-[10px] text-gray-600 font-mono bg-black inline-block px-2 py-1 rounded">./${safePathText}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            html += `</div>`;
+
+            // Simulate delay and render
+            setTimeout(() => {
+                renderContent(html);
+                if(window.innerWidth < 768) toggleSidebar();
+            }, 300);
+        }
+
+        // Helper for search results click
+        window.loadPostByPath = function(path, title) {
+            const node = { path: path, name: title, title: title };
+            loadPost(node);
+        };
+
+        async function buildTreeUI(items, parentEl, level = 0) {
+            if (!items) return;
+            
+            // Filter out hidden files before displaying
+            const visibleItems = items.filter(item => !item.hidden);
+            
+            // Sort items
+            visibleItems.sort((a, b) => {
+                if (a.type !== b.type) {
+                    return a.type === 'file' ? -1 : 1; 
+                }
+                const textA = (a.title || a.name).toLowerCase();
+                const textB = (b.title || b.name).toLowerCase();
+                return textA.localeCompare(textB);
+            });
+
+            for (const node of visibleItems) {
+                const itemContainer = document.createElement('div');
+
+                if (node.type === 'folder') {
+                    const folderDiv = document.createElement('div');
+                    folderDiv.className = "flex items-center px-4 py-3 md:px-2 md:py-1.5 text-base md:text-sm text-gray-400 hover:text-white cursor-pointer select-none transition-colors group";
+                    // Replace underscores with spaces for display
+                    const folderName = escapeHtml(node.name || '').replace(/_/g, ' ');
+                    folderDiv.innerHTML = `
+                        <i data-lucide="folder" class="w-5 h-5 md:w-4 md:h-4 mr-2 group-hover:text-shell-accent transition-colors"></i>
+                        <span class="font-bold">${folderName}</span>
+                        <i data-lucide="chevron-right" class="w-4 h-4 ml-auto text-gray-600 group-hover:text-shell-accent"></i>
+                    `;
+                    itemContainer.appendChild(folderDiv);
+
+                    // Click folder to drill down
+                    folderDiv.addEventListener('click', () => {
+                        drillDown(node);
+                    });
+
+                } else {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = "flex items-center px-4 py-3 md:px-2 md:py-1.5 text-base md:text-sm text-gray-500 hover:text-shell-accent hover:bg-shell-dark cursor-pointer rounded transition-all file-link";
+                    // Replace underscores with spaces for display
+                    const displayTitle = escapeHtml(node.title || node.name || '').replace(/_/g, ' ');
+                    fileDiv.innerHTML = `
+                        <i data-lucide="file-code" class="w-5 h-5 md:w-3 md:h-3 mr-2"></i>
+                        <span>${displayTitle}</span>
+                    `;
+                    
+                    fileDiv.addEventListener('click', () => {
+                        loadPost(node);
+                        document.querySelectorAll('.file-link').forEach(el => el.classList.remove('text-shell-accent', 'bg-shell-dark', 'bg-opacity-50'));
+                        fileDiv.classList.add('text-shell-accent', 'bg-shell-dark', 'bg-opacity-50');
+                        if(window.innerWidth < 768) toggleSidebar();
+                    });
+
+                    itemContainer.appendChild(fileDiv);
+                }
+                parentEl.appendChild(itemContainer);
+            }
+            lucide.createIcons();
+        }
+
+        function drillDown(folderNode) {
+            currentLevel++;
+            navStack.push(folderNode);
+
+            // Create new level div
+            const navStackContainer = document.getElementById('nav-stack');
+            const newLevel = document.createElement('div');
+            newLevel.className = 'nav-level absolute inset-0 overflow-y-auto p-4 space-y-6';
+            newLevel.setAttribute('data-level', currentLevel);
+            newLevel.style.transform = 'translateX(100%)';
+
+            // Back button - show parent folder name or "Root" if at top level
+            const backBtn = document.createElement('button');
+            backBtn.className = 'w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-shell-accent hover:bg-shell-dark rounded transition-colors mb-4';
+            const parentName = currentLevel === 1 ? 'Root' : escapeHtml(navStack[navStack.length - 2].name);
+            backBtn.innerHTML = `
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                <span>Back to ${parentName}</span>
+            `;
+            backBtn.addEventListener('click', goBack);
+            newLevel.appendChild(backBtn);
+
+            // Folder title
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'mb-4';
+            titleDiv.innerHTML = `
+                <div class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                    <i data-lucide="folder-open" class="w-3 h-3 inline"></i> ${escapeHtml(folderNode.name)}
+                </div>
+            `;
+            newLevel.appendChild(titleDiv);
+
+            // Content container
+            const contentDiv = document.createElement('nav');
+            contentDiv.className = 'space-y-1 text-sm';
+            
+            if (folderNode.children && folderNode.children.length > 0) {
+                buildTreeUI(folderNode.children, contentDiv, currentLevel);
+            } else {
+                contentDiv.innerHTML = '<div class="px-4 py-2 text-xs text-gray-600 italic">Empty folder</div>';
+            }
+            
+            newLevel.appendChild(contentDiv);
+            navStackContainer.appendChild(newLevel);
+
+            // Animate transition
+            setTimeout(() => {
+                // Slide current level left
+                const currentLevelDiv = navStackContainer.querySelector(`[data-level="${currentLevel - 1}"]`);
+                if (currentLevelDiv) {
+                    currentLevelDiv.style.transform = 'translateX(-100%)';
+                }
+                
+                // Slide new level in
+                newLevel.style.transform = 'translateX(0)';
+                lucide.createIcons();
+            }, 10);
+        }
+
+        function goBack() {
+            if (currentLevel === 0) return;
+
+            const navStackContainer = document.getElementById('nav-stack');
+            const currentLevelDiv = navStackContainer.querySelector(`[data-level="${currentLevel}"]`);
+            const previousLevelDiv = navStackContainer.querySelector(`[data-level="${currentLevel - 1}"]`);
+
+            // Animate transition
+            if (currentLevelDiv) {
+                currentLevelDiv.style.transform = 'translateX(100%)';
+            }
+            if (previousLevelDiv) {
+                previousLevelDiv.style.transform = 'translateX(0)';
+            }
+
+            // Remove level after animation
+            setTimeout(() => {
+                if (currentLevelDiv && currentLevelDiv.parentNode) {
+                    currentLevelDiv.parentNode.removeChild(currentLevelDiv);
+                }
+            }, 300);
+
+            navStack.pop();
+            currentLevel--;
+        }
+
+        async function loadPost(node) {
+            contentArea.style.opacity = '0';
+            currentPathEl.textContent = `./${node.path}`;
+            loader.classList.remove('hidden');
+
+            // Update URL hash for deep linking (don't encode the path, it's already clean)
+            window.history.pushState(null, '', '#/' + node.path);
+
+            try {
+                const fullPath = node.path; // Path is already relative like 'posts/foo.html' or 'blog/bar.html'
+                const response = await fetch(fullPath);
+                if (response.ok) {
+                    const text = await response.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(text, 'text/html');
+                    const article = doc.querySelector('article') || doc.body;
+                    renderContent(article ? article.innerHTML : text);
+                } else {
+                    throw new Error('File not found');
+                }
+            } catch (error) {
+                renderContent(`<h1 class="text-red-500">Error 404</h1><p>Could not load file: ${node.path}</p>`);
+            }
+        }
+
+        function renderContent(html) {
+            loader.classList.add('hidden');
+            contentArea.innerHTML = html;
+            contentArea.style.opacity = '1';
+            contentScroll.scrollTop = 0;
+            currentPathEl.classList.remove('animate-pulse');
+            
+            // Extract and execute any script tags (innerHTML doesn't execute them)
+            const scripts = contentArea.querySelectorAll('script');
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => {
+                    newScript.setAttribute(attr.name, attr.value);
+                });
+                newScript.textContent = oldScript.textContent;
+                oldScript.parentNode.replaceChild(newScript, oldScript);
+            });
+            
+            // Re-run icons after injecting new HTML
+            lucide.createIcons();
+            // Re-run syntax highlighting
+            hljs.highlightAll();
+
+            // Add language label and copy button to code blocks
+            document.querySelectorAll('pre code').forEach((block) => {
+                const pre = block.parentElement;
+                
+                // 1. Add Language Label from data-lang attribute or class
+                const langAttr = pre.getAttribute('data-lang');
+                if (!langAttr) {
+                    const classes = Array.from(block.classList);
+                    const langClass = classes.find(c => c.startsWith('language-'));
+                    if (langClass) {
+                        const lang = langClass.replace('language-', '').toUpperCase();
+                        pre.setAttribute('data-lang', lang);
+                    } else {
+                        pre.setAttribute('data-lang', 'TEXT');
+                    }
+                }
+
+                // 2. Add Copy Button (only if not already present)
+                if (pre.querySelector('.copy-btn')) return;
+
+                const button = document.createElement('button');
+                button.className = 'copy-btn';
+                button.innerText = 'Copy';
+                
+                button.addEventListener('click', async () => {
+                    const code = block.innerText;
+                    try {
+                        await navigator.clipboard.writeText(code);
+                    } catch (err) {
+                        const textarea = document.createElement('textarea');
+                        textarea.value = code;
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textarea);
+                    }
+
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '<i data-lucide="check" class="w-3 h-3 mr-1"></i> Copied';
+                    button.classList.add('copied');
+                    lucide.createIcons(); 
+
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                });
+
+                pre.appendChild(button);
+            });
+
+            attachDynamicContentHandlers();
+        }
+
+        function attachDynamicContentHandlers() {
+            contentArea.querySelectorAll('.js-load-post').forEach(el => {
+                if (el.dataset.bound === 'true') return;
+                el.dataset.bound = 'true';
+                el.addEventListener('click', () => {
+                    const path = el.dataset.path || '';
+                    const title = el.dataset.title || '';
+                    loadPost({ path, title, name: title });
+                });
+            });
+            
+            // Initialize assessment page if it's loaded
+            const assessmentBtn = document.getElementById('start-assessment-btn');
+            if (assessmentBtn && typeof initializeAssessment === 'function') {
+                initializeAssessment();
+            }
+        }
+
+        const menuToggle = document.getElementById('menu-toggle');
+        const menuClose = document.getElementById('menu-close'); 
+        
+        function toggleSidebar() {
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+        
+        menuToggle.addEventListener('click', toggleSidebar);
+        if(menuClose) menuClose.addEventListener('click', toggleSidebar);
+        overlay.addEventListener('click', toggleSidebar);
+
+        // Check for hash-based deep linking on page load
+        function checkDeepLink() {
+            const hash = window.location.hash;
+            
+            // Check if direct access was blocked
+            if (hash === '#/direct-access-blocked') {
+                showDirectAccessMessage();
+                return;
+            }
+            
+            if (hash && hash.startsWith('#/')) {
+                const path = decodeURIComponent(hash.substring(2)); // Remove '#/' prefix
+                // Find the file in manifest
+                const allFiles = [
+                    ...getAllFiles(globalData.posts)
+                ];
+                const file = allFiles.find(f => f.path === path);
+                if (file) {
+                    loadPost(file);
+                }
+            }
+        }
+
+        function showDirectAccessMessage() {
+            // Get the attempted path from URL query parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            let attemptedPath = urlParams.get('path');
+            
+            let displayPath = '';
+            if (attemptedPath) {
+                // Path is already decoded by URLSearchParams, use it directly
+                displayPath = `https://anonshell.com/#${attemptedPath}`;
+            } else {
+                // Default example if no specific path
+                attemptedPath = '/posts/OpSec_101/part1.html';
+                displayPath = `https://anonshell.com/#${attemptedPath}`;
+            }
+            
+            const html = `
+                <div class="mb-6">
+                    <h1 class="font-mono text-2xl text-white mb-4">
+                        <span class="text-gray-500">#</span> Access Denied
+                    </h1>
+                </div>
+                
+                <div class="terminal-alert not-prose">
+                    <div class="terminal-alert-header">
+                        <i data-lucide="shield-alert" class="terminal-alert-icon"></i>
+                        <h3 class="terminal-alert-title">Direct Linking Disabled</h3>
+                    </div>
+                    <p class="terminal-alert-content">
+                        Direct file access is not permitted. Please use the navigation menu on the left to browse content.
+                    </p>
+                </div>
+
+                <p class="text-gray-400 mt-6">
+                    <strong>Why?</strong> This site uses hash-based routing to ensure all resources load correctly. Direct file URLs bypass the application framework and will not render properly.
+                </p>
+
+                <p class="text-gray-400">
+                    <strong>How to access content:</strong> Use the <span class="text-shell-accent">File System</span> navigation panel on the left, or use this shareable link directly to the page you were trying to access:
+                </p>
+
+                <div class="terminal-success not-prose">
+                    <div class="terminal-success-header">
+                        <i data-lucide="link" class="terminal-success-icon"></i>
+                        <h3 class="terminal-success-title">Click to Access This Page</h3>
+                    </div>
+                    <a href="#${attemptedPath}" class="terminal-success-content bg-black px-4 py-3 rounded font-mono text-sm block hover:text-shell-accent transition-colors">
+                        ${displayPath}
+                    </a>
+                </div>
+            `;
+            
+            currentPathEl.textContent = './access_denied.html';
+            renderContent(html);
+            // Clear the hash and query params after showing message
+            window.history.replaceState(null, '', '/');
+        }
+
+        // Listen for hash changes (browser back/forward)
+        window.addEventListener('hashchange', checkDeepLink);
+
+        // Initialize and check for deep link
+        initFileSystem().then(() => {
+            checkDeepLink();
+        });
+    </script>
+</body>
+</html>

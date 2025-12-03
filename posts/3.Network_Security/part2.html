@@ -1,0 +1,658 @@
+<h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+    <span class="text-gray-500">#</span>2. Tor Network & Anonymity
+</h1>
+
+<div class="terminal-alert not-prose">
+    <div class="terminal-alert-header">
+        <i data-lucide="shield-alert" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Prerequisites</h3>
+    </div>
+    <p class="terminal-alert-content">
+        Complete Part 1 (VPN Configuration) before this guide. Understanding VPN limitations is essential for knowing when to use Tor. This guide assumes you have a hardened operating system and practice good operational security.
+    </p>
+</div>
+
+<h2>What is Tor?</h2>
+
+<p>The Onion Router (Tor) is an anonymity network that routes traffic through multiple encrypted relays, making it extremely difficult to link you to your destination. Unlike VPNs, Tor provides anonymity, not just privacy.</p>
+
+<p><strong>How Tor works:</strong></p>
+<ul>
+    <li>Your traffic passes through three random relays: entry (guard), middle, and exit</li>
+    <li>Each relay only knows the previous and next hop, never the full path</li>
+    <li>Encryption is layered (like an onion): each relay peels off one layer</li>
+    <li>Exit node sees destination but not source; entry node sees source but not destination</li>
+    <li>Network changes relays every 10 minutes, creating new circuits</li>
+</ul>
+
+<div class="terminal-info not-prose">
+    <div class="terminal-info-header">
+        <i data-lucide="info" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">VPN vs Tor</h3>
+    </div>
+    <div class="terminal-info-content">
+        <p><strong>VPN:</strong> Fast, hides IP from websites, single point of trust (provider), good for privacy.</p>
+        <p><strong>Tor:</strong> Slower, provides anonymity through multiple hops, no single point of trust, good for high-threat scenarios.</p>
+        <p><strong>VPN + Tor:</strong> Best of both, covered at end of this guide.</p>
+    </div>
+</div>
+
+<h2>When to Use Tor</h2>
+
+<p><strong>Use Tor when:</strong></p>
+<ul>
+    <li>You need anonymity, not just privacy (whistleblowing, activism, journalism)</li>
+    <li>Your adversary can compromise or coerce VPN providers</li>
+    <li>You're accessing .onion sites (only accessible via Tor)</li>
+    <li>You need to mask metadata patterns (timing, volume, destination)</li>
+    <li>Legal protections are insufficient in your jurisdiction</li>
+</ul>
+
+<p><strong>Don't use Tor when:</strong></p>
+<ul>
+    <li>You need high bandwidth (streaming, torrenting, large downloads)</li>
+    <li>You're logging into accounts with real identity (defeats anonymity)</li>
+    <li>You can't tolerate latency (gaming, video calls)</li>
+    <li>You need to access services that block Tor exit nodes</li>
+</ul>
+
+<div class="terminal-alert not-prose">
+    <div class="terminal-alert-header">
+        <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Critical Warning</h3>
+    </div>
+    <p class="terminal-alert-content">
+        Tor provides anonymity only if used correctly. Logging into Facebook via Tor while using your real name defeats the entire purpose. Downloading and opening PDFs can execute JavaScript that deanonymizes you. One mistake can link your anonymous and real identities forever.
+    </p>
+</div>
+
+<h2>Installation: Tor Browser</h2>
+
+<p>Tor Browser is a hardened Firefox fork configured for anonymity. Always use Tor Browser for web browsing, never regular Firefox with Tor.</p>
+
+<h3>Linux (Debian/Ubuntu)</h3>
+
+<p>Installing Tor Browser on Linux requires adding the official Tor Project repository to ensure you receive genuine, signed packages rather than potentially outdated or compromised versions from third-party sources. The installation process begins by setting up HTTPS transport support for APT, then importing the Tor Project's GPG signing key to verify package authenticity, adding the repository to your system's sources list, and finally installing the Tor Browser Launcher which handles downloading, verifying, and updating the actual Tor Browser bundle. This multi-step verification process is critical because Tor Browser is a high-value target for attackers who want to compromise anonymous users, and using unofficial or tampered versions could completely defeat Tor's anonymity protections by leaking your real identity or injecting tracking code. The launcher utility simplifies ongoing maintenance by automatically checking for updates and verifying signatures each time you launch the browser.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Install dependencies required for adding third-party repositories
+# apt-transport-https = allows APT to retrieve packages over HTTPS
+sudo apt update
+sudo apt install apt-transport-https
+# Expected output: Package installed or "already newest version"
+# Why: Required for secure HTTPS repository connections
+# Use when: Initial Tor setup on Debian/Ubuntu systems
+
+# Download and import Tor Project's GPG signing key to verify authenticity
+# wget -qO- = quiet mode, output to stdout
+# gpg --dearmor = convert ASCII-armored key to binary format
+# tee = write to file while displaying progress
+sudo wget -qO- https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc | gpg --dearmor | sudo tee /usr/share/keyrings/tor-archive-keyring.gpg > /dev/null
+# Expected output: GPG keyring file created at /usr/share/keyrings/
+# Why: Verifies downloaded packages are signed by Tor Project, not tampered
+# Use when: Adding Tor repository for first time
+# Warning: Verify fingerprint matches official Tor documentation
+
+# Add Tor Project repository to APT sources
+# signed-by = specify which GPG key verifies packages
+# lsb_release -cs = get distribution codename (jammy, focal, bullseye)
+echo "deb [signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/tor.list
+# Expected output: Repository line added to /etc/apt/sources.list.d/tor.list
+# Why: Enables installing official Tor packages from Tor Project
+# Use when: Initial setup, ensures latest Tor version not outdated distro package
+
+# Update package lists to include Tor repository
+sudo apt update
+# Expected output: Package lists refreshed, Tor packages now available
+
+# Install Tor Browser Launcher (manages Tor Browser installation/updates)
+sudo apt install torbrowser-launcher
+# Expected output: ~10MB download, installs launcher utility
+# Why: Simplifies Tor Browser installation, handles updates automatically
+# Use when: First-time Tor setup on Linux
+# Note: First launch downloads ~80MB Tor Browser bundle
+
+# Launch Tor Browser Launcher (downloads and verifies Tor Browser on first run)
+# First run: Downloads Tor Browser, verifies signatures, installs
+# Subsequent runs: Checks for updates, launches Tor Browser
+torbrowser-launcher
+# Expected output: GUI window opens, downloads Tor Browser on first launch
+# Why: Starts Tor Browser with proper security configurations
+# Use when: Accessing Tor network for anonymous browsing
+# Note: First launch takes 5-10 minutes to download and verify</code></pre>
+
+<h3>macOS</h3>
+
+<p>macOS users must download Tor Browser directly from the official Tor Project website and manually verify the GPG signature before installation, as there is no automated package manager integration for Tor Browser on macOS like there is on Linux. This manual verification process is non-negotiable for security: you must download both the .dmg installer and its corresponding .asc signature file, import the Tor Browser Developers' public GPG key from a trusted keyserver, and use GPG to verify that the signature matches the installer file, confirming it was genuinely created by the Tor Project and hasn't been modified in transit. Skipping signature verification is extremely dangerous because attackers could have compromised the download server, performed a man-in-the-middle attack on your connection, or created fake websites that look identical to torproject.org but serve malicious software designed to deanonymize users or install surveillance malware.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Download from official site
+# Visit: https://www.torproject.org/download/
+
+# Verify signature (required)
+# Download both .dmg and .dmg.asc files
+gpg --keyserver keys.openpgp.org --recv-keys EF6E286DDA85EA2A4BA7DE684E2C6E8793298290
+gpg --verify TorBrowser-*.dmg.asc TorBrowser-*.dmg
+
+# Should show: "Good signature from Tor Browser Developers"
+# Open and install .dmg</code></pre>
+
+<h3>Windows</h3>
+
+<p>Windows installation follows the same critical signature verification process as macOS, requiring you to download the executable installer and its detached signature file, import the Tor Browser Developers' GPG key, and verify the signature before running the installer. Windows users face additional risks because the platform is the most common target for malware, and executable files can easily be disguised or modified to include malicious payloads while appearing legitimate. Never skip the signature verification step on Windows: attackers specifically target security-conscious users who might be using Tor, and a compromised Tor Browser installation gives them the perfect opportunity to identify and monitor users who believe they are anonymous. Always download from the official torproject.org website using HTTPS, never from third-party download sites or mirrors, and verify the GPG signature shows "Good signature from Tor Browser Developers" before executing the installer.</p>
+
+<pre data-lang="powershell"><code class="language-powershell"># Download from official site
+# Visit: https://www.torproject.org/download/
+
+# Verify signature before running
+# Download both .exe and .exe.asc files
+
+# Import Tor signing key
+gpg --keyserver keys.openpgp.org --recv-keys EF6E286DDA85EA2A4BA7DE684E2C6E8793298290
+
+# Verify installer signature
+gpg --verify torbrowser-install-*.exe.asc torbrowser-install-*.exe
+
+# Should show: "Good signature from Tor Browser Developers"
+# Run installer
+.\torbrowser-install-*.exe</code></pre>
+
+<h2>Initial Configuration</h2>
+
+<h3>1. Security Level</h3>
+
+<p>Tor Browser has three security levels. Higher levels disable features that can deanonymize you.</p>
+
+<pre data-lang="text"><code class="language-text">Standard (Default):
+- All browser features enabled
+- JavaScript enabled
+- Some fonts and symbols allowed
+
+Safer:
+- JavaScript disabled on non-HTTPS sites
+- Some fonts and math symbols disabled
+- Audio and video click-to-play
+
+Safest (Recommended for high-risk):
+- JavaScript disabled on all sites
+- Images click-to-load
+- Most fonts disabled
+- Some websites will break</code></pre>
+
+<p><strong>Set security level:</strong></p>
+<ul>
+    <li>Click shield icon in address bar</li>
+    <li>Settings → Security Level</li>
+    <li>Choose "Safer" (balanced) or "Safest" (maximum protection)</li>
+</ul>
+
+<h3>2. Circuit Display</h3>
+
+<p>View the relay path Tor is using for current site:</p>
+<ul>
+    <li>Click onion icon in address bar</li>
+    <li>Shows: Your Location → Guard → Middle → Exit → Destination</li>
+    <li>Click "New Circuit for this Site" to change path</li>
+</ul>
+
+<h3>3. NoScript Configuration</h3>
+
+<p>NoScript blocks JavaScript by default. Allow only trusted sites:</p>
+<pre data-lang="text"><code class="language-text">Click NoScript icon → Trusted → [domain]
+Only whitelist sites you absolutely need (rare)</code></pre>
+
+<h3>4. Do NOT Install Add-ons</h3>
+
+<p>Browser extensions fingerprint you and can break Tor's anonymity. Tor Browser comes with required extensions pre-configured:</p>
+<ul>
+    <li><strong>NoScript:</strong> Blocks JavaScript (already installed)</li>
+    <li><strong>HTTPS Everywhere:</strong> Forces HTTPS connections (already installed)</li>
+</ul>
+
+<p>Do not install: password managers, ad blockers, VPN extensions, or any other add-ons. They make you uniquely identifiable.</p>
+
+<h2>Operational Usage</h2>
+
+<h3>Browsing Best Practices</h3>
+
+<p><strong>1. Never maximize Tor Browser window</strong></p>
+<p>Window size is used for fingerprinting. Tor Browser uses standard sizes (1000x800, 1200x900, etc.). Maximizing creates unique dimensions that identify you.</p>
+
+<p><strong>2. Never log into real-identity accounts</strong></p>
+<p>Logging into Gmail, Facebook, or any service linked to your real name defeats Tor's anonymity. Your Tor session is now linked to your identity.</p>
+
+<p><strong>3. Create separate identities</strong></p>
+<p>Use different Tor sessions for different personas. Never cross-contaminate:</p>
+<ul>
+    <li>Anonymous persona A uses Tor session 1</li>
+    <li>Anonymous persona B uses Tor session 2 (different circuit, different time)</li>
+    <li>Never reference information from persona A while logged in as persona B</li>
+</ul>
+
+<p><strong>4. Don't download files</strong></p>
+<p>PDFs, Word docs, and executables can execute code that reveals your real IP. If you must download:</p>
+<ul>
+    <li>Download inside Tor Browser</li>
+    <li>Disconnect from internet before opening</li>
+    <li>Open in isolated VM or air-gapped machine</li>
+</ul>
+
+<p><strong>5. Use HTTPS Everywhere</strong></p>
+<p>Exit nodes can see unencrypted traffic. Always use HTTPS. Red onion icon = unencrypted HTTP (dangerous on Tor).</p>
+
+<h3>New Identity vs New Circuit</h3>
+
+<pre data-lang="text"><code class="language-text">New Circuit for This Site (onion icon menu):
+- Changes relay path for current site
+- Keeps other tabs open
+- Use when site blocks your exit node
+
+New Identity (onion icon menu → New Identity):
+- Closes all tabs and circuits
+- Clears cookies, cache, history
+- Generates completely new identity
+- Use when switching personas or after mistake</code></pre>
+
+<h3>Checking Your Tor Connection</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Visit Tor check page in Tor Browser to verify connection
+# Official Tor Project verification service
+# In Tor Browser: https://check.torproject.org
+# Expected output: Green page with "Congratulations. This browser is configured to use Tor."
+# Why: Confirms you're successfully routing through Tor network
+# Use when: After starting Tor Browser, troubleshooting connection issues
+# Warning: If page says "Sorry. You are not using Tor", you have a leak!
+
+# Should show: "Congratulations. This browser is configured to use Tor."
+
+# Check Tor exit node IP from command line
+# --socks5-hostname = use SOCKS5 proxy with DNS resolution through proxy
+# localhost:9050 = Tor daemon SOCKS proxy
+# ifconfig.me = service that returns your public IP
+curl --socks5-hostname localhost:9050 ifconfig.me
+# Expected output: IP address of Tor exit node (e.g., 185.220.101.XX)
+# Why: Verifies command-line Tor routing is working correctly
+# Use when: Testing Tor daemon setup, before sensitive operations
+# Warning: This IP changes every 10 minutes as Tor rotates circuits
+
+# Should return Tor exit node IP, not your real IP
+# To verify: Visit https://www.dan.me.uk/tornodes to check if IP is known Tor exit
+# Your real IP should NEVER appear when using Tor correctly</code></pre>
+
+<h2>Using Tor for Non-Browser Traffic</h2>
+
+<p>You can route command-line tools through Tor using SOCKS5 proxy.</p>
+
+<h3>Install Tor Daemon</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Install Tor daemon (background service for routing non-browser traffic)
+# This is separate from Tor Browser - used for CLI tools
+sudo apt install tor
+# Expected output: ~5MB download, installs Tor service
+# Why: Enables routing command-line applications through Tor network
+# Use when: Need to torify SSH, git, curl, wget, or other CLI tools
+# Note: Tor Browser has built-in Tor, this is for system-wide usage
+
+# Start Tor service in background
+# Creates SOCKS5 proxy on localhost:9050
+sudo systemctl start tor
+# Expected output: Service starts silently
+# Why: Activates Tor daemon to accept proxy connections
+# Use when: After installation, or after system reboot
+
+# Enable Tor to start automatically on boot
+sudo systemctl enable tor
+# Expected output: "Created symlink" or "already enabled"
+# Why: Ensures Tor is always available after reboots
+# Use when: Setting up system for persistent Tor usage
+
+# Verify Tor daemon is running and accepting connections
+sudo systemctl status tor
+# Expected output: "active (running)" in green
+# Why: Confirms Tor service started successfully
+# Use when: After starting Tor, troubleshooting connection issues
+# Warning: If shows "failed" or "inactive", check logs with journalctl -u tor
+
+# Tor SOCKS5 proxy listens on: localhost:9050
+# All applications configured to use this proxy will route through Tor
+# Port 9050 = SOCKS5 proxy for applications
+# Note: Tor also runs control port on 9051 (for Tor Controller)</code></pre>
+
+<h3>Route Commands Through Tor</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Route curl through Tor using SOCKS5 proxy
+# --socks5-hostname = use SOCKS5 proxy and resolve DNS through proxy (prevents DNS leaks)
+# localhost:9050 = Tor's SOCKS5 proxy address
+# https://check.torproject.org = Tor verification service
+curl --socks5-hostname localhost:9050 https://check.torproject.org
+# Expected output: HTML page saying "Congratulations. This browser is configured to use Tor."
+# Why: Verifies Tor is working and curl traffic is anonymized
+# Use when: Testing Tor setup, before sensitive curl operations
+# Warning: Without --socks5-hostname, DNS leaks your real IP
+
+# Route wget through Tor using proxy settings
+# -e use_proxy=yes = enable proxy support
+# http_proxy=socks5h:// = use SOCKS5 proxy with hostname resolution through proxy
+# 'h' in socks5h prevents DNS leaks
+wget -e use_proxy=yes -e http_proxy=socks5h://localhost:9050 https://example.com
+# Expected output: File downloaded through Tor network
+# Why: Downloads files anonymously, hiding your IP from server
+# Use when: Downloading sensitive files or from monitored sources
+# Note: Slower than direct download due to Tor overhead
+
+# Route SSH connection through Tor using ProxyCommand
+# -o ProxyCommand = specify command to establish connection
+# nc = netcat, network Swiss Army knife
+# -x localhost:9050 = use SOCKS5 proxy at specified address
+# %h %p = hostname and port placeholders (SSH substitutes actual values)
+ssh -o ProxyCommand='nc -x localhost:9050 %h %p' user@host.onion
+# Expected output: SSH connection established through Tor to .onion address
+# Why: Access SSH servers anonymously or connect to .onion SSH services
+# Use when: Managing servers through Tor, accessing onion services
+# Note: Only works with Tor daemon running (localhost:9050 accessible)
+
+# Route git operations through Tor
+# Sets global Git configuration to proxy all connections
+# socks5h:// = SOCKS5 with hostname resolution through proxy
+git config --global http.proxy socks5h://localhost:9050
+git clone https://github.com/user/repo.git
+# Expected output: Repository cloned through Tor network
+# Why: Anonymous git operations, prevents GitHub from seeing your IP
+# Use when: Contributing to sensitive projects, avoiding country-based blocking
+# Warning: Removes anonymity if you push with real identity in commits
+# To disable: git config --global --unset http.proxy</code></pre>
+
+<h3>Torify Wrapper</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Install torsocks - wrapper that forces applications through Tor
+# Intercepts network system calls and redirects them to Tor SOCKS proxy
+sudo apt install torsocks
+# Expected output: Package installed, ~500KB download
+# Why: Simplifies running applications through Tor without manual proxy config
+# Use when: Need to torify applications that don't support SOCKS proxies
+# Note: Alternative to manually configuring --socks5 flags
+
+# Torify any command by prepending 'torify'
+# Automatically routes all network traffic through Tor SOCKS proxy
+torify curl ifconfig.me
+# Expected output: Tor exit node IP address (changes each circuit)
+# Why: Quick way to anonymize any command-line tool
+# Use when: Want to verify Tor routing or run one-off anonymous commands
+
+# Torify SSH connection (simpler than ProxyCommand method)
+torify ssh user@host
+# Expected output: SSH connection established through Tor
+# Why: Hides your IP from SSH server, useful for anonymous server access
+# Use when: Managing servers anonymously or accessing onion services
+
+# Torify APT package manager updates (useful in censored countries)
+# Routes package downloads through Tor
+torify apt update
+# Expected output: Package lists updated through Tor network
+# Why: Bypass censorship, hide which packages you're downloading from ISP
+# Use when: In countries blocking package repositories or monitoring installs
+# Warning: Much slower than direct connection, may timeout on slow Tor circuits
+
+# WARNING: Not all applications respect proxies set by torsocks
+# Some apps may leak real IP despite torify wrapper
+# Applications using raw sockets or custom network libraries may bypass proxy
+# Always test with: torify curl ifconfig.me to verify routing
+# Use application-specific proxy settings when available for reliability</code></pre>
+
+<h2>Onion Services (.onion Sites)</h2>
+
+<p>Onion services are only accessible via Tor. They provide end-to-end encryption and hide the server's location.</p>
+
+<h3>Accessing .onion Sites</h3>
+
+<pre data-lang="text"><code class="language-text">Example .onion addresses:
+http://thehiddenwiki.onion (Hidden Wiki)
+http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion (DuckDuckGo)
+
+Features:
+- No exit node (traffic never leaves Tor network)
+- Server location hidden
+- Resistance to censorship and DDoS
+- v3 addresses are 56 characters (most secure)</code></pre>
+
+<h3>Verifying .onion Addresses</h3>
+
+<p>Always verify .onion addresses through official channels. Typosquatting is common:</p>
+<ul>
+    <li>Check official website (clearnet) for their .onion mirror</li>
+    <li>Verify PGP-signed announcements</li>
+    <li>Use directories like The Hidden Wiki (but verify the directory's address first)</li>
+</ul>
+
+<h2>Tor Bridges: Bypassing Censorship</h2>
+
+<p>If your ISP or government blocks Tor, use bridges (unlisted entry nodes).</p>
+
+<h3>Requesting Bridges</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Method 1: Request Tor bridges via email (works in censored countries)
+# Send email to: bridges@torproject.org
+# Must use Gmail or Riseup email (prevents automated abuse)
+# Subject: (leave blank)
+# Body: get bridges
+# Expected output: Email reply with 3 bridge addresses in ~1 hour
+# Why: Bridges are unlisted Tor entry nodes not in public directory
+# Use when: Tor is blocked in your country (China, Iran, Russia, etc.)
+# Note: Save bridge addresses securely, they change periodically
+
+# Method 2: Request bridges via website (may be blocked)
+# Visit: https://bridges.torproject.org
+# Complete CAPTCHA to prove you're human
+# Expected output: Webpage displays 3 bridge addresses
+# Why: Alternative to email method if you don't have Gmail/Riseup
+# Use when: Email method fails or you need bridges immediately
+# Warning: This website is often blocked in censored countries
+
+# Method 3: Request bridges through Tor Browser (built-in, most reliable)
+# Tor Browser → Connection Settings → Request a Bridge
+# Uses Moat service built into Tor Browser
+# Expected output: Bridges automatically configured in Tor Browser
+# Why: Most user-friendly method, integrated into browser
+# Use when: Setting up Tor Browser for first time in censored country
+# Note: This works even if bridges.torproject.org is blocked</code></pre>
+
+<h3>Configuring Bridges</h3>
+
+<p>In Tor Browser:</p>
+<ul>
+    <li>Click onion icon → Tor Network Settings</li>
+    <li>Check "Tor is censored in my country"</li>
+    <li>Choose bridge type:
+        <ul>
+            <li><strong>obfs4:</strong> Most common, looks like random traffic</li>
+            <li><strong>Snowflake:</strong> Uses WebRTC, harder to block</li>
+            <li><strong>meek-azure:</strong> Routes through Azure CDN, looks like Microsoft traffic</li>
+        </ul>
+    </li>
+    <li>Enter bridge addresses from email or click "Request a Bridge from torproject.org"</li>
+</ul>
+
+<h2>VPN + Tor: Combining Anonymity Layers</h2>
+
+<p>Using VPN with Tor provides defense-in-depth but requires understanding the threat model.</p>
+
+<h3>Method 1: You → VPN → Tor → Internet (Recommended)</h3>
+
+<p><strong>Setup:</strong> Connect to VPN, then launch Tor Browser.</p>
+
+<p><strong>Who sees what:</strong></p>
+<ul>
+    <li><strong>ISP:</strong> VPN connection (encrypted traffic to VPN server)</li>
+    <li><strong>VPN:</strong> Connection to Tor entry node (knows you use Tor)</li>
+    <li><strong>Tor entry:</strong> VPN server IP (not your real IP)</li>
+    <li><strong>Tor exit:</strong> Final destination (not your real IP or VPN IP)</li>
+    <li><strong>Website:</strong> Tor exit node IP</li>
+</ul>
+
+<p><strong>Advantages:</strong></p>
+<ul>
+    <li>ISP doesn't know you use Tor (helpful if Tor is suspicious or blocked)</li>
+    <li>Tor entry guard doesn't see your real IP</li>
+    <li>If VPN logs, they only see Tor entry connections (not destinations)</li>
+    <li>Defense against malicious Tor entry nodes</li>
+</ul>
+
+<p><strong>Disadvantages:</strong></p>
+<ul>
+    <li>VPN is single point of failure (if compromised, your real IP is linked to Tor usage)</li>
+    <li>Slightly slower (VPN adds latency on top of Tor)</li>
+    <li>VPN payment/account can link sessions if not anonymous</li>
+</ul>
+
+<h3>Method 2: You → Tor → VPN → Internet (Advanced)</h3>
+
+<p><strong>Setup:</strong> Configure VPN client to connect through Tor's SOCKS5 proxy.</p>
+
+<p><strong>Who sees what:</strong></p>
+<ul>
+    <li><strong>ISP:</strong> Tor connection (knows you use Tor)</li>
+    <li><strong>Tor exit:</strong> VPN connection (can see VPN handshake)</li>
+    <li><strong>VPN:</strong> Final destination (but not your real IP)</li>
+    <li><strong>Website:</strong> VPN server IP</li>
+</ul>
+
+<p><strong>Advantages:</strong></p>
+<ul>
+    <li>Tor exit doesn't see your destination (only VPN server)</li>
+    <li>Access services that block Tor exit nodes</li>
+    <li>Defense against malicious Tor exit nodes</li>
+</ul>
+
+<p><strong>Disadvantages:</strong></p>
+<ul>
+    <li>Very slow (Tor is already slow, VPN on exit adds more latency)</li>
+    <li>Complex configuration (requires VPN client proxy support)</li>
+    <li>VPN sees your traffic (but not your IP)</li>
+    <li>Few use cases justify this complexity</li>
+</ul>
+
+<h3>Configuration: VPN → Tor</h3>
+
+<pre data-lang="bash"><code class="language-bash"># 1. Connect to VPN first
+mullvad connect
+
+# 2. Verify VPN connection
+curl ifconfig.me
+# Should show VPN IP
+
+# 3. Launch Tor Browser
+torbrowser-launcher
+
+# 4. Verify Tor connection
+# Visit: https://check.torproject.org in Tor Browser
+# Should show: "Congratulations. This browser is configured to use Tor."
+
+# 5. Check what exit node sees
+# In Tor Browser, visit: https://ifconfig.me
+# Should show Tor exit node IP (not VPN or real IP)</code></pre>
+
+<h2>Common Mistakes That Break Anonymity</h2>
+
+<h3>1. Browser Fingerprinting</h3>
+<p><strong>Mistake:</strong> Changing default Tor Browser settings (fonts, resolution, add-ons).</p>
+<p><strong>Fix:</strong> Use default settings. All Tor Browser users look identical by design.</p>
+
+<h3>2. Time Zone Leaks</h3>
+<p><strong>Mistake:</strong> Browser JavaScript can detect your real time zone.</p>
+<p><strong>Fix:</strong> Tor Browser spoofs UTC. Verify at: https://browserleaks.com/timezone</p>
+
+<h3>3. Cross-Session Identity Linking</h3>
+<p><strong>Mistake:</strong> Using same pseudonym across sessions without New Identity.</p>
+<p><strong>Fix:</strong> Click New Identity between persona switches. Clear all cookies/cache.</p>
+
+<h3>4. Uploading Identifying Files</h3>
+<p><strong>Mistake:</strong> Uploading photos with EXIF data, documents with metadata.</p>
+<p><strong>Fix:</strong> Strip metadata before upload:
+<pre data-lang="bash"><code class="language-bash"># Remove EXIF from images
+exiftool -all= image.jpg
+
+# Remove metadata from PDFs
+qpdf --linearize --object-streams=disable input.pdf output.pdf</code></pre>
+</p>
+
+<h3>5. Logging Into Real Accounts</h3>
+<p><strong>Mistake:</strong> "I'll just quickly check Gmail on Tor..."</p>
+<p><strong>Fix:</strong> Never. Your Tor session is now linked to your Google account forever.</p>
+
+<h2>Testing Your Anonymity</h2>
+
+<pre data-lang="bash"><code class="language-bash"># 1. Verify Tor connection
+# Visit: https://check.torproject.org
+
+# 2. Check for DNS leaks
+# Visit: https://dnsleaktest.com (in Tor Browser)
+# Should show: No DNS leaks detected
+
+# 3. Browser fingerprint test
+# Visit: https://coveryourtracks.eff.org
+# Should show: "Your browser has a unique fingerprint" is BAD
+# Tor Browser should blend with other Tor users
+
+# 4. WebRTC leak test
+# Visit: https://browserleaks.com/webrtc
+# Should NOT show your real IP
+
+# 5. Time zone test
+# Visit: https://browserleaks.com/timezone
+# Should show: UTC (not your local timezone)</code></pre>
+
+<h2>Maintenance</h2>
+
+<h3>Updates</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Tor Browser updates automatically
+# Check for updates: onion icon → About Tor Browser
+
+# Update Tor daemon (if using CLI Tor)
+sudo apt update && sudo apt upgrade tor
+
+# Verify Tor version
+tor --version</code></pre>
+
+<h3>When to Use New Identity</h3>
+
+<ul>
+    <li>Switching between pseudonyms/personas</li>
+    <li>After accidentally revealing identifying information</li>
+    <li>Before and after accessing sensitive sites</li>
+    <li>If you suspect your circuit is compromised</li>
+    <li>After long browsing session (every 1-2 hours)</li>
+</ul>
+
+<h2>Tor Limitations</h2>
+
+<p>Tor is not perfect. Understand its limitations:</p>
+
+<ul>
+    <li><strong>Exit node surveillance:</strong> Exit nodes can see unencrypted traffic. Always use HTTPS.</li>
+    <li><strong>Timing attacks:</strong> Global adversaries who control many relays can correlate traffic timing.</li>
+    <li><strong>Malicious nodes:</strong> Some entry/exit nodes are run by adversaries. Use bridges for entry protection.</li>
+    <li><strong>Browser exploits:</strong> JavaScript 0-days can deanonymize users. Use Safest security level for high-risk scenarios.</li>
+    <li><strong>Human error:</strong> The weakest link is you. One login to real account = anonymity destroyed.</li>
+</ul>
+
+<div class="terminal-success not-prose">
+    <div class="terminal-success-header">
+        <i data-lucide="shield-check" class="terminal-success-icon"></i>
+        <h3 class="terminal-success-title">Defense in Depth</h3>
+    </div>
+    <p class="terminal-success-content">
+        Tor protects network anonymity. Combine with: hardened OS (Circle 3), encrypted communication (Circle 2), and physical security (Circle 4). No single tool provides complete protection.
+    </p>
+</div>
+
+<h2>Next Steps</h2>
+
+<p>You now understand Tor, when to use it, and how to combine it with VPN. Part 3 covers network segmentation and firewall rules for isolating trusted and untrusted devices on your home network.</p>
+
+<blockquote>
+    "Anonymity is not about hiding from everyone. It's about controlling who knows what about you, and when."
+</blockquote>
+
+<div class="flex justify-between mt-12 pt-6 border-t border-shell-border">
+    <a href="#/posts/3.Network_Security/part1.html" class="text-shell-accent hover:underline">← Part 1: VPN Configuration & Usage</a>
+    <a href="#/posts/3.Network_Security/part3.html" class="text-shell-accent hover:underline">Part 3: Segmentation & Firewall Rules →</a>
+</div>

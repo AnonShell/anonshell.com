@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>4. Hardware & Disposable OpSec</title>
+</head>
+<body>
+    <article>
+        
+        <h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+            <span class="text-gray-500">#</span> 4. Hardware & Disposable OpSec
+        </h1>
+
+        <p class="text-xl text-shell-accent/90 leading-relaxed">
+            Software security means nothing if your hardware is compromised. This guide covers hardware selection, disposable device strategies, and On-The-Go (OTG) operational security for high-risk scenarios where your physical equipment must be untraceable, verifiable, and sacrificial.
+        </p>
+
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">Why Hardware Matters</h3>
+            </div>
+            <p class="terminal-alert-content">
+                The NSA's ANT catalog revealed decades of supply chain interdiction: packages intercepted during shipping, implants installed in firmware, hardware backdoors that persist through OS reinstalls. Intel Management Engine and AMD Platform Security Processor run at ring -3 with total system access, independent of your operating system. Even encrypted disks can be compromised if the boot chain is poisoned. Hardware is your root of trust. If it fails, everything above it is suspect.
+            </p>
+        </div>
+
+        <h2>The Case for Disposable Hardware</h2>
+        <p>
+            <strong>Why Throw-Away Devices?</strong> Every piece of hardware accumulates forensic artifacts over time. SSDs wear-level and cache data in controller memory invisible to your OS. RAM retains data for seconds to minutes after power loss (cold boot attacks). BIOS/UEFI firmware can harbor persistent malware that survives full disk wipes. Purchasing devices with cash from random retailers, using them for a single operation, then physically destroying them eliminates these attack surfaces entirely.
+        </p>
+
+        <p>
+            <strong>The Burner Laptop Advantage:</strong> A laptop with no installed hard drive, booting exclusively from read-only media (DVD/USB in read-only mode) and running entirely in RAM, is forensically clean on every reboot. Nothing persists. No logs, no cache, no history. When you power down, the machine returns to factory state. This is not paranoia. This is how journalists in hostile regimes protect sources and how whistleblowers exfiltrate classified documents without leaving traces.
+        </p>
+
+        <p>
+            <strong>Why DVD Drives Matter:</strong> Modern laptops sacrifice DVD drives for thinness, but optical media offers unique security properties. A DVD-R burned once and verified cannot be altered. Malware cannot write to it. Firmware attacks cannot infect it. When you boot Tails or another live OS from DVD, you have cryptographic certainty that the OS is bit-identical to what you burned. USB sticks, even with read-only switches, can be compromised by firmware attacks (BadUSB). DVD players lack the complexity to harbor persistent malware.
+        </p>
+
+        <h2>Understanding Disk Structure and Obfuscation</h2>
+        <p>
+            <strong>First Sectors and Partition Tables:</strong> The Master Boot Record (MBR) occupies the first 512 bytes of a disk. It contains the bootloader and partition table that tells your OS where data lives. The GUID Partition Table (GPT) uses the first 34 sectors (17KB on 512-byte sector drives). If you overwrite these sectors with random data or false partition information, the disk appears blank or corrupted to automated forensic tools. Your encrypted volumes can live beyond these sectors, invisible to casual inspection.
+        </p>
+
+        <p>
+            <strong>Sector-Level Obfuscation:</strong> Tools like <code>dd</code>, <code>hexedit</code>, or dedicated disk editors (<code>testdisk</code>, <code>gdisk</code>) let you manually manipulate sectors. By writing a decoy partition table in the first sectors (pointing to a fake FAT32 partition with benign data), you hide the actual encrypted volume starting at sector 10000. Border agents scanning your device see a "blank" disk or harmless files. The real data is mathematically indistinguishable from random disk garbage without the encryption key.
+        </p>
+
+        <div class="terminal-info not-prose">
+            <div class="terminal-info-header">
+                <i data-lucide="info" class="terminal-info-icon"></i>
+                <h3 class="terminal-info-title">Practical Sector Manipulation Example</h3>
+            </div>
+            <pre data-lang="bash" class="terminal-info-content"><code class="language-bash"># WARNING: These commands can destroy data. Practice on test drives first.
+
+# Backup first 1MB of disk (contains MBR, GPT, and initial sectors)
+sudo dd if=/dev/sdX of=backup_first_mb.img bs=1M count=1
+
+# View raw disk sectors (examine partition table)
+sudo hexdump -C /dev/sdX | head -n 50
+
+# Overwrite first 34 sectors (GPT) with random data
+sudo dd if=/dev/urandom of=/dev/sdX bs=512 count=34
+
+# Create VeraCrypt volume starting at offset 10MB (bypassing MBR/GPT region)
+# This leaves first 10MB as "unallocated space" - looks like empty disk
+veracrypt --text --create /dev/sdX --volume-type=normal \
+  --encryption=AES --hash=SHA-512 --filesystem=ext4 \
+  --size=50G --offset=10485760  # 10MB offset in bytes
+
+# Alternatively: Create decoy FAT32 in first partition, hide real data deeper
+sudo fdisk /dev/sdX  # Create small FAT32 partition at start
+sudo mkfs.vfat /dev/sdX1
+# Real encrypted volume starts after FAT32 partition, manual sector alignment
+</code></pre>
+        </div>
+
+        <p>
+            <strong>Bit-Level Steganography:</strong> External USB sticks or microSD cards can employ steganographic techniques. Tools like <a href="https://github.com/resurrecting-open-source-projects/steghide" rel="noopener" target="_blank">steghide</a> embed encrypted data within image or audio files. To forensic tools, your USB stick contains vacation photos. The encrypted payload is mathematically hidden in LSB (Least Significant Bit) noise. Combined with a false partition table pointing only to the decoy files, this provides layered deniability.
+        </p>
+
+        <h2>RAM-Only Operating Systems</h2>
+        <p>
+            <strong>Why Live Systems?</strong> Operating systems like <a href="https://tails.boum.org" rel="noopener" target="_blank">Tails</a>, <a href="https://www.kali.org/docs/usb/kali-linux-live-usb-install/" rel="noopener" target="_blank">Kali Live</a>, or custom Arch Linux live builds run entirely in volatile memory. On shutdown, all session data vanishes. No logs persist. No forensic traces remain. This is ideal for:
+        </p>
+        <ul class="list-disc pl-5 text-gray-400">
+            <li><strong>Whistleblowing:</strong> Accessing documents, communicating with journalists, then destroying all evidence by powering down.</li>
+            <li><strong>Penetration Testing:</strong> Conducting authorized security audits without leaving artifacts on client systems.</li>
+            <li><strong>Cross-Border Travel:</strong> Booting a clean OS at your destination, no incriminating data survives border inspection if device is seized.</li>
+            <li><strong>Public Computers:</strong> Using library or hotel business center machines without trusting their integrity.</li>
+        </ul>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="shield-check" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Building a Custom Live USB</h3>
+            </div>
+            <pre data-lang="bash" class="terminal-success-content"><code class="language-bash"># Create Arch Linux live USB with custom persistence
+# Boot media: read-only. Persistent storage: encrypted external drive.
+
+# Download Arch ISO
+wget https://mirror.rackspace.com/archlinux/iso/latest/archlinux-x86_64.iso
+
+# Verify signature (critical - confirm ISO is untampered)
+gpg --keyserver keyserver.ubuntu.com --recv-keys [ARCH_KEY_ID]
+gpg --verify archlinux-x86_64.iso.sig archlinux-x86_64.iso
+
+# Write to USB (use dd or Etcher)
+sudo dd if=archlinux-x86_64.iso of=/dev/sdX bs=4M status=progress
+
+# Boot USB in read-only mode (add to kernel parameters)
+# Edit bootloader: append "ro" to kernel line
+# This prevents any writes to boot media
+
+# For persistence: Use separate encrypted USB for home directory
+# On live boot:
+cryptsetup luksFormat /dev/sdY  # Separate USB
+cryptsetup luksOpen /dev/sdY persistent
+mkfs.ext4 /dev/mapper/persistent
+mount /dev/mapper/persistent /home
+# All user data lives here, encrypted. Boot media stays pristine.
+</code></pre>
+        </div>
+
+        <h2>Hardware Selection by Security Level</h2>
+        <p>
+            Each security level from Part 3 requires different hardware considerations. Higher levels demand hardware that is verifiable, tamper-evident, or sacrificial. Lower levels focus on trusted mainstream devices with strong encryption.
+        </p>
+
+        <h2>Level 1: The Everyday User - Hardware Recommendations</h2>
+        <p>
+            <strong>Threat Model:</strong> Opportunistic theft, physical device loss, casual forensic examination.
+        </p>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="check-circle" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Level 1 Hardware Checklist</h3>
+            </div>
+            <div class="terminal-success-content" style="list-style: none; padding-left: 0;">
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Primary Computer:</strong> Any modern laptop/desktop with TPM 2.0 chip for BitLocker/LUKS encryption binding</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Enable full-disk encryption (FDE) on all devices (laptop, phone, tablets)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Hardware Security Key:</strong> YubiKey 5 NFC or SoloKeys for 2FA (FIDO2/U2F support)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>External Encrypted Storage:</strong> USB drive with hardware encryption (e.g., <a href="https://www.apricorn.com/aegis-secure-key-3" rel="noopener" target="_blank">Apricorn Aegis Secure Key</a>) or VeraCrypt container on standard USB</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Smartphone:</strong> iPhone (regular iOS updates) or Google Pixel (GrapheneOS capable for future upgrades)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Disable biometric unlock on high-value devices (fingerprint/face can be compelled by law enforcement in many jurisdictions)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Webcam Cover:</strong> Physical slider or tape (prevent camera hijacking via malware)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Screen Privacy Filter:</strong> 3M or similar for laptops used in public (prevent shoulder surfing)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set BIOS/UEFI password to prevent unauthorized boot device changes</div>
+            </div>
+        </div>
+
+        <h2>Level 2: The Power User - Hardware Recommendations</h2>
+        <p>
+            <strong>Threat Model:</strong> Targeted attacks, physical device interdiction, forensic analysis by skilled adversaries.
+        </p>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="check-circle" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Level 2 Hardware Checklist</h3>
+            </div>
+            <div class="terminal-success-content" style="list-style: none; padding-left: 0;">
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Complete all Level 1 items first</strong></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Primary Laptop:</strong> Business-grade with TPM 2.0, Secure Boot support, and Intel VT-d/AMD-Vi for VM isolation (e.g., Lenovo ThinkPad T-series, Dell Latitude)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Multiple Hardware Keys:</strong> 2x YubiKey (primary + backup stored in separate secure location)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Encrypted External SSD:</strong> Samsung T7 or similar with VeraCrypt standard volumes for portable secure storage</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Secure USB Sticks:</strong> 2-3x USB drives dedicated to: bootable Tails, encrypted file transfer, offline backups</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Faraday Bag:</strong> Store phone when not in use to block RF signals (prevents location tracking, remote access)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Apply tamper-evident seals: Glitter nail polish on laptop screws, photograph hardware serial numbers</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Network Hardware:</strong> Separate router for work/sensitive browsing, VLAN-capable switch if managing multiple networks</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Kill Switch Hardware:</strong> USB dead man's switch (e.g., <a href="https://tech.michaelaltfield.net/2020/01/02/buskill-laptop-kill-cord-dead-man-switch/" rel="noopener" target="_blank">BusKill</a>) that locks/wipes laptop if USB yanked (physical seizure protection)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Disable Intel ME / AMD PSP if possible (me_cleaner tool, or purchase system76/Purism hardware with ME disabled)</div>
+            </div>
+        </div>
+
+        <h2>Level 3: The IT Professional - Hardware Recommendations</h2>
+        <p>
+            <strong>Threat Model:</strong> Corporate espionage, supply chain attacks, advanced persistent threats (APT), forensic lab examination.
+        </p>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="check-circle" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Level 3 Hardware Checklist</h3>
+            </div>
+            <div class="terminal-success-content" style="list-style: none; padding-left: 0;">
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Complete all Level 1 and Level 2 items first</strong></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Workstation Laptop:</strong> System76 Lemur Pro or Purism Librem (coreboot/open firmware, ME disabled, hardware kill switches)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Alternative:</strong> Lenovo ThinkPad X230/T430 with coreboot + me_cleaner (community-verified security)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Dedicated VM Host:</strong> Separate desktop/server with ECC RAM, VT-d/AMD-Vi for hardware-level VM isolation</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Air-Gapped Machine:</strong> Old laptop (2010-2015 era) with Wi-Fi/Bluetooth modules physically removed, never connected to internet</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Store air-gapped machine in Faraday enclosure when not in use (prevent RF emissions/receivers)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Hardware Keys:</strong> 3x YubiKey (daily use, backup, offline master key for air-gapped GPG operations)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Encrypted NAS:</strong> Synology/QNAP with encrypted volumes for 3-2-1 backup strategy</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Network Segmentation Hardware:</strong> Managed switch with VLAN support, separate SSIDs/VLANs for: work, IoT, guests, high-security ops</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Firewall Appliance:</strong> Dedicated pfSense/OPNsense box or Protectli Vault (x86 hardware running open firewall)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>IDS/IPS Hardware:</strong> Raspberry Pi 4 or dedicated box running Suricata for network threat detection</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Secure Boot Media:</strong> 5x USB drives (Tails, Kali, rescue system, encrypted transfer, offline backup)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Purchase all hardware from different retailers, different times, with cash (avoid supply chain targeting)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Document hardware baseline: BIOS versions, firmware hashes, photos of PCB internals for tamper detection</div>
+            </div>
+        </div>
+
+        <h2>Level 4: The Cybersecurity Enthusiast - Hardware Recommendations</h2>
+        <p>
+            <strong>Threat Model:</strong> Nation-state techniques (not targeting), advanced forensics, evil maid attacks, supply chain interdiction simulations.
+        </p>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="check-circle" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Level 4 Hardware Checklist</h3>
+            </div>
+            <div class="terminal-success-content" style="list-style: none; padding-left: 0;">
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Complete all Level 1-3 items first</strong></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Primary System:</strong> Purism Librem 14 with PureBoot (Heads firmware, tamper-evident boot), hardware kill switches for camera/mic/Wi-Fi/Bluetooth</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Alternative:</strong> System76 with coreboot + TPM2, or custom-built X230 with Heads firmware</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Qubes OS Hardware:</strong> Laptop with 32GB+ RAM, VT-d support (Qubes requires significant RAM for multiple VMs)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Burner Laptop #1:</strong> Old ThinkPad (X220/T420 with DVD drive), hard drive removed, boots only from DVD/USB read-only</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Test burner laptop: Verify no persistent storage, confirm DVD-only boot works, check RAM wipes on power loss</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Air-Gapped Crypto Machine:</strong> Laptop with all wireless removed, used exclusively for GPG master key operations, cryptocurrency signing</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Data Diode Setup:</strong> One-way file transfer using audio coupling (data → audio → microphone on air-gapped machine) or manual retyping</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Hardware Security Tokens:</strong> 5x YubiKey (daily, backup, air-gap, travel, emergency cache)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Secure Storage Media:</strong> 10x DVD-R for Tails/Kali bootable media (read-only, verified integrity)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Hidden Volume Storage:</strong> External SSD with VeraCrypt hidden volume (decoy outer, real inner)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Faraday Infrastructure:</strong> Faraday bags for all wireless devices, Faraday cage for air-gapped equipment storage</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Anti-Forensic Tools:</strong> Hardware write blockers (prevent forensic contamination), secure erase utilities (ATA Secure Erase, hdparm)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Tamper Detection:</strong> Glitter polish on all screws, UV markers on PCBs, comparison photos of hardware internals</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement BIOS/UEFI password + Secure Boot with custom keys (prevent unauthorized firmware changes)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Network Lab:</strong> Isolated test network (separate router, no internet) for malware analysis, pentesting practice</div>
+            </div>
+        </div>
+
+        <h2>Level 5: Maximum Operational Security - Hardware Recommendations</h2>
+        <p>
+            <strong>Threat Model:</strong> Active nation-state targeting, physical surveillance, supply chain interdiction, forensic capabilities of intelligence agencies.
+        </p>
+
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">Disposable Hardware Philosophy</h3>
+            </div>
+            <p class="terminal-alert-content">
+                At Level 5, hardware is expendable. Every device is assumed compromised. Purchase with cash from random locations. Use once or for limited time. Destroy completely before disposal. Your threat model includes adversaries who intercept shipments, plant implants, and conduct physical surveillance. Trust no device. Verify everything. Sacrifice everything after use.
+            </p>
+        </div>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="shield-check" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Level 5 Hardware Checklist</h3>
+            </div>
+            <div class="terminal-success-content" style="list-style: none; padding-left: 0;">
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Complete all Level 1-4 items first</strong></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Burner Laptops (3-5 units):</strong> Used ThinkPad X220/T420 or similar with DVD drives, purchased cash from different sources</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Remove hard drives from all burner laptops, destroy originals, leave bays empty</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Remove/disable: Wi-Fi card, Bluetooth, webcam, microphone (physical removal, not software disable)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Boot Media:</strong> 20x DVD-R burned with Tails (verified checksums), stored in separate secure locations</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Never boot same burner laptop twice with same identity/session (forensic contamination risk)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Burner Phones (5+ units):</strong> Basic feature phones or old Android devices, purchased cash, no account linkage</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Remove batteries from burner phones when not in active use (prevent remote activation of mic/GPS)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Rotate burner phones every 30 days or after single high-risk operation</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Destruction Protocol:</strong> Degausser for magnetic media, drill press for SSD NAND chips, thermite for complete destruction</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Air-Gapped Master Key Machine:</strong> Raspberry Pi or old laptop, no wireless, powered only during key operations, stored in Faraday cage</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Secure Transfer Media:</strong> Write-once DVD-R for moving files to/from air-gap (never reuse)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Hardware Random Number Generator:</strong> OneRNG, Infinite Noise, or similar for cryptographic key generation (don't trust CPU RNG)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Faraday Equipment:</strong> Multiple Faraday bags (phone, laptop, storage media), Faraday tent/box for workspace</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Anti-Surveillance Gear:</strong> RF detector (find hidden transmitters), thermal camera (detect concealed electronics)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Tamper Detection:</strong> Comprehensive baseline documentation (PCB photos, firmware hashes, unique marking patterns), daily verification</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>OTG Kit:</strong> Go-bag with burner laptop + 5 Tails DVDs + burner phone + hardware keys + encrypted USB + cash + emergency contacts</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Store OTG kit in non-attributable location (not home/office), rotate every 90 days</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Never purchase hardware shipped to your address (use mail forwarding, package pickup services, or in-person cash)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Purchase from different retailers, different cities, different times (avoid pattern recognition)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Document disposal: Photo evidence of destruction, witness if possible, never trash intact electronics</div>
+            </div>
+        </div>
+
+        <h2>On-The-Go (OTG) Operational Security Kit</h2>
+        <p>
+            <strong>What is OTG OpSec?</strong> The ability to conduct secure operations anywhere, anytime, with minimal notice. You might be a journalist meeting a source in a hostile country. A whistleblower needing to exfiltrate documents before your office access is revoked. An activist evading physical surveillance. Your OTG kit must be: lightweight, untraceable, sacrificial, and capable of full operational security in hostile environments.
+        </p>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="shield-check" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">OTG Kit Components (By Level)</h3>
+            </div>
+            <div class="terminal-success-content">
+                <h4 class="text-shell-accent font-bold mb-2">Level 1-2: Basic OTG Kit</h4>
+                <div style="list-style: none; padding-left: 0;">
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Laptop with full-disk encryption enabled</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> YubiKey on keychain</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Encrypted USB stick (VeraCrypt) with important documents</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Portable battery bank</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> VPN credentials (Mullvad/IVPN) on secure note</div>
+                </div>
+
+                <h4 class="text-shell-accent font-bold mb-2 mt-4">Level 3: Professional OTG Kit</h4>
+                <div style="list-style: none; padding-left: 0;">
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Laptop + Tails USB stick (persistent encrypted storage)</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> 2x YubiKey (primary + backup)</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Encrypted external SSD (VeraCrypt hidden volume)</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Burner phone with cash-purchased SIM</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Faraday bag for devices</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Portable Wi-Fi adapter (USB) for separate network connection</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Emergency contact list (encrypted, memorized, or steganographically hidden)</div>
+                </div>
+
+                <h4 class="text-shell-accent font-bold mb-2 mt-4">Level 4-5: Maximum OTG Kit</h4>
+                <div style="list-style: none; padding-left: 0;">
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Burner laptop (DVD drive, no HDD) + 5x Tails DVD-R</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> 2x burner phones (different models, different SIMs)</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> 3x YubiKey (hidden in different bag compartments)</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Encrypted USB with steganographic payload (photos with hidden encrypted files)</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Cash (multiple currencies, small denominations)</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Faraday bags (phone, laptop, storage media)</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Portable Wi-Fi adapter + long-range antenna (for accessing networks from distance)</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Cryptographic seeds (BIP39 mnemonic, GPG key backup) - memorized or split via Shamir's Secret Sharing</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Destruction tools (strong magnet for degaussing, drill bits for SSD destruction)</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Privacy screen for laptop, anti-surveillance clothing (blocks thermal/facial recognition)</div>
+                    <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Emergency exfiltration plan (memorized dead drops, safe houses, trusted contacts with duress codes)</div>
+                </div>
+            </div>
+        </div>
+
+        <h2>Secure Hardware Destruction Procedures</h2>
+        <p>
+            When hardware reaches end-of-life or after a high-risk operation, proper destruction is critical. Throwing devices in trash or "factory reset" leaves recoverable data.
+        </p>
+
+        <div class="terminal-warning not-prose">
+            <div class="terminal-warning-header">
+                <i data-lucide="alert-circle" class="terminal-warning-icon"></i>
+                <h3 class="terminal-warning-title">Hardware Destruction Methods</h3>
+            </div>
+            <div class="terminal-warning-content">
+                <p><strong>HDDs (Magnetic Drives):</strong></p>
+                <ul>
+                    <li>Software: <code>shred -vfz -n 7 /dev/sdX</code> (7-pass overwrite)</li>
+                    <li>Degaussing: Powerful magnet destroys magnetic domains (renders drive permanently dead)</li>
+                    <li>Physical: Drill 3+ holes through platters, disassemble and shatter platters with hammer</li>
+                </ul>
+
+                <p class="mt-3"><strong>SSDs (Flash Storage):</strong></p>
+                <ul>
+                    <li>ATA Secure Erase: <code>hdparm --user-master u --security-erase password /dev/sdX</code> (factory-level wipe)</li>
+                    <li>Physical: Drill through NAND chips (multiple holes), crush controller chips</li>
+                    <li>Thermite: Extreme method - chemical reaction melts electronics into slag (outdoor use only, dangerous)</li>
+                </ul>
+
+                <p class="mt-3"><strong>Phones/Tablets:</strong></p>
+                <ul>
+                    <li>Remove battery, drill through logic board</li>
+                    <li>Crush NAND storage chips with vise/hammer</li>
+                    <li>Submerge logic board in acid (battery acid, muriatic acid - corrosive, wear protection)</li>
+                </ul>
+
+                <p class="mt-3"><strong>DVDs/CDs:</strong></p>
+                <ul>
+                    <li>Microwave for 5 seconds (sparks destroy reflective layer - ventilated area, fire risk)</li>
+                    <li>Shred with cross-cut shredder (particles < 2mm)</li>
+                    <li>Scratch surface with sandpaper, then burn</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>Final Thoughts on Hardware Security</h2>
+        <p>
+            Software security is meaningless if your hardware is compromised at the factory, interdicted during shipping, or tampered with while you sleep. Hardware is the foundation. Everything else is built on trust in that foundation.
+        </p>
+
+        <blockquote>
+            "You can have the most secure software in the world, but if your hardware is compromised, you have nothing. The firmware, the microcode, the embedded controllers, all of these operate below the operating system and are invisible to security tools. Hardware is where trust begins or ends."
+            <br>Bruce Schneier
+        </blockquote>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="shield-check" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Key Takeaways</h3>
+            </div>
+            <ul class="terminal-success-content">
+                <li>Disposable hardware eliminates forensic persistence. Use once, destroy completely.</li>
+                <li>RAM-only operating systems (Tails on DVD) provide mathematically verifiable clean boot every time.</li>
+                <li>DVD drives matter: read-only optical media cannot be infected by firmware attacks.</li>
+                <li>Sector-level disk manipulation hides encrypted volumes behind false partition tables.</li>
+                <li>OTG kits must be lightweight, untraceable, and capable of full operations in hostile environments.</li>
+                <li>Hardware destruction is not optional. Degauss, drill, shred, burn, document.</li>
+            </ul>
+        </div>
+
+        <p>
+            Start at your threat level. Build slowly. Test thoroughly. When your freedom or life depends on operational security, hardware is not negotiable. It is survival infrastructure.
+        </p>
+
+    </article>
+
+<div class="flex justify-between mt-12 pt-6 border-t border-shell-border">
+    <a href="#/posts/1.OpSec_101/part3.html" class="text-shell-accent hover:underline">← Part 3: OpSec Pre-Flight Checklist</a>
+    <a href="#/posts/2.Operating_Systems/readfirst.html" class="text-shell-accent hover:underline">Next: Circle 3 - Hardware Security →</a>
+</div>
+</body>
+</html>

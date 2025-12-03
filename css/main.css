@@ -1,0 +1,300 @@
+/* ANONSHELL MASTER STYLESHEET 
+    Path: /css/main.css
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
+
+/* --- BASE SETTINGS --- */
+body {
+    font-family: 'JetBrains Mono', monospace;
+    background-color: #0a0a0a;
+    color: #c9d1d9;
+    overflow: hidden;
+}
+
+/* --- SCROLLBARS --- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #111; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #00ff9d; }
+
+/* --- EFFECTS --- */
+.scanlines {
+    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+    background-size: 100% 4px;
+    position: fixed;
+    pointer-events: none;
+    top: 0; right: 0; bottom: 0; left: 0;
+    z-index: 50;
+    opacity: 0.15;
+}
+
+.cursor-blink {
+    display: inline-block;
+    width: 10px;
+    height: 1.2em;
+    background-color: #00ff9d;
+    animation: blink 1s step-end infinite;
+    vertical-align: text-bottom;
+}
+
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* --- PROSE OVERRIDES --- */
+.prose h1 { font-size: 2rem; color: #fff; margin-bottom: 1rem; border-bottom: 1px solid #333; padding-bottom: 0.5rem; }
+.prose h2 { font-size: 1.5rem; color: #00ff9d; margin-top: 2rem; margin-bottom: 1rem; }
+.prose h3 { font-size: 1.25rem; color: #fff; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+
+/* Adjusted font size for text content */
+.prose p { 
+    margin-bottom: 1.5rem; 
+    line-height: 1.7; 
+    color: #a1a1aa; 
+    font-size: 0.925rem; /* Smaller text */
+}
+
+.prose ul { 
+    list-style-type: disc; 
+    padding-left: 1.5rem; 
+    margin-bottom: 1.5rem; 
+    font-size: 0.925rem; /* Smaller text */
+}
+
+/* Inline code only (not in pre blocks) - green accent */
+.prose :not(pre) > code { background: #222; padding: 0.2rem 0.4rem; border-radius: 4px; color: #00ff9d; font-size: 0.9em; }
+/* Code blocks */
+.prose pre { background: #111; border: 1px solid #333; border-radius: 6px; overflow-x: auto; margin-bottom: 1.5rem; position: relative; padding: 0 !important; }
+.prose pre code { background: transparent; display: block; padding: 2.2rem 1rem 1rem !important; }
+.prose a { color: #00ff9d; text-decoration: underline; text-underline-offset: 4px; }
+.prose a:hover { color: #fff; }
+.prose blockquote { border-left: 4px solid #00ff9d; padding-left: 1rem; margin-left: 0; font-style: italic; color: #777; }
+.prose img { max-width: 100%; border: 1px solid #333; border-radius: 4px; margin: 1rem 0; }
+
+/* --- TABLES --- */
+/* Ultra-specific overrides to beat Tailwind prose defaults */
+.prose table,
+.prose-invert table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 0.85rem !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    text-align: left !important;
+}
+
+.prose table thead tr,
+.prose-invert table thead tr {
+    background-color: #111 !important;
+    border-bottom-width: 0 !important;
+}
+
+.prose table th,
+.prose-invert table th {
+    text-align: left !important;
+    padding: 0.5rem 0.75rem !important;
+    border-bottom: 1px solid #333 !important;
+    color: #00ff9d !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.04em !important;
+    background-color: transparent !important;
+}
+
+.prose table td,
+.prose-invert table td {
+    padding: 0.5rem 0.75rem !important;
+    border-bottom: 1px solid #222 !important;
+    color: #c9d1d9 !important;
+}
+
+.prose table tbody tr,
+.prose-invert table tbody tr {
+    border-bottom-width: 0 !important;
+}
+
+.prose table tbody tr:last-child td,
+.prose-invert table tbody tr:last-child td {
+    border-bottom: none !important;
+}
+
+/* --- UNIFIED TERMINAL ALERT BOXES --- */
+/* 1. Shared Layout Structure (Applies to ALL types) */
+.terminal-alert, .terminal-info, .terminal-warning, .terminal-success {
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    /* Fixed borders to ensure visibility */
+    border: 1px solid;
+    border-left-width: 4px;
+}
+
+/* 2. Shared Header Layout */
+.terminal-alert-header, .terminal-info-header, .terminal-warning-header, .terminal-success-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+/* 3. Shared Icon Sizing */
+.terminal-alert-icon, .terminal-info-icon, .terminal-warning-icon, .terminal-success-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+/* 4. Shared Title Styles (Overrides Prose) */
+.terminal-alert h3.terminal-alert-title, 
+.terminal-info h3.terminal-info-title,
+.terminal-warning h3.terminal-warning-title,
+.terminal-success h3.terminal-success-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 !important;
+    line-height: 1 !important;
+    padding: 0 !important;
+}
+
+/* 5. Shared Content Styles (Overrides Prose) */
+.terminal-alert p.terminal-alert-content, 
+.terminal-info p.terminal-info-content,
+.terminal-warning p.terminal-warning-content,
+.terminal-success p.terminal-success-content {
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1.4;
+    padding-left: 0; 
+}
+
+.terminal-alert .terminal-alert-content,
+.terminal-info .terminal-info-content,
+.terminal-warning .terminal-warning-content,
+.terminal-success .terminal-success-content {
+    margin: 0 !important;
+    padding: 0 0 0 1.5rem !important;
+    list-style: disc;
+}
+
+.terminal-alert .terminal-alert-content li + li,
+.terminal-info .terminal-info-content li + li,
+.terminal-warning .terminal-warning-content li + li,
+.terminal-success .terminal-success-content li + li {
+    margin-top: 0.5rem;
+}
+
+/* --- COLOR THEMES (UNIFORM OPACITY FOR RELIABILITY) --- */
+
+/* RED (Critical) - BASELINE FOR RELIABILITY */
+.terminal-alert {
+    background-color: rgba(100, 10, 10, 0.6); /* UNIFORM OPACITY */
+    border-color: #7f1d1d;
+    border-left-color: #ef4444;
+}
+.terminal-alert .terminal-alert-icon, 
+.terminal-alert h3.terminal-alert-title { color: #ef4444; }
+.terminal-alert p.terminal-alert-content { color: #fca5a5; }
+
+/* BLUE (Info) - UNIFORM OPACITY */
+.terminal-info {
+    background-color: rgba(100, 120, 200, 0.6); /* UNIFORM OPACITY */
+    border-color: #4f46e5;
+    border-left-color: #93c5fd; 
+}
+.terminal-info .terminal-info-icon, 
+.terminal-info h3.terminal-info-title { color: #93c5fd; }
+.terminal-info p.terminal-info-content { color: #bfdbfe; }
+
+/* YELLOW (Warning) - UNIFORM OPACITY */
+.terminal-warning {
+    background-color: rgba(150, 120, 40, 0.6); /* UNIFORM OPACITY */
+    border-color: #d97706;
+    border-left-color: #fcd34d; 
+}
+.terminal-warning .terminal-warning-icon, 
+.terminal-warning h3.terminal-warning-title { color: #fcd34d; }
+.terminal-warning p.terminal-warning-content { color: #fef08a; }
+
+/* GREEN (Success) - UNIFORM OPACITY */
+.terminal-success {
+    background-color: rgba(40, 120, 40, 0.6); /* UNIFORM OPACITY */
+    border-color: #16a34a;
+    border-left-color: #86efac; 
+}
+.terminal-success .terminal-success-icon, 
+.terminal-success h3.terminal-success-title { color: #86efac; }
+.terminal-success p.terminal-success-content { color: #bbf7d0; }
+
+
+/* --- CODE BLOCK LANGUAGE LABELS & COPY --- */
+.prose pre[data-lang] {
+    padding-top: 0;
+}
+
+.prose pre[data-lang] code {
+    padding-top: calc(1rem + 2.5rem);
+}
+
+.prose pre[data-lang]::before {
+    content: attr(data-lang); 
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2rem;
+    background: #222; 
+    border-bottom: 1px solid #333;
+    color: #00ff9d; 
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    text-transform: uppercase;
+}
+
+.copy-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 2rem;
+    background: transparent;
+    border: none;
+    border-left: 1px solid #333;
+    color: #a1a1aa;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    padding: 0 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, background-color 0.2s;
+    border-top-right-radius: 6px;
+    z-index: 10;
+}
+
+.copy-btn:hover {
+    background-color: #333;
+    color: #fff;
+}
+
+.copy-btn.copied {
+    color: #00ff9d;
+    background-color: rgba(0, 255, 157, 0.1);
+}
+
+/* --- ANIMATIONS --- */
+@keyframes bounce-left { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-25%); } }
+.animate-bounce-left { animation: bounce-left 1s infinite; }
+
+/* --- LOADER --- */
+.loader { border: 2px solid #333; border-top: 2px solid #00ff9d; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }

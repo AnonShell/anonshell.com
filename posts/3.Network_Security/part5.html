@@ -1,0 +1,888 @@
+<h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+    <span class="text-gray-500">#</span> 5. NIDS, HIDS, IDS/IPS Systems
+</h1>
+
+<div class="terminal-alert not-prose">
+    <div class="terminal-alert-header">
+        <i data-lucide="shield-alert" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Prerequisites</h3>
+    </div>
+    <p class="terminal-alert-content">
+        Complete Parts 1-4 (VPN, Tor, Network Segmentation, and Secure Remote Access) before this guide. You should have a segmented network with hardened access controls. This guide covers detection systems that identify intrusions in real-time.
+    </p>
+</div>
+
+<h2>Defense in Depth: Detection Layer</h2>
+
+<p>Prevention fails. Hardened systems get compromised through zero-days, social engineering, and supply chain attacks. Detection is your second line of defense: catching intrusions early, before lateral movement and data exfiltration.</p>
+
+<p><strong>What Intrusion Detection Systems (IDS) catch:</strong></p>
+<ul>
+    <li>Network anomalies (port scans, unusual traffic patterns)</li>
+    <li>Malware communication (C2 beacons, data exfiltration)</li>
+    <li>Exploitation attempts (buffer overflows, SQL injection)</li>
+    <li>File integrity violations (backdoors, rootkits)</li>
+    <li>Suspicious process execution and privilege escalation</li>
+</ul>
+
+<h2>IDS Types Overview</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Type</th>
+            <th>Location</th>
+            <th>What It Monitors</th>
+            <th>Detection Method</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>NIDS</strong></td>
+            <td>Network</td>
+            <td>Network traffic, packets, protocols</td>
+            <td>Signatures, anomalies, behavioral analysis</td>
+        </tr>
+        <tr>
+            <td><strong>HIDS</strong></td>
+            <td>Host</td>
+            <td>Files, logs, processes, system calls</td>
+            <td>File integrity, log analysis, rootkit detection</td>
+        </tr>
+        <tr>
+            <td><strong>IDS</strong></td>
+            <td>Both</td>
+            <td>Detects and alerts only</td>
+            <td>Passive monitoring</td>
+        </tr>
+        <tr>
+            <td><strong>IPS</strong></td>
+            <td>Both</td>
+            <td>Detects and blocks/prevents</td>
+            <td>Active response, inline blocking</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="terminal-info not-prose">
+    <div class="terminal-info-header">
+        <i data-lucide="info" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">IDS vs IPS</h3>
+    </div>
+    <p class="terminal-info-content">
+        <strong>IDS (Intrusion Detection System):</strong> Monitors and alerts on suspicious activity. Passive, out-of-band. No risk of blocking legitimate traffic.<br><br>
+        <strong>IPS (Intrusion Prevention System):</strong> Monitors and blocks malicious activity. Active, inline. Can block attacks but risks false positives disrupting services.
+    </p>
+</div>
+
+<h2>Network Intrusion Detection System (NIDS): Suricata</h2>
+
+<p>Suricata is a network-based IDS/IPS (Intrusion Detection System / Intrusion Prevention System) that inspects traffic for malicious patterns using signature-based and behavioral analysis.</p>
+
+<h3>Installation</h3>
+
+<p>Installing Suricata establishes the foundation for network-based intrusion detection by deploying the analysis engine that will continuously monitor network traffic for malicious patterns, exploits, malware communication, and suspicious behavior. This installation includes both the core Suricata engine which performs the actual packet inspection and signature matching, and the suricata-update utility which automates the process of downloading and installing the latest threat intelligence signatures from security researchers worldwide. The installation must be followed by enabling the service to start automatically on boot, because an IDS that isn't running leaves you blind to network-level attacks happening in real-time, and attackers often time their intrusions during system reboots or maintenance windows when they assume monitoring might be disabled. With Suricata installed and set to auto-start, you ensure continuous monitoring even after power failures or system updates, maintaining your security posture without manual intervention.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Update package lists to get latest repository information
+# Ensures we install the most current stable version with security patches
+sudo apt update
+
+# Install Suricata IDS/IPS engine and rule updater
+# suricata = The core intrusion detection system engine
+# suricata-update = Automatic threat signature updater (downloads rules from ET Open, OISF, etc.)
+# Why: Suricata analyzes network packets against threat signatures in real-time
+# Use when: You need network-based intrusion detection to catch malware, exploits, C2 traffic
+sudo apt install suricata suricata-update
+
+# Verify installation and check version
+# Shows Suricata version and build info (features compiled in)
+# Expected output: "This is Suricata version 7.x"
+# Warning: Versions below 6.x lack modern threat detection capabilities
+suricata --version
+
+# Enable Suricata to start automatically on system boot
+# Ensures your IDS is always active, even after power loss or reboot
+# Why: A stopped IDS means blind spots where attacks go undetected
+sudo systemctl enable suricata</code></pre>
+
+<h3>Configuration</h3>
+
+<p>Configuring Suricata correctly is essential for effective threat detection because the default configuration is designed for generic networks and won't match your specific network topology, traffic patterns, or security requirements. This configuration step defines which network interfaces Suricata should monitor (typically both your external internet-facing interface and internal LAN interfaces), sets your HOME_NET variable to identify which IP ranges are part of your trusted internal network versus external potentially hostile networks, and tunes the detection engine's performance profile to balance between detection accuracy and system resource consumption. Proper configuration ensures Suricata knows what "normal" looks like for your network so it can accurately distinguish between legitimate traffic and malicious activity, prevents false positives from trusted internal services being flagged as threats, and optimizes performance so the IDS can keep up with your network's traffic volume without dropping packets or creating a bottleneck that impacts your internet speed.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Edit main config
+sudo vi /etc/suricata/suricata.yaml</code></pre>
+
+<pre data-lang="yaml"><code class="language-yaml"># Network interfaces to monitor
+af-packet:
+  - interface: eth0  # External interface
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+  - interface: eth1  # Internal interface (monitor LAN traffic)
+    cluster-id: 98
+    cluster-type: cluster_flow
+
+# Home networks (adjust to your subnets)
+vars:
+  address-groups:
+    HOME_NET: "[192.168.10.0/24,192.168.30.0/24,192.168.40.0/24]"
+    EXTERNAL_NET: "!$HOME_NET"
+  port-groups:
+    HTTP_PORTS: "80"
+    SHELLCODE_PORTS: "!80"
+    ORACLE_PORTS: "1521"
+    SSH_PORTS: "22,42022"  # Include custom SSH port
+
+# Logging
+outputs:
+  - fast:
+      enabled: yes
+      filename: fast.log
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: eve.json
+      types:
+        - alert
+        - http
+        - dns
+        - tls
+        - files
+        - ssh
+
+# Performance
+detect-engine:
+  - profile: medium
+  - custom-values:
+      toclient-groups: 3
+      toserver-groups: 25</code></pre>
+
+<h3>Update Rulesets</h3>
+
+<p>Updating Suricata's threat detection rulesets is the critical step that transforms the IDS engine from an empty analysis framework into an actively defending security tool armed with current threat intelligence. Each ruleset update downloads thousands of signatures created by security researchers who analyze the latest malware, exploits, ransomware, command-and-control communication patterns, and attack techniques seen in the wild, giving your IDS the knowledge it needs to recognize these threats when they appear on your network. The threat landscape evolves continuously with new attack variants released daily, so running with outdated signatures is like having a security guard who only knows about last year's criminals but can't recognize today's threats walking right past them. By running suricata-update and enabling comprehensive rulesets like Emerging Threats Open, you equip your IDS with up-to-date detection capabilities covering tens of thousands of known threats, and setting up daily automated updates ensures this protection stays current without manual intervention, closing the window of vulnerability between when new threats emerge and when your defenses can detect them.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Download and install latest threat signatures from enabled sources
+# Fetches new rules for ransomware, malware, exploits, C2 communication patterns
+# Expected output: "Downloaded rules from X sources, loaded Y rules"
+# Why: Threat landscape changes daily - old signatures miss new attacks
+# Use when: Run daily via cron for continuous protection
+# Warning: First run takes 2-5 minutes downloading rule archives
+sudo suricata-update
+
+# List all available rule sources (community and commercial)
+# Shows: Source name, description, URL, license type
+# et/open = Emerging Threats Open (free community rules)
+# oisf/trafficid = OISF traffic identification rules
+# tgreen/hunting = Threat hunting signatures by Travis Green
+# Why: Different sources specialize in different threat types
+sudo suricata-update list-sources
+
+# Enable Emerging Threats Open ruleset (30,000+ signatures)
+# Covers: Exploits, malware, botnet C2, ransomware, lateral movement
+# Expected output: "Enabled source et/open"
+# Why: ET Open is the most comprehensive free IDS ruleset available
+# Use when: Always - this is your baseline protection
+sudo suricata-update enable-source et/open
+
+# Enable OISF Traffic ID rules (protocol and application detection)
+# Detects: TOR, cryptocurrency mining, P2P, VPN tunnels, anonymizers
+# Why: Identifies traffic types even when encrypted or obfuscated
+# Use when: You need visibility into what protocols traverse your network
+sudo suricata-update enable-source oisf/trafficid
+
+# Enable threat hunting signatures (advanced persistent threats)
+# Focuses on: APT indicators, nation-state malware, advanced evasion techniques
+# Why: Catches sophisticated attacks that basic rules miss
+# Use when: High-value networks facing targeted attacks
+sudo suricata-update enable-source tgreen/hunting
+
+# Re-run update to download newly enabled sources
+# Merges all enabled rulesets into /var/lib/suricata/rules/suricata.rules
+# Expected output: "Merged X rules from Y sources"
+sudo suricata-update
+
+# List installed rule files to verify successful download
+# Should show: suricata.rules (merged), classification.config, reference.config
+# Warning: Empty directory means update failed - check network/DNS
+sudo ls /var/lib/suricata/rules/</code></pre>
+
+<h3>Start Suricata</h3>
+
+<p>With Suricata installed, configured, and armed with updated threat signatures, we now activate the IDS service to begin live traffic analysis, transforming it from a configured tool into an active security monitor continuously scanning network packets against the loaded rulesets and generating real-time alerts when threats are detected.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Start Suricata IDS service
+# Begins capturing and analyzing network traffic on configured interfaces
+# Expected output: None (silent success)
+# Why: Suricata must be running to detect threats
+# Warning: High CPU usage normal during startup (loading 30k+ signatures into memory)
+sudo systemctl start suricata
+
+# Check Suricata service status and recent logs
+# Shows: Active/inactive state, PID, memory usage, recent log entries
+# Expected output: "active (running)" in green
+# Why: Verifies IDS is actually running and capturing traffic
+# Troubleshooting: If failed, check systemctl status output for errors
+sudo systemctl status suricata
+
+# Test configuration file for syntax errors WITHOUT starting service
+# -T = Test mode (validates config and exits)
+# -c = Path to configuration file
+# Expected output: "Configuration provided was successfully loaded. Exiting."
+# Why: Catches config mistakes before they cause service failures
+# Use when: After editing suricata.yaml or adding custom rules
+# Warning: Does NOT validate rule syntax - only config file structure
+sudo suricata -T -c /etc/suricata/suricata.yaml
+
+# Monitor fast.log in real-time (simplified alert format)
+# Shows: Timestamp, alert name, source IP, destination IP, protocol
+# Format: [timestamp] [alert_name] {protocol} src_ip:port -> dst_ip:port
+# Why: Quick overview of what attacks are being detected
+# Use when: Testing detection or investigating active attacks
+# Tip: Add | grep "Priority: 1" to see only critical alerts
+sudo tail -f /var/log/suricata/fast.log
+
+# View eve.json in real-time with pretty-printing
+# eve.json = Full structured logs with metadata (JSON format)
+# jq = JSON processor that formats and colorizes output
+# Shows: Alert details, packet payloads, DNS queries, TLS handshakes, file transfers
+# Why: Provides complete context for investigation and forensics
+# Use when: Investigating specific alerts or hunting for threats
+# Tip: Add | jq 'select(.event_type=="alert")' to see only alerts
+sudo tail -f /var/log/suricata/eve.json | jq .</code></pre>
+
+<h3>Testing Suricata Detection</h3>
+
+<p>Before trusting Suricata to protect your network, we verify the entire detection pipeline works end-to-end by triggering known harmless test signatures and confirming alerts appear in logs, ensuring traffic is being captured, analyzed against rules, and logged correctly before relying on it for real threat detection.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Trigger harmless test alert to verify Suricata is working
+# This URL contains a known test signature that triggers IDS without being malicious
+# Expected output: HTTP response with test page content
+# Why: Confirms Suricata is capturing traffic and matching signatures
+# Use when: After installation or config changes to verify functionality
+# Warning: Must run from a machine ON the monitored network segment
+curl http://testmynids.org/uid/index.html
+
+# Check if test alert was logged
+# Should show: "GPL ATTACK_RESPONSE id check returned root" alert
+# Format: [timestamp] [GPL ATTACK_RESPONSE...] {TCP} your_ip:port -> testmynids_ip:80
+# Why: Confirms end-to-end detection pipeline works (capture -> analyze -> alert -> log)
+# Troubleshooting: If no alert appears within 5 seconds, check interface config
+# Note: GPL = Older Snort-compatible rule format, still supported for compatibility
+sudo tail /var/log/suricata/fast.log
+
+# Test SSH brute-force detection (requires actual failed login attempts)
+# From external machine: Run failed SSH logins repeatedly
+# Example attack simulation: for i in {1..10}; do ssh baduser@target_ip; done
+# Expected alerts: "ET SCAN Potential SSH Scan" or "ET POLICY SSH Login Failed"
+# Why: Verifies Suricata detects common real-world attack patterns
+# Use when: Testing behavioral detection (not just signature matching)
+# Warning: May trigger automated IP blocking if active response configured
+# Note: Suricata sees PATTERNS, not individual packets - multiple failures = alert</code></pre>
+
+<h3>Custom Suricata Rules</h3>
+
+<p>Beyond community threat signatures, creating custom Suricata rules allows you to define detection logic specific to your network architecture and threat model, such as alerting when IoT devices attempt unauthorized access to trusted VLANs or detecting unusual outbound connections that might indicate command-and-control communication unique to your environment.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Create custom rules file
+sudo vi /etc/suricata/rules/local.rules</code></pre>
+
+<pre data-lang="yaml"><code class="language-yaml"># Alert on Tor exit node connections
+alert ip any any -> $HOME_NET any (msg:"Tor Exit Node Connection"; geoip:TOR; sid:1000001; rev:1;)
+
+# Alert on IoT attempting to access trusted VLAN
+alert ip 192.168.30.0/24 any -> 192.168.10.0/24 any (msg:"IoT to Trusted VLAN Attempt"; sid:1000002; rev:1;)
+
+# Alert on uncommon outbound ports (potential C2)
+alert tcp $HOME_NET any -> $EXTERNAL_NET !$HTTP_PORTS (msg:"Uncommon Outbound Port"; threshold:type limit, track by_src, count 1, seconds 60; sid:1000003; rev:1;)
+
+# Alert on DNS tunneling attempts
+alert dns any any -> any any (msg:"Possible DNS Tunneling"; dns_query; content:"long"; bsize:>50; sid:1000004; rev:1;)
+
+# Alert on cryptocurrency mining pool connections
+alert tcp $HOME_NET any -> $EXTERNAL_NET any (msg:"Cryptocurrency Mining Pool"; content:"stratum+tcp"; sid:1000005; rev:1;)</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Enable local rules in suricata.yaml
+sudo vi /etc/suricata/suricata.yaml</code></pre>
+
+<pre data-lang="yaml"><code class="language-yaml">rule-files:
+  - suricata.rules
+  - /etc/suricata/rules/local.rules</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Reload Suricata rules without restarting service (zero downtime)
+# kill -USR2 = Send USR2 signal (user-defined signal for reload)
+# $(pidof suricata) = Gets PID of running Suricata process
+# Expected output: None (silent success), logs show "Reloading rules"
+# Why: Restarting drops packets during startup - reload keeps capturing
+# Use when: After adding custom rules or updating signatures
+# Warning: Takes 5-30 seconds for large rulesets - alerts paused during reload
+# Tip: Check suricata.log to confirm successful reload completion
+sudo kill -USR2 $(pidof suricata)
+
+# Alternative: Full service restart (brief traffic analysis interruption)
+# Stops Suricata, clears memory, reloads config and rules, restarts capture
+# Expected output: Service stop/start messages
+# Why: Required after changing suricata.yaml settings (not just rules)
+# Use when: Changed interfaces, HOME_NET, or other core configuration
+# Warning: Drops 5-10 seconds of traffic during restart window
+sudo systemctl restart suricata</code></pre>
+
+<h2>Host Intrusion Detection System (HIDS): OSSEC/Wazuh</h2>
+
+<p>Wazuh is an open-source HIDS (Host-based Intrusion Detection System), a fork of OSSEC, that monitors file integrity, detects rootkits, analyzes logs, and responds to threats.</p>
+
+<h3>Installation (Wazuh Agent)</h3>
+
+<p>Installing the Wazuh agent brings host-based intrusion detection capabilities to your system, complementing network-level monitoring by watching for threats that originate from within the host itself such as unauthorized file modifications, rootkit installations, suspicious log patterns, and privilege escalation attempts. The installation process involves adding Wazuh's official repository with GPG verification to ensure package authenticity, then installing the agent software which includes the file integrity monitoring engine, log analysis modules, rootkit detection scanners, and the client that can communicate with a central Wazuh manager for enterprise deployments. Wazuh can operate in standalone mode where alerts are logged locally, or in managed mode where multiple agents report to a central manager for correlation analysis across your entire infrastructure, allowing you to detect coordinated attacks that target multiple systems simultaneously. This installation provides the foundation for continuous monitoring of system integrity and behavior at the operating system level, catching threats that network-based detection might miss.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Import Wazuh GPG signing key and add to system keyring
+# curl -s = Download key silently (no progress bar)
+# gpg --import = Import key into temporary keyring at /usr/share/keyrings/
+# chmod 644 = Make keyring readable by APT package manager
+# Expected output: "gpg: key XXX: public key imported"
+# Why: Verifies package authenticity - prevents malicious package injection
+# Security: GPG keys authenticate that packages come from Wazuh, not attackers
+curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
+
+# Add Wazuh repository to APT sources
+# signed-by = Specifies which GPG key validates packages from this repo
+# deb [...] stable main = Use stable release channel, main component
+# tee -a = Append to file (creates if doesn't exist)
+# Why: Enables installing Wazuh via apt instead of manual downloads
+# Note: 4.x = Major version - stays on this branch for stability
+echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" | sudo tee -a /etc/apt/sources.list.d/wazuh.list
+
+# Update package lists to include Wazuh repository
+# Fetches package metadata from newly added Wazuh repo
+# Expected output: "Fetched X kB in Ys" with no errors
+# Troubleshooting: If GPG errors appear, re-import key with correct permissions
+sudo apt update
+
+# Install Wazuh agent (HIDS daemon and libraries)
+# Installs: ossec daemon, log analyzers, rootkit detection, FIM engine
+# Expected output: "Setting up wazuh-agent..."
+# Why: Provides host-based intrusion detection monitoring local files and logs
+# Note: Can run standalone or connect to central Wazuh manager for aggregation
+sudo apt install wazuh-agent
+
+# Edit main Wazuh configuration (if using central manager)
+# For standalone mode: Skip this step
+# For managed mode: Set &lt;address&gt; tag to Wazuh manager IP
+# Example: &lt;address&gt;192.168.10.50&lt;/address&gt;
+# Why: Agents send alerts to manager for centralized correlation and dashboards
+# Use when: Multi-host deployment with central monitoring server
+sudo vi /var/ossec/etc/ossec.conf</code></pre>
+
+<h3>Configuration</h3>
+
+<p>Configuring Wazuh properly is essential for establishing effective host-based intrusion detection because the default settings are generic templates that won't match your specific system's critical files, important directories, or security requirements. This configuration step defines which directories and files should be monitored for changes through file integrity monitoring (FIM), sets up log analysis rules to detect suspicious patterns in system logs, configures rootkit detection scans to run at regular intervals, and establishes active response rules that can automatically block attacking IP addresses or kill malicious processes. The configuration must balance between comprehensive monitoring that catches all threats and performance impact, because monitoring too many files or analyzing logs too aggressively can consume excessive CPU and disk I/O, while monitoring too little leaves blind spots that attackers can exploit. Proper configuration ensures Wazuh watches your most critical assets, generates alerts for genuinely suspicious activity without overwhelming you with false positives, and can take automated defensive actions to stop attacks in progress.</p>
+
+<pre data-lang="xml"><code class="language-xml">&lt;ossec_config&gt;
+  &lt;!-- File Integrity Monitoring --&gt;
+  &lt;syscheck&gt;
+    &lt;disabled&gt;no&lt;/disabled&gt;
+    &lt;frequency&gt;3600&lt;/frequency&gt;  &lt;!-- Check every hour --&gt;
+    &lt;scan_on_start&gt;yes&lt;/scan_on_start&gt;
+    
+    &lt;!-- Monitor critical system files --&gt;
+    &lt;directories check_all="yes"&gt;/etc,/usr/bin,/usr/sbin&lt;/directories&gt;
+    &lt;directories check_all="yes"&gt;/bin,/sbin,/boot&lt;/directories&gt;
+    
+    &lt;!-- Monitor user home directories --&gt;
+    &lt;directories check_all="yes"&gt;/home&lt;/directories&gt;
+    
+    &lt;!-- Monitor SSH keys --&gt;
+    &lt;directories check_all="yes"&gt;/root/.ssh,/home/*/.ssh&lt;/directories&gt;
+    
+    &lt;!-- Ignore noisy directories --&gt;
+    &lt;ignore&gt;/etc/mtab&lt;/ignore&gt;
+    &lt;ignore&gt;/etc/resolv.conf&lt;/ignore&gt;
+    &lt;ignore&gt;/var/log&lt;/ignore&gt;
+    
+    &lt;!-- Real-time monitoring --&gt;
+    &lt;directories check_all="yes" realtime="yes"&gt;/etc/passwd,/etc/shadow,/etc/sudoers&lt;/directories&gt;
+  &lt;/syscheck&gt;
+  
+  &lt;!-- Rootkit Detection --&gt;
+  &lt;rootcheck&gt;
+    &lt;disabled&gt;no&lt;/disabled&gt;
+    &lt;check_files&gt;yes&lt;/check_files&gt;
+    &lt;check_trojans&gt;yes&lt;/check_trojans&gt;
+    &lt;check_dev&gt;yes&lt;/check_dev&gt;
+    &lt;check_sys&gt;yes&lt;/check_sys&gt;
+    &lt;check_pids&gt;yes&lt;/check_pids&gt;
+    &lt;check_ports&gt;yes&lt;/check_ports&gt;
+    &lt;check_if&gt;yes&lt;/check_if&gt;
+    &lt;frequency&gt;7200&lt;/frequency&gt;  &lt;!-- Every 2 hours --&gt;
+  &lt;/rootcheck&gt;
+  
+  &lt;!-- Log Analysis --&gt;
+  &lt;localfile&gt;
+    &lt;log_format&gt;syslog&lt;/log_format&gt;
+    &lt;location&gt;/var/log/auth.log&lt;/location&gt;
+  &lt;/localfile&gt;
+  
+  &lt;localfile&gt;
+    &lt;log_format&gt;syslog&lt;/log_format&gt;
+    &lt;location&gt;/var/log/syslog&lt;/location&gt;
+  &lt;/localfile&gt;
+  
+  &lt;localfile&gt;
+    &lt;log_format&gt;apache&lt;/log_format&gt;
+    &lt;location&gt;/var/log/nginx/access.log&lt;/location&gt;
+  &lt;/localfile&gt;
+  
+  &lt;!-- Active Response (automatic actions) --&gt;
+  &lt;active-response&gt;
+    &lt;disabled&gt;no&lt;/disabled&gt;
+    &lt;command&gt;firewall-drop&lt;/command&gt;
+    &lt;location&gt;local&lt;/location&gt;
+    &lt;rules_id&gt;5710,5711,5712&lt;/rules_id&gt;  &lt;!-- Repeated failed SSH login --&gt;
+    &lt;timeout&gt;600&lt;/timeout&gt;  &lt;!-- Block for 10 minutes --&gt;
+  &lt;/active-response&gt;
+&lt;/ossec_config&gt;</code></pre>
+
+<h3>Start Wazuh</h3>
+
+<p>After configuring which files and logs to monitor, we activate the Wazuh agent to begin continuous host-based intrusion detection, starting the daemons that watch for file modifications, analyze log patterns, and scan for rootkits, shifting the agent from passive configuration state to active monitoring mode.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Start Wazuh agent daemon
+# Begins file integrity monitoring, log analysis, and rootkit detection
+# Expected output: None (silent success)
+# Why: Agent must be running to detect file changes and analyze logs
+# Warning: First startup takes 2-5 minutes to complete initial file scan
+sudo systemctl start wazuh-agent
+
+# Enable Wazuh to start on system boot
+# Ensures HIDS protection survives reboots
+# Why: Gaps in monitoring = opportunities for undetected compromise
+sudo systemctl enable wazuh-agent
+
+# Check Wazuh service status and recent activity
+# Shows: Running state, PID, memory usage, recent log entries
+# Expected output: "active (running)" with "ossec-agentd: INFO: Started"
+# Troubleshooting: If failed, check /var/ossec/logs/ossec.log for errors
+sudo systemctl status wazuh-agent
+
+# Monitor Wazuh alerts in real-time
+# Shows: File changes, rootkit indicators, log analysis alerts
+# Format: Timestamp, rule ID, alert level, description, affected file/log
+# Why: Confirms Wazuh is analyzing events and generating alerts
+# Use when: Testing detection or investigating suspicious activity
+sudo tail -f /var/ossec/logs/alerts/alerts.log
+
+# Monitor file integrity monitoring specifically
+# grep syscheck = Filter for FIM-related events only
+# Shows: Added, modified, deleted files with checksums and permissions
+# Why: Isolates file change alerts from other event types
+# Use when: Investigating unauthorized file modifications or backdoors
+sudo tail -f /var/ossec/logs/ossec.log | grep syscheck</code></pre>
+
+<h3>Testing Wazuh Detection</h3>
+
+<p>To confirm Wazuh's file integrity monitoring and rootkit detection are functioning correctly, we deliberately trigger detectable events like creating files in monitored directories and running rootcheck scans, verifying that alerts are generated and logged as expected before depending on Wazuh to catch real intrusions.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Test file integrity monitoring by creating file in monitored directory
+# Creates empty file in /etc (monitored by default)
+# Expected alert within 1-2 minutes: "File added" with full path
+# Why: Verifies FIM is scanning directories and detecting changes
+# Use when: Testing Wazuh after installation or config changes
+# Note: Wazuh scans hourly by default - realtime monitoring requires config
+sudo touch /etc/test-alert-file
+
+# Wait 1-2 minutes for scan cycle, then check alerts
+# Should show: Rule 550 (Integrity checksum changed) or 554 (File added)
+# Alert includes: Filename, permissions, ownership, timestamp
+# Troubleshooting: If no alert, check syscheck config in ossec.conf
+sudo tail /var/ossec/logs/alerts/alerts.log
+
+# Test rootkit detection manually (doesn't run on schedule)
+# Checks: Hidden processes, ports, files, kernel modules, suspicious binaries
+# Expected output: Report of rootkit checks performed and findings
+# Why: Detects kernel-level and userland rootkits trying to hide
+# Use when: Suspected compromise or as part of incident response
+# Warning: Can take 5-10 minutes on first run building signature database
+sudo /var/ossec/bin/rootcheck
+
+# View rootcheck scan results
+# Shows: Rootkit indicators found (hopefully none), suspicious files, hidden processes
+# Format: Severity, check type, finding description
+# Why: Rootkits are primary persistence mechanism for advanced attackers
+# Note: Some false positives normal (legitimate hidden files, etc.)
+sudo cat /var/ossec/logs/rootcheck/rootcheck.log
+
+# Test active response (automatic IP blocking)
+# From external machine: Attempt 5+ failed SSH logins within 2 minutes
+# Example: for i in {1..6}; do ssh baduser@target_ip; done
+# Expected behavior: After 5 failures, source IP automatically blocked by firewall
+# Why: Verifies Wazuh can take automated defensive actions, not just alert
+# Check with: sudo ufw status | grep [attacker_ip]
+# Warning: Can lock you out if testing from your own IP - use disposable test machine</code></pre>
+
+<h2>File Integrity Monitoring: AIDE</h2>
+
+<p>AIDE (Advanced Intrusion Detection Environment) creates cryptographic checksums of files and detects modifications.</p>
+
+<h3>Installation and Setup</h3>
+
+<p>Installing AIDE (Advanced Intrusion Detection Environment) establishes a cryptographic baseline of your system's file integrity that serves as a tamper-evident seal across all critical system files, binaries, libraries, and configuration files. AIDE works by calculating multiple cryptographic hashes (MD5, SHA-1, SHA-256, SHA-512) of every monitored file during initial database creation, recording file attributes like permissions, ownership, size, and timestamps, then periodically comparing the current state of these files against the baseline to detect any modifications. This approach catches sophisticated attacks that Wazuh's real-time monitoring might miss if the attacker compromises the monitoring agent itself, because AIDE's database can be stored offline or on read-only media, making it impossible for an attacker to modify without leaving evidence. The installation process creates the initial baseline database, configures which files and directories to monitor, sets up automated daily checks, and establishes alerting for when modifications are detected. Even if an attacker gains root access and tries to hide their modifications, AIDE's cryptographic verification will reveal that system files have been altered, providing forensic evidence of the compromise.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Update package lists
+sudo apt update
+
+# Install AIDE and common configuration templates
+# aide = Core file integrity checker using cryptographic hashes
+# aide-common = Pre-configured rules for common directories
+# Expected output: "Setting up aide" with postinstall messages
+# Why: AIDE creates cryptographic baseline of system files - detects ANY modification
+# Use when: Need cryptographically-verified file integrity (beyond Wazuh's monitoring)
+sudo apt install aide aide-common
+
+# Edit AIDE configuration to customize monitored paths
+# /etc/aide/aide.conf contains rules defining what to monitor and how
+# Format: path + monitoring attributes (R=read, p=permissions, i=inode, etc.)
+# Why: Default config monitors system dirs - add custom paths for your environment
+# Use when: Need to monitor application directories, user files, or custom paths
+sudo vi /etc/aide/aide.conf</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Default rules already include /bin, /sbin, /etc
+# Add additional critical paths:
+
+# Monitor SSH configuration
+/etc/ssh/sshd_config R
+
+# Monitor user SSH keys
+/root/.ssh R
+/home R
+
+# Monitor sudoers
+/etc/sudoers R
+/etc/sudoers.d R
+
+# Monitor system binaries
+/usr/bin R
+/usr/sbin R
+/usr/local/bin R
+
+# Monitor cron jobs
+/etc/cron.d R
+/etc/cron.daily R
+/etc/cron.hourly R
+/var/spool/cron R
+
+# Exclude noisy files
+!/var/log
+!/tmp
+!/proc
+!/sys</code></pre>
+
+<h3>Initialize Database</h3>
+
+<p>The first critical step in using AIDE is creating the initial baseline database that captures the current cryptographic state of all monitored files, establishing the trusted reference point against which all future comparisons will be made to detect unauthorized modifications.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Create initial AIDE database (cryptographic baseline of file system)
+# Calculates: MD5, SHA256, SHA512 checksums for all monitored files
+# Also stores: Permissions, ownership, inode, file size, timestamps
+# Expected output: "AIDE, version X initialized" followed by progress
+# Why: This becomes your "known-good" baseline - all future checks compare against this
+# Use when: Fresh install before exposing to network, or after verified-clean rebuild
+# Warning: Takes 5-30 minutes depending on # of files (100k-1M+ files typical)
+# Critical: Initialize on CLEAN system - if already compromised, backdoors become baseline
+sudo aideinit
+
+# Move newly created database to production location
+# aide.db.new = Just-created baseline (temporary location)
+# aide.db = Production database used for integrity checks
+# Expected output: None (silent move)
+# Why: aideinit creates .new to prevent overwriting existing baseline
+# Security: Backup aide.db to offline read-only media to prevent attacker tampering
+sudo mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+
+# Verify database was created and check size
+# -lh = Long format with human-readable sizes
+# Expected output: aide.db with size 5-20MB (depends on # of files monitored)
+# Why: Empty or tiny database indicates incomplete initialization
+# Troubleshooting: If size < 1MB, check aide.conf for correct paths and re-run aideinit
+sudo ls -lh /var/lib/aide/aide.db</code></pre>
+
+<h3>Check for Changes</h3>
+
+<p>Once the baseline is established, running AIDE checks compares the current state of monitored files against the baseline database, reporting any modifications, additions, or deletions that have occurred since the last check, revealing unauthorized changes that could indicate compromise.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Run integrity check comparing current filesystem against baseline
+# --check = Compare mode (reads aide.db and scans filesystem)
+# Detects: Added files, removed files, modified files, changed permissions/ownership
+# Expected output: "AIDE found differences between database and filesystem" (if changes)
+# Why: Identifies unauthorized modifications that could indicate compromise
+# Use when: Daily via cron, or immediately after suspected intrusion
+# Warning: First run after updates/installs shows EXPECTED changes - review carefully
+sudo aide --check
+
+# Interpreting output:
+# Added files: Shows filename with "added" - NEW files not in baseline
+#   Indicators: Backdoors, webshells, malware dropped on system
+# 
+# Removed files: Shows filename with "removed" - files DELETED since baseline  
+#   Indicators: Attacker covering tracks, removing logs, deleting security tools
+# 
+# Modified files: Shows filename with "changed" + what changed (checksum, perms, etc.)
+#   Indicators: Trojaned binaries, modified configs, tampered logs
+# 
+# Why this matters: Rootkits modify system binaries (/bin/ls, /bin/ps) to hide
+#   AIDE's cryptographic hashing detects even 1-byte changes attackers try to hide
+
+# After verifying changes are legitimate (patches, config updates), update baseline
+# --update = Recalculates checksums and creates new database
+# aide.db.new = New baseline incorporating approved changes
+# Expected output: "AIDE found differences...Writing database" with file counts
+# Why: Keeps baseline current so next check doesn't flag same legitimate changes
+# Warning: ONLY update after verifying changes are legitimate - never auto-update
+sudo aide --update
+
+# Replace old baseline with new one
+# Makes the updated database active for future checks
+# Why: aide --check always uses aide.db, not aide.db.new
+# Security: Keep old aide.db as backup before overwriting, in case update was mistake
+sudo mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db</code></pre>
+
+<h3>Automate AIDE Checks</h3>
+
+<p>Manual AIDE checks are insufficient for continuous protection, so automating daily integrity scans through cron ensures regular verification of file integrity without requiring manual intervention, with email alerts automatically notifying you when modifications are detected.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Create daily cron job
+sudo vi /etc/cron.daily/aide</code></pre>
+
+<pre data-lang="bash"><code class="language-bash">#!/bin/bash
+# Daily AIDE integrity check
+
+AIDE_OUTPUT=$(aide --check 2>&1)
+AIDE_STATUS=$?
+
+if [ $AIDE_STATUS -ne 0 ]; then
+    echo "AIDE Integrity Check Failed on $(hostname)"
+    echo "$AIDE_OUTPUT"
+    echo "$AIDE_OUTPUT" | mail -s "AIDE Alert: $(hostname)" your-email@example.com
+fi</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Make executable
+sudo chmod +x /etc/cron.daily/aide</code></pre>
+
+<h2>System Auditing: Auditd</h2>
+
+<p>Auditd monitors system calls, tracks process execution, and logs security-relevant events.</p>
+
+<h3>Installation</h3>
+
+<p>Installing the Linux Audit Framework (auditd) implements kernel-level system call auditing that provides forensic-quality logging of every security-relevant action occurring on your system, creating an immutable audit trail that even root users cannot easily tamper with when properly configured. Auditd operates at the kernel level intercepting system calls before they're executed, recording detailed information about who executed each command, what files were accessed, which network connections were made, and what system configuration changes occurred, generating logs that are admissible as evidence in legal proceedings because of their cryptographic integrity protection. This level of auditing is essential for detecting and investigating security incidents because it captures the low-level details that application logs miss, such as attackers using system calls directly to bypass logging, privilege escalation through SUID binaries, or lateral movement attempts across your network. The installation configures the audit daemon to start automatically on boot ensuring continuous logging without gaps, and includes audit dispatcher plugins that can forward events to SIEM systems for real-time analysis and correlation across multiple hosts.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Install Linux Audit Framework (auditd) and plugins
+# auditd = Kernel-level system call auditing daemon
+# audispd-plugins = Dispatcher plugins for remote logging, SIEM integration
+# Expected output: "Setting up auditd" with service configuration
+# Why: Auditd monitors ALL system calls - catches privilege escalation, file access, network activity
+# Use when: Need forensic-level logging that can't be disabled even by root (when immutable)
+sudo apt install auditd audispd-plugins
+
+# Enable auditd to start on system boot
+# Ensures audit logging survives reboots without gaps
+# Why: Attack reconstruction requires continuous audit trail - gaps = blind spots
+sudo systemctl enable auditd
+
+# Start auditd service immediately
+# Begins logging system calls according to configured rules
+# Expected output: None (silent success)
+# Warning: Generates HIGH log volume - ensure adequate disk space (/var/log/audit/)
+sudo systemctl start auditd</code></pre>
+
+<h3>Audit Rules</h3>
+
+<p>Configuring audit rules defines exactly which system calls, file accesses, and security events the kernel should log, targeting high-value monitoring areas like authentication files, privileged command execution, and network activity to capture forensic evidence of security-relevant actions without overwhelming the system with excessive logging.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Create audit rules
+sudo vi /etc/audit/rules.d/audit.rules</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Delete all existing rules
+-D
+
+# Buffer size (increase for busy systems)
+-b 8192
+
+# Failure mode (0=silent, 1=printk, 2=panic)
+-f 1
+
+# Audit authentication events
+-w /etc/passwd -p wa -k passwd_changes
+-w /etc/shadow -p wa -k shadow_changes
+-w /etc/group -p wa -k group_changes
+-w /etc/sudoers -p wa -k sudoers_changes
+-w /etc/sudoers.d/ -p wa -k sudoers_changes
+
+# Audit SSH access
+-w /etc/ssh/sshd_config -p wa -k sshd_config
+-w /root/.ssh/ -p wa -k root_ssh_keys
+-w /home/*/.ssh/ -p wa -k user_ssh_keys
+
+# Audit privilege escalation
+-a always,exit -F arch=b64 -S setuid -S setgid -S setreuid -S setregid -k privilege_escalation
+-a always,exit -F arch=b32 -S setuid -S setgid -S setreuid -S setregid -k privilege_escalation
+
+# Audit sudo usage
+-w /usr/bin/sudo -p x -k sudo_execution
+
+# Audit network configuration changes
+-w /etc/network/ -p wa -k network_config
+-w /etc/netplan/ -p wa -k network_config
+-a always,exit -F arch=b64 -S socket -S bind -S connect -k network_connections
+
+# Audit system time changes
+-a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time_change
+-a always,exit -F arch=b64 -S clock_settime -k time_change
+
+# Audit kernel module loading
+-w /sbin/insmod -p x -k kernel_modules
+-w /sbin/rmmod -p x -k kernel_modules
+-w /sbin/modprobe -p x -k kernel_modules
+-a always,exit -F arch=b64 -S init_module -S delete_module -k kernel_modules
+
+# Audit file deletions
+-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -k file_deletion
+
+# Audit process execution
+-a always,exit -F arch=b64 -S execve -k process_execution
+
+# Make configuration immutable (must reboot to change)
+-e 2</code></pre>
+
+<h3>Load Audit Rules</h3>
+
+<p>After defining audit rules in configuration files, we load them into the running kernel to activate the monitoring policies, instructing the audit subsystem to begin capturing the specified system calls and events according to our defined ruleset.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Compile and load audit rules from /etc/audit/rules.d/ directory
+# --load = Parse .rules files and load into kernel audit subsystem
+# Expected output: "Loading rules..." followed by count of loaded rules
+# Why: Transforms human-readable .rules files into kernel audit filters
+# Use when: After creating/modifying audit rules in /etc/audit/rules.d/
+# Note: Rules loaded in alphabetical filename order - use numbered prefixes for precedence
+sudo augenrules --load
+
+# Alternative: Restart auditd service (reloads rules + restarts daemon)
+# Stops audit logging briefly during restart (1-2 second gap)
+# Expected output: Service stop/start messages
+# Why: Required if audit.conf changed (not just rules)
+# Warning: Brief logging gap during restart - prefer augenrules --load when possible
+sudo systemctl restart auditd
+
+# Verify rules are loaded into kernel
+# Shows: All active audit rules in kernel's audit filter list
+# Format: Same as rule files but with rule numbers and loaded order
+# Expected output: 50-100+ lines of active audit rules
+# Why: Confirms rules actually loaded (config syntax errors cause silent failures)
+# Troubleshooting: If empty, check /var/log/audit/audit.log for syntax errors
+sudo auditctl -l
+
+# Check audit system status and statistics  
+# Shows: Enabled status, PID, rule count, event rate, backlog
+# enabled=1 = Audit framework active
+# failure=1 = Printk messages on failure (won't panic system)
+# pid=XXXX = Auditd daemon process ID
+# rate_limit=0 = No rate limiting (logs ALL events)
+# backlog_limit=8192 = Queue size for events (prevents loss during bursts)
+# Why: Verifies audit framework running with correct parameters
+# Warning: If backlog_limit frequently reached, increase buffer or filter rules
+sudo auditctl -s</code></pre>
+
+<h3>Search Audit Logs</h3>
+
+<p>With audit logging active and capturing security events, searching the audit logs efficiently using ausearch allows you to investigate specific incidents, track user actions, identify privilege escalation attempts, and reconstruct attack timelines from the detailed forensic data the audit system has recorded.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Search audit logs by rule key (custom tags defined in rules)
+# -k = Key filter (matches key= tags from audit rules)
+# Shows: All events tagged with "passwd_changes" key
+# Format: Timestamp, record type, success/failure, details
+# Expected output: SYSCALL records showing who changed /etc/passwd and when
+# Why: Keys let you categorize events - "passwd_changes", "sudo_execution", etc.
+# Use when: Investigating specific event categories without parsing entire log
+sudo ausearch -k passwd_changes
+
+# Search audit logs by user ID or username
+# -ua = User account filter (effective user that performed action)
+# Shows: ALL system calls made by specified user
+# Expected output: Every file access, network connection, process execution by user
+# Why: Tracks user activity for insider threat detection or compromise investigation
+# Use when: Investigating suspicious user behavior or post-incident forensics
+# Tip: Combine with -ts to limit time range: -ua username -ts today
+sudo ausearch -ua username
+
+# Search audit logs by process ID
+# -p = Process ID filter
+# Shows: All system calls made by specific process
+# Expected output: Complete activity timeline for single process
+# Why: Traces what a suspicious process did during its lifetime
+# Use when: Analyzing malware behavior or investigating specific process
+# Tip: Get PID from ps aux, then trace its full activity with ausearch
+sudo ausearch -p 1234
+
+# Search audit logs by system call name
+# -sc = Syscall filter (kernel system call name)
+# Shows: All execve calls (every program executed on system)
+# Expected output: Command execution audit trail with args, user, timestamp
+# Why: Tracks WHAT commands were run - critical for compromise reconstruction
+# Use when: Looking for suspicious command execution or persistence mechanisms
+# Tip: -sc execve shows every command - combine with grep for specific binaries
+sudo ausearch -sc execve
+
+# Search for failed login/authentication attempts
+# -m = Message type filter (USER_LOGIN = authentication events)
+# --success no = Only failed attempts
+# Expected output: Failed logins with username, source IP, timestamp
+# Why: Identifies brute-force attacks or compromised credentials
+# Use when: Investigating authentication anomalies or intrusion attempts
+sudo ausearch -m USER_LOGIN --success no
+
+# Search recent events (last 10 minutes)
+# -ts recent = Timestamp filter for last 10 minutes
+# Expected output: All audit events from last 10 minutes
+# Why: Quick check for recent suspicious activity
+# Use when: Real-time investigation or checking immediate past
+# Tip: Also accepts -ts today, -ts yesterday, -ts "10/15/2025 14:00:00"
+sudo ausearch -ts recent
+
+# Generate summary report of sudo usage
+# aureport -x = Executable report (shows command paths executed)
+# --summary = Aggregate by executable name with counts
+# grep sudo = Filter for sudo-related commands only
+# Expected output: Count of sudo executions per user
+# Why: Identifies privilege escalation patterns and administrative activity
+# Use when: Auditing admin access or detecting unauthorized privilege use
+sudo aureport -x --summary | grep sudo
+
+# Generate summary report of failed authentication attempts
+# aureport -au = Authentication report
+# --failed = Only failed authentication events  
+# --summary = Aggregate by user with failure counts
+# Expected output: Users with failed logins and attempt counts
+# Why: Pinpoints brute-force targets and compromised accounts
+# Use when: Security monitoring or incident response for auth anomalies
+sudo aureport -au --failed --summary</code></pre>
+
+<div class="terminal-success not-prose">
+    <div class="terminal-success-header">
+        <i data-lucide="shield-check" class="terminal-success-icon"></i>
+        <h3 class="terminal-success-title">IDS Stack Complete</h3>
+    </div>
+    <p class="terminal-success-content">
+        You now have multi-layered intrusion detection: network-based (Suricata NIDS), host-based (Wazuh HIDS), file integrity (AIDE), and system call monitoring (Auditd). Part 6 covers security monitoring: log aggregation, analysis, alerting, and incident response.
+    </p>
+</div>
+
+<h2>Next Steps</h2>
+
+<p>Your intrusion detection systems are now deployed and detecting threats. Part 6 covers Security Monitoring: centralized logging, automated alerting, log analysis techniques, incident response procedures, and long-term security monitoring strategies.</p>
+
+<blockquote>
+    "Detection without monitoring is noise. Monitoring without response is theater. Build the full pipeline: detect, aggregate, analyze, alert, respond."
+</blockquote>
+
+<div class="flex justify-between mt-12 pt-6 border-t border-shell-border">
+    <a href="#/posts/3.Network_Security/part4.html" class="text-shell-accent hover:underline">← Part 4: Secure Remote Access</a>
+    <a href="#/posts/3.Network_Security/part6.html" class="text-shell-accent hover:underline">Part 6: Monitoring & Incident Response →</a>
+</div>

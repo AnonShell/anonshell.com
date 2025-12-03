@@ -1,0 +1,1982 @@
+<h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+    <span class="text-gray-500">#</span> 4. Secure Remote Access
+</h1>
+
+<div class="terminal-alert not-prose">
+    <div class="terminal-alert-header">
+        <i data-lucide="shield-alert" class="terminal-alert-icon"></i>
+        <h3 class="terminal-alert-title">Prerequisites</h3>
+    </div>
+    <p class="terminal-alert-content">
+        Complete Parts 1-3 (VPN, Tor, and Network Segmentation) before this guide. You should understand encrypted tunnels, firewall rules, and network isolation. This guide assumes you have a segmented home network or remote servers requiring secure management.
+    </p>
+</div>
+
+<h2>Threat Model: Remote Access</h2>
+
+<p>Remote access is a high-value target. An exposed SSH port receives thousands of brute-force attempts daily. Weak authentication, default ports, and unpatched services create attack vectors. This guide hardens remote access through WireGuard VPN and SSH best practices.</p>
+
+<p><strong>Attack vectors we're defending against:</strong></p>
+<ul>
+    <li>Brute-force password attacks</li>
+    <li>Credential stuffing (reused passwords from breaches)</li>
+    <li>Man-in-the-middle attacks on unencrypted connections</li>
+    <li>Exploitation of vulnerable services (outdated SSH, RDP, VNC)</li>
+    <li>Lateral movement after initial compromise</li>
+</ul>
+
+<h2>WireGuard: Modern VPN for Home Networks</h2>
+
+<p>WireGuard is a modern, lightweight VPN protocol. Unlike OpenVPN or IPsec, WireGuard has a tiny codebase (4,000 lines vs 400,000+ for OpenVPN), making it easier to audit and harder to exploit.</p>
+
+<p><strong>Why WireGuard for remote access:</strong></p>
+<ul>
+    <li>Cryptographically sound (Curve25519, ChaCha20-Poly1305, BLAKE2s)</li>
+    <li>Minimal attack surface (small codebase, no negotiation complexity)</li>
+    <li>Roaming support (seamless switching between networks)</li>
+    <li>Performance (5-10x faster than OpenVPN)</li>
+    <li>Stealth mode (no response to unauthorized connection attempts)</li>
+</ul>
+
+<h3>Use Cases</h3>
+
+<ul>
+    <li>Access home network while traveling</li>
+    <li>Secure connection to segmented trusted VLAN</li>
+    <li>Remote management of servers and IoT devices</li>
+    <li>Encrypted tunnel through untrusted WiFi</li>
+</ul>
+
+<h2>Installing WireGuard</h2>
+
+<h3>Server Installation (Linux)</h3>
+
+<p>Installing WireGuard on your Linux server establishes the foundation for secure remote access by deploying a modern VPN solution that uses state-of-the-art cryptography (Curve25519, ChaCha20, Poly1305) with a minimalist codebase that's easier to audit and harder to exploit than legacy VPN protocols like OpenVPN or IPSec. The installation process includes the WireGuard kernel module which handles packet encryption and tunneling at the kernel level for maximum performance, and the wireguard-tools package providing wg and wg-quick command-line utilities for configuration and management. After installing the software, you must enable IP forwarding in the kernel to allow the server to route packets between the VPN tunnel and your local network, transforming your server into a VPN gateway that can forward traffic from remote clients to internal resources or the internet. This forwarding configuration must be made permanent by adding it to /etc/sysctl.conf because it's critical for VPN functionality and would otherwise reset on reboot, leaving remote users unable to access network resources even though they're connected to the VPN tunnel.</p>
+
+<pre data-lang="bash"><code class="language-bash"># Update package lists from repositories
+sudo apt update
+# Expected output: Package lists downloaded and refreshed
+# Why: Ensures latest package versions available for installation
+
+# Install WireGuard and command-line tools
+# wireguard = kernel module and utilities
+# wireguard-tools = wg and wg-quick management commands
+sudo apt install wireguard wireguard-tools
+# Expected output: ~2MB download, kernel module loaded
+# Why: Provides VPN server/client capabilities with modern encryption
+# Use when: Setting up secure remote access to home network
+# Note: WireGuard is included in Linux kernel 5.6+
+
+# Verify WireGuard installation and check version
+wg --version
+# Expected output: "wireguard-tools v1.0.x"
+# Why: Confirms successful installation
+# Use when: After installation, troubleshooting issues
+# Should show: wireguard-tools v1.0.x
+
+# Enable IPv4 packet forwarding (required for routing traffic)
+# Allows router to forward packets between VPN and LAN
+# -w = write/set value
+sudo sysctl -w net.ipv4.ip_forward=1
+# Expected output: "net.ipv4.ip_forward = 1"
+# Why: Without forwarding, VPN clients can't access LAN or internet
+# Use when: Setting up WireGuard as VPN gateway
+# Note: This change is temporary, resets on reboot
+
+# Enable IPv6 packet forwarding (if using IPv6)
+sudo sysctl -w net.ipv6.conf.all.forwarding=1
+# Expected output: "net.ipv6.conf.all.forwarding = 1"
+# Why: Enables IPv6 routing through VPN tunnel
+# Use when: Network has IPv6 support
+
+# Make packet forwarding permanent (persists across reboots)
+# Appends settings to sysctl configuration file
+echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
+echo "net.ipv6.conf.all.forwarding=1" | sudo tee -a /etc/sysctl.conf
+# Expected output: Settings written to /etc/sysctl.conf
+# Why: Ensures forwarding remains enabled after system restart
+# Use when: After confirming VPN routing works correctly
+# Verify with: sysctl net.ipv4.ip_forward</code></pre>
+
+<h3>Server Installation (pfSense)</h3>
+
+<p>pfSense users can install WireGuard through the integrated package manager, which simplifies deployment on this popular open-source firewall platform by handling dependencies, configuration integration, and web UI components automatically. The pfSense WireGuard package provides a graphical interface for managing tunnels, peers, and firewall rules, making it more accessible than command-line configuration while maintaining the same underlying security and performance characteristics. After installation through the package manager, you must explicitly enable WireGuard in the VPN settings before creating tunnels, which is a safety mechanism ensuring you don't accidentally expose VPN services before proper configuration. pfSense's WireGuard implementation integrates seamlessly with the firewall's rule engine, allowing you to create granular access policies for VPN clients, segment traffic between zones, and monitor VPN connections through the same unified interface you use for all other network security functions.</p>
+
+<pre data-lang="text"><code class="language-text">System → Package Manager → Available Packages
+Search: wireguard
+Install
+
+VPN → WireGuard → Settings
+Enable: ✓</code></pre>
+
+        <h3>Client Installation</h3>
+
+<p>Installing WireGuard on client devices enables secure remote access to your home network from anywhere in the world, allowing you to reach internal resources as if you were physically connected to your local network while protecting your traffic from interception on untrusted networks like public WiFi. Client installation varies by operating system: Linux uses the same packages as the server (WireGuard is peer-to-peer with no architectural client/server distinction), macOS offers both Homebrew command-line tools and an official GUI application from the App Store, Windows requires the official GUI installer with driver signature verification, and mobile platforms (Android/iOS) have official apps that support QR code scanning for easy configuration import. Each platform requires verifying package authenticity through signatures or official app stores because WireGuard clients have privileged system access to intercept all network traffic, making them a prime target for malware authors who want to create backdoored VPN clients that claim to provide security while actually exfiltrating sensitive data. Always install WireGuard from official sources only: the WireGuard website, official app stores, or distribution package repositories with valid GPG signatures.</p>
+
+        <pre data-lang="bash"><code class="language-bash"># Linux: Install WireGuard client
+# sudo apt install = install packages with root privileges
+# wireguard = kernel module
+# wireguard-tools = wg and wg-quick CLI management tools
+sudo apt install wireguard wireguard-tools
+# Expected output: ~2MB download, kernel module loaded
+# Why: Provides VPN client to connect to home WireGuard server
+# Use when: Setting up laptop/workstation as VPN client
+# Note: Same packages as server (WireGuard is peer-to-peer)
+
+# macOS: Install WireGuard command-line tools via Homebrew
+# brew install = Homebrew package manager installation
+# wireguard-tools = wg and wg-quick commands (no GUI)
+brew install wireguard-tools
+# Expected output: Installing wireguard-tools, symlinks created
+# Why: Provides CLI tools for managing WireGuard on macOS
+# Use when: Prefer command-line over GUI application
+# Alternative: Download GUI app from Mac App Store (easier for most users)
+# GUI download: https://apps.apple.com/app/wireguard/id1451685025
+# Note: GUI app more user-friendly (drag-and-drop config files)
+
+# Windows: Download official WireGuard installer
+# Download from: https://www.wireguard.com/install/
+# Why: Windows requires GUI installer (no CLI package manager)
+# Use when: Setting up Windows laptop as VPN client
+# CRITICAL: Verify installer signature before running!
+# Signature verification: Right-click → Properties → Digital Signatures
+# Must show: "WireGuard LLC" signed with valid certificate
+# Warning: Fake installers contain malware (verify authenticity!)
+
+# Android: Install official WireGuard app from Play Store
+# Why: Mobile VPN access (secure on public WiFi)
+# Use when: Want VPN on Android phone/tablet
+# App: Search "WireGuard" by "WireGuard Development Team"
+# Note: Can scan QR code for config (easier than typing)
+
+# iOS: Install official WireGuard app from App Store
+# Why: Mobile VPN access on iPhone/iPad
+# Use when: Want VPN on iOS device
+# App: Search "WireGuard" by "WireGuard Development Team"
+# Note: iOS app also supports QR code scanning for configs</code></pre><h2>WireGuard Server Configuration</h2>
+
+<h3>1. Generate Server Keys</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Create directory for WireGuard configuration files
+# -p = create parent directories as needed
+sudo mkdir -p /etc/wireguard
+# Expected output: Directory created (silent if successful)
+# Why: Stores WireGuard configs and private keys securely
+
+# Set restrictive permissions on WireGuard directory
+# 700 = rwx for owner only (root), no access for group/others
+sudo chmod 700 /etc/wireguard
+# Expected output: Permissions set (silent if successful)
+# Why: Protects private keys from unauthorized access
+# Use when: After creating /etc/wireguard directory
+# Warning: World-readable keys compromise VPN security!
+
+# Generate server private key using Curve25519
+# wg genkey = generates random 256-bit private key
+# tee = writes to file while also displaying output
+wg genkey | sudo tee /etc/wireguard/server_private.key
+# Expected output: Base64-encoded private key (44 characters)
+# Why: Private key authenticates server, must remain secret
+# Use when: Initial WireGuard server setup
+# Warning: NEVER share private keys or commit to version control!
+
+# Set strict permissions on private key file
+# 600 = rw for owner only, prevents other users from reading key
+sudo chmod 600 /etc/wireguard/server_private.key
+# Expected output: Permissions set (silent if successful)
+# Why: Private key leakage allows impersonation of VPN server
+# Use when: Immediately after generating private key
+
+# Generate server public key from private key
+# wg pubkey = derives public key from private key input
+# Public key can be safely shared with clients
+sudo cat /etc/wireguard/server_private.key | wg pubkey | sudo tee /etc/wireguard/server_public.key
+# Expected output: Base64-encoded public key (44 characters)
+# Why: Public key identifies server to clients during handshake
+# Use when: After generating private key
+# Note: Public key can be shared freely, not security-sensitive
+
+# Display both keys for copying to configuration files
+echo "Server Private Key:"
+sudo cat /etc/wireguard/server_private.key
+# Expected output: Server's private key in Base64 format
+# Why: Need to copy this into server configuration file
+
+echo "Server Public Key:"
+sudo cat /etc/wireguard/server_public.key
+# Expected output: Server's public key in Base64 format
+# Why: Clients need this public key to authenticate server
+# Note: Save both keys securely, you'll need them for configs</code></pre>
+
+        <h3>2. Create Server Configuration</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Create WireGuard interface configuration file
+# sudo vi = edit file with root privileges
+# /etc/wireguard/wg0.conf = server config (wg0 = interface name)
+sudo vi /etc/wireguard/wg0.conf
+# Expected output: Opens vi editor for new/existing config file
+# Why: Define VPN network settings, encryption keys, client peers
+# Use when: Initial WireGuard server setup
+# Note: wg0 is convention (can be wg1, wg-home, etc.)
+# Alternative editors: nano, vim, emacs</code></pre>        <pre data-lang="ini"><code class="language-ini"># WireGuard Server Configuration (/etc/wireguard/wg0.conf)
+
+[Interface]
+# VPN subnet IP address for this server
+# 10.200.200.1/24 = server IP, /24 = 254 usable IPs (10.200.200.1-254)
+Address = 10.200.200.1/24
+# Why: Defines server's address on VPN network
+# Use: Choose unused private subnet (avoid conflicts with LAN)
+# Alternatives: 10.8.0.1/24, 10.100.100.1/24, 172.16.0.1/24
+# Note: Clients will use 10.200.200.2, 10.200.200.3, etc.
+
+# Server's private key (from server_private.key file)
+# Replace SERVER_PRIVATE_KEY_HERE with actual key
+PrivateKey = SERVER_PRIVATE_KEY_HERE
+# Why: Authenticates server to clients, decrypts incoming traffic
+# Use: Copy private key from /etc/wireguard/server_private.key
+# WARNING: Never share private key or commit to Git!
+
+# UDP port WireGuard listens on
+# 51820 = WireGuard default port
+ListenPort = 51820
+# Why: Port clients connect to (firewall must allow UDP 51820)
+# Use: Default 51820, or change to obscure port (e.g., 41234) for obscurity
+# Note: Must match Endpoint port in client configs
+# Port forwarding: Router must forward UDP 51820 → server IP
+
+# PostUp = Commands run when interface comes up (iptables NAT rules)
+# iptables -A FORWARD -i %i -j ACCEPT = allow forwarding FROM wg0 interface
+# iptables -A FORWARD -o %i -j ACCEPT = allow forwarding TO wg0 interface
+# iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE = NAT traffic to internet
+# %i = interface name (wg0)
+# eth0 = external network interface (adjust to your interface!)
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+# Why: Enables clients to access internet through VPN (NAT)
+# Use: Allows VPN clients to route traffic to LAN/internet
+# WARNING: Change eth0 to YOUR external interface name!
+# Find interface: ip a (look for internet-connected interface)
+# Common names: eth0, enp0s3, ens33, wlan0
+
+# PostDown = Commands run when interface goes down (cleanup iptables)
+# Removes iptables rules added by PostUp (prevents orphaned rules)
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+# Why: Clean up firewall rules when VPN stops
+# Use: Prevents iptables rule accumulation from repeated up/down
+# Note: Must match PostUp commands (-D deletes, -A adds)
+
+# --- Client Peer Definitions ---
+# Add [Peer] section for each client device
+
+# Client 1 - Laptop
+[Peer]
+# Client's public key (generate on client with: wg genkey | wg pubkey)
+# Add client's public key here after generating it
+PublicKey = CLIENT1_PUBLIC_KEY_HERE
+# Why: Authenticates this client, encrypts traffic to this peer
+# Use: Copy public key from client after key generation
+# Note: Public keys are safe to share (not security-sensitive)
+
+# IP address assigned to this client
+# 10.200.200.2/32 = single IP address (/32 = exact match)
+AllowedIPs = 10.200.200.2/32
+# Why: Restricts client to specific VPN IP (prevents IP spoofing)
+# Use: Each client needs unique IP in VPN subnet
+# /32 = single host (not a subnet)
+# Security: Client can only use this IP (firewall enforcement)
+
+# Client 2 - Phone
+[Peer]
+# Client 2's public key (different from Client 1)
+PublicKey = CLIENT2_PUBLIC_KEY_HERE
+# Why: Each device needs unique keypair (isolation)
+# Use: Generate separate keys on each client device
+
+# IP address for phone client
+AllowedIPs = 10.200.200.3/32
+# Why: Unique IP for each peer (prevents conflicts)
+# Use: Increment last octet for each new client (.2, .3, .4, etc.)
+# Note: Can add up to 253 clients (10.200.200.2-254)</code></pre><p><strong>Configuration notes:</strong></p>
+<ul>
+    <li><strong>Address:</strong> VPN subnet (10.200.200.0/24). Choose unused private range.</li>
+    <li><strong>ListenPort:</strong> UDP port for WireGuard. Default 51820 (change to obscure port like 41234 for security through obscurity).</li>
+    <li><strong>PostUp/PostDown:</strong> iptables rules for NAT (allows clients to access internet through VPN).</li>
+    <li><strong>AllowedIPs:</strong> IP addresses clients are allowed to use. /32 = single IP.</li>
+</ul>
+
+        <h3>3. Set Proper Permissions</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Secure WireGuard configuration file (contains private key!)
+# sudo chmod = change file permissions with root privileges
+# 600 = rw------- (owner read/write, no access for group/others)
+# /etc/wireguard/wg0.conf = config file to protect
+sudo chmod 600 /etc/wireguard/wg0.conf
+# Expected output: No output on success
+# Why: Config contains server private key (must be secret!)
+# Use when: After creating wg0.conf
+# Security: World-readable private key = complete VPN compromise
+# Warning: 644 permissions expose private key to all users!
+
+# Verify permissions are correctly set
+# ls -l = list files with detailed permissions
+# /etc/wireguard/ = directory to check
+ls -l /etc/wireguard/
+# Expected output:
+#   -rw------- 1 root root  XXX wg0.conf
+#   -rw------- 1 root root   44 server_private.key
+# Why: Confirm only root can read/write config and keys
+# Use when: After setting permissions, during security audits
+# Success: Files show -rw------- (600)
+# Failure: If -rw-r--r-- (644), run chmod 600 again
+# Note: All WireGuard files should be 600 (owner-only access)</code></pre>        <h3>4. Start WireGuard Server</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Start WireGuard VPN interface
+# sudo wg-quick = WireGuard management utility
+# up wg0 = bring up interface wg0 (reads /etc/wireguard/wg0.conf)
+sudo wg-quick up wg0
+# Expected output:
+#   [#] ip link add wg0 type wireguard
+#   [#] wg setconf wg0 /dev/fd/63
+#   [#] ip address add 10.200.200.1/24 dev wg0
+#   [#] ip link set wg0 up
+#   [#] iptables rules... (PostUp commands)
+# Why: Activates VPN server, starts listening for connections
+# Use when: After creating wg0.conf
+# Troubleshooting: Check config with 'wg-quick up wg0' output for errors
+# Note: wg-quick handles interface creation, routing, firewall rules
+
+# Verify WireGuard interface is running
+# sudo wg show = display WireGuard status and connected peers
+sudo wg show
+# Expected output:
+#   interface: wg0
+#     public key: <server's public key>
+#     private key: (hidden)
+#     listening port: 51820
+# Why: Confirm VPN server is listening for connections
+# Use when: After starting WireGuard, troubleshooting
+# Success: Shows interface wg0 with listening port
+# Failure: If no output, check 'systemctl status wg-quick@wg0' for errors
+# Note: Shows connected peers once clients connect
+
+# Display WireGuard interface IP address
+# ip a show = show IP address configuration
+# wg0 = interface name
+ip a show wg0
+# Expected output:
+#   wg0: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1420
+#       inet 10.200.200.1/24 scope global wg0
+# Why: Verify VPN subnet is configured correctly
+# Use when: Troubleshooting connectivity, verifying setup
+# Success: Shows 10.200.200.1/24 address
+# Failure: If no wg0 interface, WireGuard didn't start
+
+# Enable WireGuard to start automatically on system boot
+# sudo systemctl enable = enable systemd service at boot
+# wg-quick@wg0 = WireGuard systemd service (@ = template, wg0 = instance)
+sudo systemctl enable wg-quick@wg0
+# Expected output: "Created symlink /etc/systemd/system/..."
+# Why: VPN server starts automatically after reboot (no manual start)
+# Use when: After confirming VPN works correctly
+# Security: Ensures VPN protection persists across reboots
+# Note: Disable with 'systemctl disable wg-quick@wg0'
+
+# Check WireGuard service status
+# sudo systemctl status = show systemd service status
+# wg-quick@wg0 = service name
+sudo systemctl status wg-quick@wg0
+# Expected output:
+#   ● wg-quick@wg0.service - WireGuard via wg-quick(8) for wg0
+#      Loaded: loaded (/lib/systemd/system/wg-quick@.service; enabled)
+#      Active: active (exited) since...
+# Why: Verify service is running and enabled
+# Use when: Troubleshooting, checking after reboot
+# Success: Shows "active (exited)" and "enabled"
+# Failure: If "failed", check logs with 'journalctl -u wg-quick@wg0'</code></pre>        <h3>5. Configure Firewall</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Allow WireGuard VPN through UFW firewall
+# sudo ufw allow = add firewall allow rule
+# 51820/udp = port 51820, UDP protocol (WireGuard uses UDP)
+# comment 'WireGuard VPN' = descriptive comment for rule management
+sudo ufw allow 51820/udp comment 'WireGuard VPN'
+# Expected output: "Rule added" or "Rule updated"
+# Why: Firewall must allow inbound UDP 51820 for clients to connect
+# Use when: Using UFW firewall (Ubuntu/Debian default)
+# Security: Without this rule, clients can't establish VPN connection
+# Note: Adjust port if you changed ListenPort in wg0.conf
+
+# Alternative: Configure iptables directly (if not using UFW)
+# sudo iptables -A INPUT = append rule to INPUT chain
+# -p udp = protocol UDP
+# --dport 51820 = destination port 51820
+# -j ACCEPT = jump to ACCEPT (allow packet)
+sudo iptables -A INPUT -p udp --dport 51820 -j ACCEPT
+# Expected output: No output on success
+# Why: Allow WireGuard port through iptables firewall
+# Use when: Using iptables directly (not UFW)
+# Note: This rule is temporary (lost on reboot)
+
+# Save iptables rules permanently
+# sudo iptables-save = dump current iptables rules
+# tee = write to file (requires sudo for /etc/iptables/)
+# /etc/iptables/rules.v4 = persistent rules file (iptables-persistent)
+sudo iptables-save | sudo tee /etc/iptables/rules.v4
+# Expected output: Iptables rules written to file
+# Why: Persist firewall rules across reboots
+# Use when: After adding iptables rules
+# Requires: iptables-persistent package (apt install iptables-persistent)
+# Alternative: Use update-alternatives or netfilter-persistent save
+
+# Verify UFW firewall rule is active
+# sudo ufw status = show UFW firewall status and rules
+sudo ufw status
+# Expected output:
+#   Status: active
+#   To                         Action      From
+#   --                         ------      ----
+#   51820/udp                  ALLOW       Anywhere    # WireGuard VPN
+# Why: Confirm WireGuard port is allowed
+# Use when: After adding UFW rule, troubleshooting connection issues
+
+# Or verify iptables rule is active
+# sudo iptables -L INPUT -n = list INPUT chain rules, numeric format
+# grep 51820 = filter for WireGuard port
+sudo iptables -L INPUT -n | grep 51820
+# Expected output: "ACCEPT  udp  --  0.0.0.0/0  0.0.0.0/0  udp dpt:51820"
+# Why: Confirm iptables allows UDP 51820
+# Use when: Using iptables firewall, troubleshooting
+# Note: Also ensure router port forwarding UDP 51820 → server IP</code></pre><h2>WireGuard Client Configuration</h2>
+
+        <h3>1. Generate Client Keys</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Generate client keypair on client machine (not server!)
+# wg genkey = generate random Curve25519 private key
+# tee client_private.key = save private key to file while passing to next command
+# wg pubkey = derive public key from private key
+# > client_public.key = save public key to file
+wg genkey | tee client_private.key | wg pubkey > client_public.key
+# Expected output: Private key displayed (also saved to client_private.key)
+# Why: Each client needs unique keypair (never reuse keys!)
+# Use when: Setting up new VPN client device
+# Security: Generate keys ON THE CLIENT (never transmit private keys)
+# Warning: Never email/message private keys (compromises VPN security)
+
+# Display client private key (copy to client config)
+echo "Client Private Key:"
+cat client_private.key
+# Expected output: Base64-encoded private key (44 characters)
+# Why: Need to copy this into client's wg0.conf
+# Use when: Creating client configuration file
+# WARNING: Keep private key secret (never share or commit to Git)
+
+# Display client public key (add to server config)
+echo "Client Public Key:"
+cat client_public.key
+# Expected output: Base64-encoded public key (44 characters)
+# Why: Server needs this public key to authenticate client
+# Use when: Adding new client peer to server config
+# Note: Public keys are safe to share (not security-sensitive)
+
+# Save client_public.key for adding to server
+# Copy this public key to server and add [Peer] section in wg0.conf
+# Security: Each device should have unique keypair (isolation)
+# Revocation: Remove [Peer] section from server to revoke access</code></pre>        <h3>2. Create Client Configuration</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Create WireGuard client configuration on Linux/macOS
+# sudo vi = edit file with root privileges
+# /etc/wireguard/wg0.conf = client config file
+sudo vi /etc/wireguard/wg0.conf
+# Expected output: Opens vi editor for new config file
+# Why: Define how client connects to VPN server
+# Use when: After generating client keys
+# Note: Same path as server (/etc/wireguard/wg0.conf) but different content
+# Alternative: Create config with any name (wg-client.conf, home-vpn.conf)</code></pre>
+
+        <pre data-lang="ini"><code class="language-ini"># WireGuard Client Configuration
+
+[Interface]
+# Client's IP address on VPN network
+# 10.200.200.2/32 = single IP (/32), must match server's AllowedIPs for this peer
+Address = 10.200.200.2/32
+# Why: Assigns VPN IP to client (used for routing)
+# Use: Must match what server expects (check server's [Peer] AllowedIPs)
+# Note: Each client needs unique IP (.2, .3, .4, etc.)
+
+# Client's private key (from client_private.key)
+# Replace CLIENT_PRIVATE_KEY_HERE with actual private key
+PrivateKey = CLIENT_PRIVATE_KEY_HERE
+# Why: Authenticates client to server, decrypts incoming traffic
+# Use: Copy private key from client_private.key (generated earlier)
+# WARNING: Never share this key or commit to version control!
+
+# Optional: DNS servers to use when connected to VPN
+# 1.1.1.1 = Cloudflare DNS, 9.9.9.9 = Quad9 DNS
+DNS = 1.1.1.1, 9.9.9.9
+# Why: Override system DNS with specific servers when VPN active
+# Use: Prevent DNS leaks (queries go through encrypted VPN)
+# Alternatives: Use home router IP (192.168.10.1) to access LAN DNS
+# Note: Remove this line to keep system's default DNS
+
+[Peer]
+# Server's public key (from server_public.key on server)
+# Replace SERVER_PUBLIC_KEY_HERE with server's actual public key
+PublicKey = SERVER_PUBLIC_KEY_HERE
+# Why: Authenticates server to client (prevents MITM attacks)
+# Use: Copy public key from server's /etc/wireguard/server_public.key
+# Note: Public key is safe to share (not security-sensitive)
+
+# Server's public address and WireGuard port
+# your-home-ip.example.com = your dynamic DNS or public IP
+# 51820 = WireGuard port (matches server's ListenPort)
+Endpoint = your-home-ip.example.com:51820
+# Why: Tells client where to connect (server address + port)
+# Use: Replace with your actual public IP or domain name
+# Dynamic DNS: Use DuckDNS, No-IP, or router's DDNS (if dynamic IP)
+# Static IP: Use your ISP-assigned static IP directly
+# Note: Router must port forward UDP 51820 → server's internal IP
+
+# Routes to send through VPN tunnel
+# 0.0.0.0/0, ::/0 = route ALL traffic through VPN (full tunnel)
+AllowedIPs = 0.0.0.0/0, ::/0
+# Why: Determines which traffic goes through VPN vs. direct
+# Use: 0.0.0.0/0, ::/0 = protect all traffic (public WiFi, censorship bypass)
+# Split tunnel alternatives:
+#   192.168.10.0/24 = only route home network (access LAN, internet direct)
+#   10.200.200.0/24 = only route VPN subnet (minimal)
+# Trade-off: Full tunnel = all traffic protected but slower
+# Note: ::/0 = IPv6 equivalent of 0.0.0.0/0
+
+# Keep connection alive by sending packets every 25 seconds
+# 25 = seconds between keepalive packets
+PersistentKeepalive = 25
+# Why: Prevents NAT timeout (keeps connection alive through NAT/firewall)
+# Use: Essential when client is behind NAT (most home/mobile networks)
+# Trade-off: Slight battery drain on mobile (but prevents disconnects)
+# Note: Server doesn't need this (only clients behind NAT)</code></pre><p><strong>AllowedIPs options:</strong></p>
+<ul>
+    <li><strong>0.0.0.0/0, ::/0</strong> - Route all traffic through VPN (full tunnel)</li>
+    <li><strong>192.168.10.0/24</strong> - Only route home network traffic (split tunnel)</li>
+    <li><strong>10.200.200.0/24</strong> - Only route VPN subnet (minimal routing)</li>
+</ul>
+
+        <h3>3. Add Client to Server</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># On server: Edit WireGuard configuration to add new client
+# sudo vi = edit file with root privileges
+# /etc/wireguard/wg0.conf = server config file
+sudo vi /etc/wireguard/wg0.conf
+# Expected output: Opens vi editor with server config
+# Why: Must add client's public key to server before client can connect
+# Use when: Setting up new client device
+# Note: Server won't accept connections from unknown public keys
+
+# Add new [Peer] section to server config
+# Append this to end of wg0.conf file:
+[Peer]
+# Client's public key (from client_public.key generated on client)
+PublicKey = CLIENT_PUBLIC_KEY_HERE
+# Why: Authenticates client (server verifies client's identity)
+# Use: Copy public key from client device
+# Security: Only clients with matching public key can connect
+
+# IP address allowed for this client
+# 10.200.200.2/32 = restrict client to this single IP
+AllowedIPs = 10.200.200.2/32
+# Why: Binds client to specific VPN IP (prevents IP spoofing)
+# Use: Must match client's Address in client config
+# Note: /32 = exact match (single IP, not subnet)
+# Increment: .3, .4, .5 for additional clients
+
+# Reload WireGuard configuration without dropping existing connections
+# sudo wg syncconf = synchronize config changes to running interface
+# wg0 = interface name
+# <(wg-quick strip wg0) = process substitution, strips non-WireGuard options
+sudo wg syncconf wg0 <(wg-quick strip wg0)
+# Expected output: No output on success
+# Why: Apply new peer configuration without restarting VPN
+# Use when: Adding new clients while VPN is running
+# Alternative: sudo wg-quick down wg0 && sudo wg-quick up wg0 (disconnects all)
+# Trade-off: syncconf preserves connections, down/up doesn't
+
+# Verify new peer is added to server
+# sudo wg show = display WireGuard interface status
+sudo wg show
+# Expected output:
+#   interface: wg0
+#     public key: <server's public key>
+#     listening port: 51820
+#     peer: <client's public key>
+#       allowed ips: 10.200.200.2/32
+# Why: Confirm server recognizes new client peer
+# Use when: After adding peer, troubleshooting connection issues
+# Success: Shows peer with correct public key and allowed IPs
+# Note: Won't show handshake until client connects</code></pre>        <h3>4. Connect from Client</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Linux/macOS: Connect to VPN
+# sudo wg-quick = WireGuard management utility
+# up wg0 = bring up VPN interface (reads /etc/wireguard/wg0.conf)
+sudo wg-quick up wg0
+# Expected output:
+#   [#] ip link add wg0 type wireguard
+#   [#] wg setconf wg0 /dev/fd/63
+#   [#] ip address add 10.200.200.2/32 dev wg0
+#   [#] ip link set wg0 up
+#   [#] route add... (routing changes based on AllowedIPs)
+# Why: Establishes encrypted VPN tunnel to server
+# Use when: Need secure connection to home network or internet
+# Troubleshooting: Check Endpoint is correct, firewall allows UDP 51820
+
+# Verify VPN connection is established
+# sudo wg show = display WireGuard status
+sudo wg show
+# Expected output:
+#   interface: wg0
+#     public key: <client's public key>
+#     peer: <server's public key>
+#       endpoint: <server IP>:51820
+#       allowed ips: 0.0.0.0/0, ::/0
+#       latest handshake: X seconds ago
+#       transfer: Y KiB received, Z KiB sent
+# Why: Confirm handshake completed, data flowing
+# Use when: After connecting, troubleshooting
+# Success: Shows recent handshake timestamp (<2 minutes)
+# Failure: If no handshake, check endpoint, firewall, server status
+
+# Test connectivity: Ping VPN server
+# ping = ICMP echo request
+# 10.200.200.1 = VPN server's IP on WireGuard network
+ping 10.200.200.1
+# Expected output: Reply from 10.200.200.1, round-trip times
+# Why: Verify VPN tunnel works (basic connectivity test)
+# Use when: Testing VPN after connection
+# Success: Receive ping replies (packets not lost)
+# Failure: If timeout, check server wg0 interface is up
+
+# Test home network access: Ping home router (if routing home network)
+# 192.168.10.1 = home router IP (adjust to your network)
+ping 192.168.10.1
+# Expected output: Reply from 192.168.10.1
+# Why: Verify can access home LAN through VPN
+# Use when: Using split tunnel or full tunnel with NAT to LAN
+# Success: Ping succeeds (can access home network remotely)
+# Failure: Check server's PostUp iptables rules allow forwarding
+# Note: Only works if AllowedIPs includes home network or 0.0.0.0/0
+
+# Check public IP address (should show VPN server's IP if full tunnel)
+# curl ifconfig.me = query external IP address
+curl ifconfig.me
+# Expected output: Server's public IP (if routing all traffic)
+# Why: Confirm traffic routed through VPN (privacy check)
+# Use when: Using full tunnel (AllowedIPs = 0.0.0.0/0)
+# Success: Shows server's IP, not your actual location IP
+# Failure: If shows ISP IP, check AllowedIPs includes 0.0.0.0/0
+# Note: Split tunnel shows your actual IP (only home network via VPN)
+
+# Disconnect from VPN
+# sudo wg-quick down wg0 = tear down VPN interface
+sudo wg-quick down wg0
+# Expected output:
+#   [#] ip link delete dev wg0
+#   (Routing changes reverted)
+# Why: Disconnect VPN tunnel, restore normal routing
+# Use when: Done using VPN, conserving battery
+# Effect: Traffic no longer encrypted or routed through server</code></pre><p><strong>Mobile clients (Android/iOS):</strong></p>
+<ul>
+    <li>Open WireGuard app → Add Tunnel → Create from scratch</li>
+    <li>Generate keypair in app</li>
+    <li>Copy configuration from client config above</li>
+    <li>Save and toggle connection on</li>
+</ul>
+
+<h2>SSH Hardening</h2>
+
+<p>SSH is the primary remote management tool for Linux servers. Default configurations are insecure. Harden SSH to resist brute-force attacks and credential theft.</p>
+
+        <h3>1. Disable Password Authentication</h3>
+
+        <p>Passwords are weak. Use SSH keys (2048-bit RSA minimum, 4096-bit recommended, or Ed25519).</p>
+
+        <pre data-lang="bash"><code class="language-bash"># Generate Ed25519 SSH key on client machine
+# ssh-keygen = SSH key generation utility
+# -t ed25519 = use Ed25519 algorithm (faster, shorter keys than RSA)
+# -C "your-email@example.com" = comment for identifying key
+ssh-keygen -t ed25519 -C "your-email@example.com"
+# Expected output:
+#   Generating public/private ed25519 key pair.
+#   Enter file in which to save the key (/home/user/.ssh/id_ed25519):
+#   Enter passphrase (empty for no passphrase):
+# Why: Ed25519 provides strong security with small keys (256-bit)
+# Use when: Generating new SSH key for modern servers
+# Security: Ed25519 resistant to timing attacks, faster than RSA
+# Passphrase: REQUIRED - protects private key if stolen
+
+# Alternative: Generate RSA 4096-bit SSH key (better compatibility)
+# -t rsa = use RSA algorithm
+# -b 4096 = 4096-bit key size (stronger than default 2048-bit)
+ssh-keygen -t rsa -b 4096 -C "your-email@example.com"
+# Expected output: Similar to Ed25519, creates RSA keypair
+# Why: RSA widely compatible with older SSH servers
+# Use when: Server doesn't support Ed25519 (very old systems)
+# Trade-off: Larger keys (4096-bit), slightly slower than Ed25519
+# Note: Never use RSA < 2048-bit (cryptographically weak)
+
+# SET STRONG PASSPHRASE when prompted!
+# Passphrase = password protecting private key file
+# Why: If attacker steals private key file, passphrase prevents use
+# Use: 20+ character passphrase or diceware (5+ words)
+# Security: Passphrase encrypts private key on disk
+# Trade-off: Must enter passphrase when using key (use ssh-agent to cache)
+# WARNING: Empty passphrase = anyone with key file can SSH!
+
+# Copy public key to server for authentication
+# ssh-copy-id = utility to install public key on remote server
+# -i ~/.ssh/id_ed25519.pub = specify public key file to copy
+# user@server-ip = SSH login (username@hostname or IP)
+ssh-copy-id -i ~/.ssh/id_ed25519.pub user@server-ip
+# Expected output:
+#   /usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: ...
+#   user@server-ip's password: [enter password]
+#   Number of key(s) added: 1
+# Why: Installs public key in ~/.ssh/authorized_keys on server
+# Use when: After generating SSH key, setting up key-based auth
+# Note: Requires password auth to be enabled (disable after testing)
+# Alternative: Manually append public key to server's ~/.ssh/authorized_keys
+
+# Test key-based login (should NOT prompt for password)
+# ssh = SSH client
+# -i ~/.ssh/id_ed25519 = specify private key file to use
+# user@server-ip = SSH login
+ssh -i ~/.ssh/id_ed25519 user@server-ip
+# Expected output: Passphrase prompt (if key has passphrase), then shell access
+# Why: Verify key-based authentication works before disabling passwords
+# Use when: After copying public key to server
+# Success: Connects without password (only passphrase if set)
+# Failure: If prompts for password, check authorized_keys on server
+# CRITICAL: Test before disabling password auth (prevent lockout!)
+
+# On server: Disable password authentication
+# sudo vi = edit SSH config with root privileges
+# /etc/ssh/sshd_config = SSH server configuration file
+sudo vi /etc/ssh/sshd_config
+# Expected output: Opens vi editor with sshd_config
+# Why: Configure SSH server to only allow key-based auth
+# Use when: After confirming key-based login works
+# WARNING: Keep existing SSH session open until verified!</code></pre>        <pre data-lang="bash"><code class="language-bash"># Find and modify these lines in /etc/ssh/sshd_config:
+
+# Disable password authentication (only allow SSH keys)
+# PasswordAuthentication no = passwords cannot be used for login
+PasswordAuthentication no
+# Why: Passwords vulnerable to brute-force, dictionary attacks
+# Use: After confirming SSH key login works
+# Security: Eliminates password-based attacks entirely
+
+# Disable challenge-response authentication (keyboard-interactive)
+# ChallengeResponseAuthentication no = disable interactive auth methods
+ChallengeResponseAuthentication no
+# Why: Prevents PAM-based password authentication bypass
+# Use: When disabling all password authentication
+# Note: Also disables 2FA if using PAM (configure 2FA differently)
+
+# Enable public key authentication (SSH keys)
+# PubkeyAuthentication yes = allow SSH key-based login
+PubkeyAuthentication yes
+# Why: Explicitly enable key-based authentication
+# Use: Should already be default, confirm it's enabled
+# Security: Keys stronger than passwords (2048-4096 bit vs 8-16 char)
+
+# Disable PAM (Pluggable Authentication Modules)
+# UsePAM no = don't use PAM for authentication
+UsePAM no
+# Why: PAM can bypass SSH config (re-enable passwords)
+# Use: When completely disabling password authentication
+# Trade-off: Disables PAM-based features (session logging, etc.)
+# Note: If using 2FA with PAM, keep this 'yes' and configure carefully
+
+# Restart SSH service to apply configuration changes
+# sudo systemctl restart sshd = restart SSH daemon
+sudo systemctl restart sshd
+# Expected output: No output on success
+# Why: Load new SSH configuration
+# Use when: After modifying /etc/ssh/sshd_config
+# WARNING: Keep existing SSH session open (test in new terminal)
+# Troubleshooting: If restart fails, check config with 'sshd -t'
+
+# Verify password authentication is disabled (test from another terminal)
+# Open NEW terminal window, try SSH with different user (no key)
+ssh user@server-ip
+# Expected output: "Permission denied (publickey)"
+# Why: Confirm passwords rejected (only keys accepted)
+# Use when: After disabling password auth
+# Success: Connection refused (only publickey allowed)
+# Failure: If prompts for password, check sshd_config changes applied
+# CRITICAL: Don't close original SSH session until verified!</code></pre>        <h3>2. Disable Root Login</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Edit SSH server configuration
+# sudo vi = edit with root privileges
+# /etc/ssh/sshd_config = SSH server config file
+sudo vi /etc/ssh/sshd_config
+# Expected output: Opens vi editor with sshd_config
+# Why: Disable direct root login (major attack target)
+# Use when: Hardening SSH security
+# Note: Find line with PermitRootLogin (may be commented with #)
+
+# Disable root login via SSH
+# PermitRootLogin no = root user cannot SSH directly
+PermitRootLogin no
+# Why: Root is known username (attackers only need password/key)
+# Use: Force attackers to guess both username AND password
+# Security: Even if root password leaked, can't SSH as root
+# Note: Must SSH as regular user, then sudo/su to root
+# Alternative: PermitRootLogin prohibit-password (keys only, no password)
+
+# Restart SSH daemon to apply changes
+# sudo systemctl restart sshd = restart SSH service
+sudo systemctl restart sshd
+# Expected output: No output on success
+# Why: Load new configuration
+# Use when: After modifying sshd_config
+# Verify: Check systemctl status sshd (should show active)
+
+# Create regular user with sudo privileges (if doesn't exist)
+# sudo adduser = create new user account
+# youruser = replace with your desired username
+sudo adduser youruser
+# Expected output:
+#   Adding user 'youruser'...
+#   Enter new UNIX password: [set password]
+#   Full Name []: [optional info]
+# Why: Need non-root user for SSH login
+# Use when: No regular user exists (fresh server)
+# Security: Regular user can't accidentally break system as easily as root
+
+# Add user to sudo group (grants root privileges via sudo)
+# sudo usermod = modify user account
+# -aG sudo = append (-a) to group (-G) named sudo
+# youruser = username to modify
+sudo usermod -aG sudo youruser
+# Expected output: No output on success
+# Why: Allow user to run root commands with sudo
+# Use when: User needs administrative access
+# Security: sudo requires password, logs all commands (accountability)
+# Verify: sudo -l -U youruser (shows sudo permissions)</code></pre>        <h3>3. Change Default Port</h3>
+
+        <p>Port 22 receives constant brute-force attacks. Change to obscure high port (10000-65535).</p>
+
+        <pre data-lang="bash"><code class="language-bash"># Edit SSH server configuration
+# sudo vi = edit with root privileges
+# /etc/ssh/sshd_config = SSH server config file
+sudo vi /etc/ssh/sshd_config
+# Expected output: Opens vi editor
+# Why: Change SSH port from default 22
+# Use when: Reducing automated bot attacks
+# Note: Find line with "Port 22" (may be commented)
+
+# Change SSH port to non-standard high port
+# Port 42022 = custom SSH port (choose any 10000-65535)
+Port 42022
+# Why: Port 22 scanned by all SSH bots, non-standard port avoids most
+# Use: Security through obscurity (not strong defense alone, but helps)
+# Trade-off: Must specify port when connecting (ssh -p 42022)
+# Recommendations:
+#   - Avoid common ports: 2222, 2022, 22022 (also targeted)
+#   - Choose random high port: 41234, 53891, 62047
+#   - Avoid well-known ports: 80 (HTTP), 443 (HTTPS), 3389 (RDP)
+# Note: Doesn't stop determined attackers, but reduces noise in logs
+
+# Update firewall to allow new SSH port
+# sudo ufw allow = add firewall allow rule
+# 42022/tcp = port 42022, TCP protocol (SSH uses TCP)
+# comment 'SSH Custom Port' = descriptive comment
+sudo ufw allow 42022/tcp comment 'SSH Custom Port'
+# Expected output: "Rule added" or "Rule updated"
+# Why: Firewall must allow new port for SSH connections
+# Use when: After changing SSH port
+# WARNING: Add new port BEFORE removing old port (prevent lockout!)
+
+# Remove old port 22 firewall rule
+# sudo ufw delete allow = remove firewall rule
+# 22/tcp = old SSH port
+sudo ufw delete allow 22/tcp
+# Expected output: "Rule deleted"
+# Why: Close old SSH port (no longer needed)
+# Use when: After confirming new port works
+# CRITICAL: Test new port first! (ssh -p 42022 user@server)
+# Troubleshooting: If locked out, use server console (VPS web console)
+
+# Restart SSH daemon to apply port change
+# sudo systemctl restart sshd = restart SSH service
+sudo systemctl restart sshd
+# Expected output: No output on success
+# Why: Load new port configuration
+# Use when: After changing Port in sshd_config
+# WARNING: Keep current SSH session open during test!
+
+# Test new SSH port from another terminal (BEFORE logging out)
+# Open NEW terminal window and test connection
+# ssh = SSH client
+# -p 42022 = connect to port 42022 (your custom port)
+# user@server-ip = SSH login
+ssh -p 42022 user@server-ip
+# Expected output: SSH prompt, successful connection
+# Why: Verify new port works before closing original session
+# Use when: After changing SSH port and restarting sshd
+# Success: Connects successfully on new port
+# Failure: If timeout, check firewall rules, sshd_config Port setting
+# CRITICAL: Don't close original SSH session until new port tested!
+# Troubleshooting: If fails, keep original session, fix config, restart sshd</code></pre>
+
+        <h3>4. Limit User Access</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Restrict SSH access to specific users only
+# sudo vi = edit SSH config with root privileges
+# /etc/ssh/sshd_config = SSH server configuration file
+sudo vi /etc/ssh/sshd_config
+# Expected output: Opens vi editor
+# Why: Limit SSH access to authorized users (whitelist approach)
+# Use when: Multiple users on server, only some need SSH
+# Security: Reduces attack surface (fewer valid login names)
+
+# Allow only specific users to SSH (whitelist)
+# AllowUsers = space-separated list of usernames
+# youruser admin = only these users can SSH
+AllowUsers youruser admin
+# Why: Even if attacker guesses other user passwords, SSH denied
+# Use when: Know exactly who needs SSH access
+# Security: Prevents SSH as any other user (even if password known)
+# Note: Combine with SSH keys for maximum security
+# Example: AllowUsers alice bob charlie
+
+# Alternative: Allow only specific group (more flexible)
+# AllowGroups = space-separated list of group names
+# sshusers = only members of this group can SSH
+AllowGroups sshusers
+# Why: Easier to manage (add/remove users from group)
+# Use when: Multiple admins, frequently changing access
+# Trade-off: Slightly more complex setup vs AllowUsers
+# Note: User must be in group AND have valid credentials
+
+# Create SSH users group (if using AllowGroups)
+# sudo groupadd = create new system group
+# sshusers = group name for SSH access
+sudo groupadd sshusers
+# Expected output: No output on success
+# Why: Create group for SSH access control
+# Use when: Using AllowGroups approach
+# Verify: getent group sshusers (shows group info)
+
+# Add user to SSH access group
+# sudo usermod = modify user account
+# -aG sshusers = append (-a) to group (-G) sshusers
+# youruser = username to grant SSH access
+sudo usermod -aG sshusers youruser
+# Expected output: No output on success
+# Why: Grant SSH access to specific user via group membership
+# Use when: Using AllowGroups method
+# Revoke: sudo gpasswd -d youruser sshusers (remove from group)
+# Verify: groups youruser (shows user's groups)
+
+# Restart SSH to apply access restrictions
+# sudo systemctl restart sshd = restart SSH daemon
+sudo systemctl restart sshd
+# Expected output: No output on success
+# Why: Load new AllowUsers/AllowGroups configuration
+# Use when: After modifying user access restrictions
+# Test: Try SSH as restricted user (should fail)</code></pre>        <h3>5. Rate Limiting and Fail2Ban</h3>
+
+        <p>Block IPs after failed authentication attempts.</p>
+
+        <pre data-lang="bash"><code class="language-bash"># Update package list before installing Fail2Ban
+# sudo apt update = refresh package repository index
+sudo apt update
+# Expected output: Package lists downloaded and refreshed
+# Why: Ensure latest Fail2Ban version available
+# Use when: Before installing packages
+
+# Install Fail2Ban intrusion prevention software
+# sudo apt install = install package
+# fail2ban = monitors logs and bans IPs with suspicious activity
+sudo apt install fail2ban
+# Expected output: ~5MB download, installation progress
+# Why: Automatically block brute-force SSH attacks
+# Use when: Server exposed to internet (all servers!)
+# Security: Bans IPs after X failed login attempts
+# Note: Monitors /var/log/auth.log for failed SSH attempts
+
+# Create local configuration (don't edit jail.conf directly)
+# sudo cp = copy file with root privileges
+# /etc/fail2ban/jail.conf = default config (will be overwritten on updates)
+# /etc/fail2ban/jail.local = local config (persists across updates)
+sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+# Expected output: File copied (silent if successful)
+# Why: jail.local overrides jail.conf, won't be overwritten by updates
+# Use when: Configuring Fail2Ban
+# Best practice: Never edit jail.conf (create jail.local instead)
+
+# Edit Fail2Ban local configuration
+# sudo vi = edit with root privileges
+# /etc/fail2ban/jail.local = local configuration file
+sudo vi /etc/fail2ban/jail.local
+# Expected output: Opens vi editor with jail.local
+# Why: Configure ban duration, thresholds, email alerts
+# Use when: After creating jail.local
+# Note: Modify [DEFAULT] and [sshd] sections</code></pre><pre data-lang="ini"><code class="language-ini">[DEFAULT]
+# Ban for 1 hour
+bantime = 3600
+
+# Find time window (10 minutes)
+findtime = 600
+
+# Max retries before ban
+maxretry = 3
+
+# Email alerts (optional)
+destemail = your-email@example.com
+sendername = Fail2Ban
+action = %(action_mwl)s
+
+[sshd]
+enabled = true
+port = 42022  # Match your SSH port
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 3600</code></pre>
+
+        <pre data-lang="bash"><code class="language-bash"># Start Fail2Ban service immediately
+# sudo systemctl start = start systemd service
+# fail2ban = Fail2Ban service name
+sudo systemctl start fail2ban
+# Expected output: No output on success
+# Why: Activate Fail2Ban monitoring and banning
+# Use when: After configuring jail.local
+# Verify: systemctl status fail2ban (should show "active (running)")
+
+# Enable Fail2Ban to start automatically on boot
+# sudo systemctl enable = enable service at boot
+# fail2ban = service name
+sudo systemctl enable fail2ban
+# Expected output: "Created symlink..."
+# Why: Ensure Fail2Ban protection persists across reboots
+# Use when: After confirming Fail2Ban works correctly
+# Security: Critical for always-on protection
+
+# Check Fail2Ban status for SSH jail
+# sudo fail2ban-client = Fail2Ban management utility
+# status sshd = show status of sshd jail
+sudo fail2ban-client status sshd
+# Expected output:
+#   Status for the jail: sshd
+#   |- Filter
+#   |  |- Currently failed: 0
+#   |  |- Total failed: X
+#   |  `- File list: /var/log/auth.log
+#   `- Actions
+#      |- Currently banned: Y
+#      |- Total banned: Z
+#      `- Banned IP list: 1.2.3.4 5.6.7.8
+# Why: Monitor SSH brute-force attempts and active bans
+# Use when: Checking if attacks happening, troubleshooting
+# Success: Shows failed attempts, banned IPs
+
+# View currently banned IPs
+# sudo fail2ban-client status sshd = get jail status
+# grep "Banned IP" = filter for banned IPs line
+sudo fail2ban-client status sshd | grep "Banned IP"
+# Expected output: "Banned IP list: 1.2.3.4 5.6.7.8"
+# Why: See which IPs are currently blocked
+# Use when: Checking active bans, investigating attacks
+# Note: Empty list = no current bans (good!)
+
+# Unban specific IP address (if legitimate user accidentally banned)
+# sudo fail2ban-client set = modify Fail2Ban configuration
+# sshd unbanip = unban IP from sshd jail
+# 1.2.3.4 = IP address to unban (replace with actual IP)
+sudo fail2ban-client set sshd unbanip 1.2.3.4
+# Expected output: "1.2.3.4 unbanned"
+# Why: Remove ban if legitimate user locked out (typos, forgotten password)
+# Use when: User reports can't SSH, check banned list, unban if legitimate
+# Security: Verify IP ownership before unbanning (ask user, check logs)
+# Alternative: Wait for bantime to expire (automatic unban)</code></pre>        <h3>6. Enable Two-Factor Authentication (2FA)</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Install Google Authenticator PAM module for 2FA
+# sudo apt install = install package
+# libpam-google-authenticator = PAM module for TOTP 2FA
+sudo apt install libpam-google-authenticator
+# Expected output: ~1MB download, installation progress
+# Why: Add second factor (TOTP) to SSH authentication
+# Use when: Maximum security needed (SSH key + 2FA)
+# Security: Even if SSH key stolen, attacker needs phone/2FA app
+# Compatible: Works with Google Authenticator, Authy, 1Password, Bitwarden
+
+# Configure 2FA for your user account (NOT as root!)
+# Run as the user who will SSH (su - youruser first)
+# google-authenticator = setup utility
+google-authenticator
+# Expected output:
+#   QR code (scan with authenticator app)
+#   Your new secret key is: XXXXXXXXXXXX
+#   Your verification code is: 123456
+#   Your emergency scratch codes are: ...
+# Why: Generate TOTP secret key for this user
+# Use when: Setting up 2FA for user account
+# CRITICAL: Run as regular user, NOT root!
+# Security: Each user gets unique secret key
+
+# Answer setup questions (recommended answers):
+# "Do you want authentication tokens to be time-based (y/n)" = y
+# Why: Time-based OTP (TOTP) standard, compatible with all apps
+# Use: Always choose 'y' for TOTP
+
+# "Do you want me to update your "/home/user/.google_authenticator" file? (y/n)" = y
+# Why: Save configuration to user's home directory
+# Use: Choose 'y' to persist setup
+
+# "Do you want to disallow multiple uses of the same authentication token? (y/n)" = y
+# Why: Prevent replay attacks (can't reuse same code)
+# Use: Choose 'y' for security
+# Security: Each TOTP code usable only once
+
+# "By default, tokens are good for 30 seconds... (y/n)" = y
+# Why: Allow slight time skew (clock drift tolerance)
+# Use: Choose 'y' for compatibility
+# Trade-off: 1-2 minute window vs strict 30 second window
+
+# "Do you want to enable rate-limiting? (y/n)" = y
+# Why: Prevent brute-force of 6-digit codes
+# Use: Choose 'y' for security
+# Security: Limits to 3 login attempts per 30 seconds
+
+# SAVE EMERGENCY SCRATCH CODES in password manager!
+# Emergency codes = one-time backup codes (5 codes)
+# Why: If lose phone/authenticator app, can still login
+# Use: Store securely in password manager (KeePassXC, Bitwarden)
+# CRITICAL: Without codes + phone, permanently locked out!
+
+# Enable 2FA in SSH configuration
+# sudo vi = edit SSH config with root privileges
+# /etc/ssh/sshd_config = SSH server config
+sudo vi /etc/ssh/sshd_config
+# Expected output: Opens vi editor
+# Why: Configure SSH to require 2FA
+# Use when: After setting up google-authenticator for user</code></pre><pre data-lang="bash"><code class="language-bash"># Enable challenge-response
+ChallengeResponseAuthentication yes
+UsePAM yes
+
+# Add to end of file
+AuthenticationMethods publickey,keyboard-interactive</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Edit PAM config
+sudo vi /etc/pam.d/sshd
+
+# Add at top of file (before @include common-auth)
+auth required pam_google_authenticator.so nullok
+
+# Restart SSH
+sudo systemctl restart sshd
+
+# Test (from another terminal)
+ssh user@server-ip
+# Should prompt for SSH key passphrase, then 2FA code</code></pre>
+
+        <h3>7. Complete Hardened SSH Config</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Create comprehensive hardened SSH configuration
+# This combines all previous hardening steps into complete config
+# sudo vi = edit SSH config with root privileges
+# /etc/ssh/sshd_config = SSH server configuration file
+sudo vi /etc/ssh/sshd_config
+# Expected output: Opens vi editor
+# Why: Apply all SSH hardening in one cohesive configuration
+# Use when: Setting up new server or auditing existing config
+# Note: This is complete working config (copy entire section)</code></pre>        <pre data-lang="bash"><code class="language-bash"># Complete Hardened SSH Configuration (/etc/ssh/sshd_config)
+
+# === Network Configuration ===
+# Port = SSH listening port
+Port 42022
+# Why: Non-standard port avoids automated bot scans
+# Adjust: Choose your own random high port (10000-65535)
+
+# AddressFamily = IP protocol family
+# inet = IPv4 only, inet6 = IPv6 only, any = both
+AddressFamily inet
+# Why: Disable IPv6 if not used (reduces attack surface)
+# Use: 'any' if using IPv6, 'inet' for IPv4-only
+
+# ListenAddress = IP addresses SSH binds to
+# 0.0.0.0 = listen on all IPv4 interfaces
+ListenAddress 0.0.0.0
+# Why: Accept connections on all interfaces
+# Alternatives: Specific IP (192.168.1.100) for single interface
+# Security: Bind to specific IP if multiple interfaces exist
+
+# === Authentication Settings ===
+# PermitRootLogin = allow root login via SSH
+PermitRootLogin no
+# Why: Force use of regular user + sudo (root is known username)
+# Security: Attackers must guess both username AND password/key
+
+# PubkeyAuthentication = allow SSH key authentication
+PubkeyAuthentication yes
+# Why: Enable strong cryptographic authentication
+# Note: Required for key-based login
+
+# PasswordAuthentication = allow password login
+PasswordAuthentication no
+# Why: Passwords vulnerable to brute-force attacks
+# Security: Keys only (no passwords)
+
+# PermitEmptyPasswords = allow accounts with no password
+PermitEmptyPasswords no
+# Why: Empty passwords = no security
+# Security: Always keep 'no'
+
+# ChallengeResponseAuthentication = enable keyboard-interactive auth
+ChallengeResponseAuthentication yes
+# Why: Required for 2FA (google-authenticator PAM)
+# Note: Set to 'no' if not using 2FA
+
+# UsePAM = use Pluggable Authentication Modules
+UsePAM yes
+# Why: Enable PAM for 2FA support
+# Note: Set to 'no' if not using 2FA/PAM features
+
+# AuthenticationMethods = required authentication methods
+# publickey,keyboard-interactive = SSH key + 2FA code
+AuthenticationMethods publickey,keyboard-interactive
+# Why: Require both SSH key AND 2FA (multi-factor)
+# Use: Remove this line if not using 2FA
+# Security: Strongest auth (something you have + something you know)
+
+# === Access Control ===
+# AllowUsers = whitelist of users allowed to SSH
+AllowUsers youruser admin
+# Why: Restrict SSH to specific users
+# Adjust: Replace with your actual usernames
+# Alternative: Use AllowGroups for group-based access
+
+# MaxAuthTries = max authentication attempts per connection
+MaxAuthTries 3
+# Why: Limit brute-force attempts
+# Use: 3 attempts reasonable (allows 1-2 typos)
+
+# MaxSessions = max simultaneous sessions per connection
+MaxSessions 2
+# Why: Limit resource usage, prevent session flooding
+# Use: 2-10 depending on needs
+
+# === Protocol Version ===
+# Protocol = SSH protocol version
+Protocol 2
+# Why: SSH protocol 1 has known vulnerabilities
+# Security: Only use protocol 2 (modern)
+
+# === Cryptography (Strong Algorithms Only) ===
+# Ciphers = allowed encryption ciphers
+# chacha20-poly1305 = modern AEAD cipher (fast, secure)
+# aes256-gcm, aes128-gcm = AES-GCM (hardware accelerated)
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com
+# Why: Use only modern authenticated encryption
+# Security: Removes weak ciphers (3DES, RC4, CBC mode)
+
+# MACs = Message Authentication Codes
+# hmac-sha2-512-etm, hmac-sha2-256-etm = Encrypt-then-MAC
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+# Why: Strong integrity protection, ETM prevents attacks
+# Security: Removes weak MACs (MD5, SHA1)
+
+# KexAlgorithms = Key Exchange algorithms
+# curve25519-sha256 = modern elliptic curve (fast, secure)
+# diffie-hellman-group-exchange-sha256 = DH with SHA256
+KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group-exchange-sha256
+# Why: Use modern key exchange, avoid weak algorithms
+# Security: Removes weak KEX (SHA1-based, small DH groups)
+
+# === Logging ===
+# SyslogFacility = syslog facility for logging
+SyslogFacility AUTH
+# Why: Log to auth facility (standard for authentication)
+# Use: AUTH logs to /var/log/auth.log
+
+# LogLevel = verbosity of logging
+LogLevel VERBOSE
+# Why: Detailed logs for forensics, troubleshooting
+# Use: VERBOSE includes fingerprints, auth details
+# Alternatives: INFO (less verbose), DEBUG (very verbose)
+
+# === Connection Management ===
+# ClientAliveInterval = seconds between keepalive probes
+ClientAliveInterval 300
+# Why: Detect dead connections, free resources
+# Use: 300 seconds (5 minutes) reasonable
+
+# ClientAliveCountMax = max keepalive probes without response
+ClientAliveCountMax 2
+# Why: Disconnect after 2 failed probes (10 minutes total)
+# Use: 2-3 probes balance responsiveness vs network issues
+
+# TCPKeepAlive = use TCP keepalive packets
+TCPKeepAlive yes
+# Why: Prevent connection timeouts through NAT/firewall
+# Use: Generally keep 'yes' for reliability
+
+# === Security Features ===
+# X11Forwarding = allow X11 GUI forwarding
+X11Forwarding no
+# Why: X11 has security vulnerabilities, rarely needed
+# Use: Enable only if running GUI apps over SSH
+
+# AllowTcpForwarding = allow SSH tunneling
+AllowTcpForwarding no
+# Why: Prevent SSH tunneling (can bypass firewall)
+# Use: Set to 'yes' if need SSH tunnels/SOCKS proxy
+# Trade-off: Convenient feature vs potential firewall bypass
+
+# AllowStreamLocalForwarding = allow Unix socket forwarding
+AllowStreamLocalForwarding no
+# Why: Prevent socket forwarding attacks
+# Use: Usually not needed
+
+# PermitUserEnvironment = allow ~/.ssh/environment
+PermitUserEnvironment no
+# Why: Prevent environment variable manipulation
+# Security: Can be used to bypass restrictions
+
+# PermitTunnel = allow TUN/TAP device forwarding
+PermitTunnel no
+# Why: Prevent VPN-over-SSH (rarely needed)
+# Use: Enable only if explicitly using SSH VPN
+
+# === Legal Banner ===
+# Banner = file displayed before authentication
+Banner /etc/ssh/banner.txt
+# Why: Legal notice, deter unauthorized access
+# Use: Display terms of service, warning message
+# Note: Must create /etc/ssh/banner.txt</code></pre>        <h3>8. Create Legal Banner</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Create SSH login banner file
+# sudo vi = edit with root privileges
+# /etc/ssh/banner.txt = banner text file
+sudo vi /etc/ssh/banner.txt
+# Expected output: Opens vi editor for new banner file
+# Why: Display legal notice before authentication
+# Use when: Want to warn unauthorized users
+# Legal: Can establish "no expectation of privacy" for prosecution
+# Note: Displayed BEFORE login (pre-authentication)</code></pre>
+
+        <pre data-lang="text"><code class="language-text"># Example SSH Banner Content
+###############################################
+#  UNAUTHORIZED ACCESS PROHIBITED            #
+#  All connections are monitored and logged  #
+#  Violators will be prosecuted              #
+###############################################
+# Why: Legal deterrent, establishes monitoring notice
+# Use: Customize for your organization/use case
+# Legal: Consult lawyer for proper wording in your jurisdiction
+# Alternatives:
+#   "Authorized users only"
+#   "By continuing, you consent to monitoring"
+#   Company name, contact info for issues</code></pre>
+
+        <pre data-lang="bash"><code class="language-bash"># Restart SSH daemon to apply all configuration changes
+# sudo systemctl restart sshd = restart SSH service
+sudo systemctl restart sshd
+# Expected output: No output on success
+# Why: Load complete hardened configuration
+# Use when: After modifying sshd_config
+# CRITICAL: Keep existing SSH session open until tested!
+# Troubleshooting: If restart fails, check config syntax with 'sshd -t'
+
+# Test SSH configuration for syntax errors (before restarting)
+# sudo sshd -t = test sshd config syntax
+# -t = test mode (checks config, doesn't start service)
+sudo sshd -t
+# Expected output: No output = configuration is valid
+# Why: Catch syntax errors before restarting (prevent lockout)
+# Use when: After editing sshd_config, BEFORE restarting
+# Success: Silent (no output)
+# Failure: Shows error messages (line numbers, syntax issues)
+# CRITICAL: Always run before 'systemctl restart sshd'!
+# Example error: "sshd_config line 42: unsupported option 'InvalidOption'"</code></pre>        <h2>SSH Key Management</h2>
+
+        <h3>Multiple Keys for Different Servers</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Generate separate SSH keys for different servers/purposes
+# Best practice: One key per server (isolation, easier revocation)
+
+# Generate key for home server
+# ssh-keygen = SSH key generation utility
+# -t ed25519 = use Ed25519 algorithm
+# -f ~/.ssh/id_homeserver = custom filename (not default id_ed25519)
+# -C "homeserver" = comment for identifying key
+ssh-keygen -t ed25519 -f ~/.ssh/id_homeserver -C "homeserver"
+# Expected output: Key generation prompts, passphrase setup
+# Why: Dedicated key for home server
+# Use when: Managing multiple servers
+# Security: If one server compromised, other keys safe
+
+# Generate key for VPS (cloud server)
+ssh-keygen -t ed25519 -f ~/.ssh/id_vps -C "vps"
+# Why: Separate key for VPS
+# Security: VPS compromise doesn't affect home server access
+
+# Generate key for work server
+ssh-keygen -t ed25519 -f ~/.ssh/id_work -C "work"
+# Why: Isolate work keys from personal
+# Security: Can revoke work key when leaving job
+# Note: Work policies may require specific key management
+
+# Configure SSH client to use appropriate key per server
+# vi = text editor
+# ~/.ssh/config = SSH client configuration file
+vi ~/.ssh/config
+# Expected output: Opens vi editor (may be empty file)
+# Why: Automatically use correct key for each server
+# Use when: Have multiple SSH keys
+# Benefit: No need to specify -i keyfile every time</code></pre><pre data-lang="bash"><code class="language-bash"># Home server
+Host homeserver
+    HostName 192.168.10.50
+    Port 42022
+    User admin
+    IdentityFile ~/.ssh/id_homeserver
+    IdentitiesOnly yes
+
+# VPS
+Host vps
+    HostName vps.example.com
+    Port 22
+    User root
+    IdentityFile ~/.ssh/id_vps
+    IdentitiesOnly yes
+
+# Work server (through bastion)
+Host work
+    HostName internal.work.com
+    Port 22
+    User yourname
+    IdentityFile ~/.ssh/id_work
+    ProxyJump bastion.work.com</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Connect using config
+ssh homeserver
+ssh vps
+ssh work</code></pre>
+
+        <h3>SSH Key Security</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Set proper file permissions on SSH directory and keys
+# SSH requires strict permissions (will refuse to work if too open)
+
+# chmod 700 = rwx------ (read/write/execute for owner only)
+# ~/.ssh = SSH configuration directory
+chmod 700 ~/.ssh
+# Why: Protect all SSH files from other users
+# Required: SSH client refuses to work if ~/.ssh is world-readable
+
+# chmod 600 = rw------- (read/write for owner only)
+# id_* = private key files (id_ed25519, id_rsa, id_homeserver, etc.)
+chmod 600 ~/.ssh/id_*
+# Why: Private keys must be secret (anyone with key can impersonate you)
+# CRITICAL: Private keys with wrong permissions = "UNPROTECTED PRIVATE KEY FILE" error
+# Security: Most important permission (protects authentication credentials)
+
+# chmod 644 = rw-r--r-- (owner read/write, others read-only)
+# id_*.pub = public key files (safe to share)
+chmod 644 ~/.ssh/id_*.pub
+# Why: Public keys are meant to be shared
+# Note: Public keys don't need strict protection (public by design)
+
+# chmod 600 = rw------- (read/write for owner only)
+# ~/.ssh/config = SSH client configuration
+chmod 600 ~/.ssh/config
+# Why: Config may contain sensitive info (hostnames, usernames)
+# Required: SSH ignores config if permissions too open
+
+# Verify all permissions are correct
+# ls -la = list with permissions
+# ~/.ssh/ = check all SSH files
+ls -la ~/.ssh/
+# Expected output:
+#   drwx------  .ssh/
+#   -rw-------  id_ed25519
+#   -rw-r--r--  id_ed25519.pub
+#   -rw-------  id_homeserver
+#   -rw-r--r--  id_homeserver.pub
+#   -rw-------  config
+#   -rw-------  known_hosts
+# Why: Visual confirmation of correct permissions
+# Troubleshooting: If SSH refuses to work, check these permissions first!
+
+# Use SSH agent to avoid typing passphrase repeatedly
+# ssh-agent = background process that holds decrypted private keys in memory
+# eval $(ssh-agent) = start agent, set environment variables
+eval $(ssh-agent)
+# Expected output: Agent pid 12345
+# Why: Unlock keys once, use multiple times in session
+# Use when: Have passphrase-protected keys (best practice)
+# Security: Keys held in memory only (not on disk)
+
+# ssh-add = add private key to SSH agent
+# ~/.ssh/id_homeserver = key to load
+ssh-add ~/.ssh/id_homeserver
+# Expected output: Prompts for passphrase, then "Identity added"
+# Why: Decrypt key once, agent holds it in memory
+# Use when: About to make multiple SSH connections
+# Security: Enter passphrase once per session (not per connection)
+
+ssh-add ~/.ssh/id_vps
+# Why: Load VPS key into agent
+# Note: Can load multiple keys simultaneously
+
+# List keys currently loaded in agent
+# ssh-add -l = list fingerprints of loaded keys
+ssh-add -l
+# Expected output:
+#   256 SHA256:abc123... homeserver (ED25519)
+#   256 SHA256:def456... vps (ED25519)
+# Why: Verify which keys are loaded
+# Use when: Troubleshooting authentication issues
+# Note: If output is "The agent has no identities", no keys loaded
+
+# Clear all keys from agent (security best practice)
+# ssh-add -D = delete all identities from agent
+ssh-add -D
+# Expected output: All identities removed
+# Why: Remove decrypted keys from memory when done
+# Use when: Finished with SSH work, leaving workstation
+# Security: Prevents key theft if workstation compromised while unattended
+# Note: Will need to re-enter passphrases for next SSH session</code></pre>        <h2>Bastion Host (Jump Server)</h2>
+
+        <p>For production environments, use a bastion host as single entry point. All SSH traffic goes through bastion, which logs and audits access.</p>
+        
+        <p><strong>Why use a bastion host?</strong></p>
+        <ul>
+            <li><strong>Security</strong>: Internal servers never exposed to internet (only bastion is public)</li>
+            <li><strong>Audit</strong>: All SSH access logged in one place (compliance, forensics)</li>
+            <li><strong>Control</strong>: Single hardened entry point (easier to secure one server than many)</li>
+            <li><strong>Compliance</strong>: Many regulations require centralized access control (PCI-DSS, HIPAA)</li>
+        </ul>
+
+        <h3>Setup Bastion</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Bastion host is highly hardened SSH server
+# Apply ALL SSH hardening from previous sections:
+#   - Key-based authentication only (no passwords)
+#   - 2FA enabled
+#   - Fail2Ban configured
+#   - Non-standard port
+#   - User access restrictions
+#   - Strong cryptography
+
+# Additional bastion-specific configuration
+# sudo vi = edit SSH config with root privileges
+# /etc/ssh/sshd_config = SSH server configuration
+sudo vi /etc/ssh/sshd_config
+# Expected output: Opens sshd_config in vi editor
+# Why: Add bastion-specific security settings
+# Use when: Setting up bastion host</code></pre>
+
+        <pre data-lang="bash"><code class="language-bash"># Bastion-Specific SSH Configuration (/etc/ssh/sshd_config)
+
+# AllowAgentForwarding = permit SSH agent forwarding
+AllowAgentForwarding yes
+# Why: Required for ProxyJump to work (agent forwards auth to internal servers)
+# How: Bastion forwards your local SSH agent to internal servers
+# Security: Generally disabled for security, but required for jump hosts
+# Note: Internal servers can't steal keys (agent only signs, never reveals keys)
+
+# ForceCommand = command executed for all SSH sessions
+ForceCommand /usr/local/bin/ssh-audit.sh
+# Why: Log all SSH activity (who, when, to where)
+# How: Shell script logs username, source IP, destination, timestamp
+# Use: Compliance, forensics, security monitoring
+# Note: Must create /usr/local/bin/ssh-audit.sh (see example below)
+
+# AllowUsers = restrict access by source network
+# *@10.0.0.0/8 = allow any user from 10.x.x.x (private network)
+# *@192.168.0.0/16 = allow any user from 192.168.x.x (private network)
+AllowUsers *@10.0.0.0/8 *@192.168.0.0/16
+# Why: Only allow SSH from trusted networks (VPN, office, home)
+# Security: Block entire internet except trusted sources
+# Use: Replace with your actual trusted networks
+# Note: Requires patched OpenSSH (check 'man sshd_config' for CIDR support)
+# Alternative: Use firewall rules instead (iptables, ufw)
+
+# Additional bastion security (from previous sections):
+# PasswordAuthentication no
+# PubkeyAuthentication yes
+# AuthenticationMethods publickey,keyboard-interactive  # 2FA
+# PermitRootLogin no
+# MaxAuthTries 3
+# LogLevel VERBOSE  # Important for bastion (detailed audit logs)</code></pre><h3>Connect Through Bastion</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Method 1: ProxyJump (modern)
+ssh -J bastion.example.com:22 user@internal-server
+
+# Method 2: SSH config
+vi ~/.ssh/config</code></pre>
+
+<pre data-lang="bash"><code class="language-bash">Host bastion
+    HostName bastion.example.com
+    Port 22
+    User bastionuser
+    IdentityFile ~/.ssh/id_bastion
+
+Host internal-*
+    ProxyJump bastion
+    User internaluser
+    IdentityFile ~/.ssh/id_internal
+
+Host internal-web
+    HostName 10.0.1.10
+
+Host internal-db
+    HostName 10.0.1.20</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Connect to internal server through bastion
+ssh internal-web
+ssh internal-db</code></pre>
+
+        <h2>Monitoring and Auditing</h2>
+
+        <h3>SSH Log Analysis</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># View SSH authentication attempts in real-time
+# sudo tail = read end of log file (requires root)
+# -f = follow mode (continuously display new log entries)
+# /var/log/auth.log = authentication log (Debian/Ubuntu)
+sudo tail -f /var/log/auth.log
+# Expected output: Live stream of authentication attempts
+# Why: Monitor SSH activity in real-time
+# Use when: Investigating active attack, troubleshooting SSH issues
+# Note: Press Ctrl+C to stop
+# Alternative: /var/log/secure on Red Hat/CentOS
+# Shows: Successful logins, failed attempts, Fail2Ban actions
+
+# Search for failed SSH password attempts
+# sudo grep = search log file (requires root)
+# "Failed password" = string indicating failed login
+# /var/log/auth.log = authentication log
+sudo grep "Failed password" /var/log/auth.log
+# Expected output: List of failed password attempts with timestamps, IPs, usernames
+# Example: "Feb 15 10:23:45 server sshd[12345]: Failed password for admin from 1.2.3.4 port 52314 ssh2"
+# Why: Identify brute-force attacks, compromised accounts
+# Use when: Weekly security audit, investigating suspicious activity
+# Note: High count from same IP = brute-force attack (Fail2Ban should ban)
+
+# Search for successful SSH logins
+# "Accepted publickey" = successful key-based authentication
+sudo grep "Accepted publickey" /var/log/auth.log
+# Expected output: List of successful logins with user, key fingerprint, source IP
+# Example: "Feb 15 09:15:22 server sshd[54321]: Accepted publickey for admin from 192.168.1.50 port 48234 ssh2: ED25519 SHA256:abc123..."
+# Why: Audit who accessed server, detect unauthorized access
+# Use when: Compliance audit, investigating security incident
+# Shows: Username, source IP, key fingerprint, timestamp
+
+# Count brute-force authentication failures
+# grep "authentication failure" = find failed attempts
+# wc -l = count lines
+sudo grep "authentication failure" /var/log/auth.log | wc -l
+# Expected output: Number (e.g., 1247)
+# Why: Quantify attack volume
+# Use when: Security report, deciding if need stronger protection
+# Note: High number (1000+) = under active attack
+
+# Identify unique attacking IP addresses (ranked by attempts)
+# grep "Failed password" = find failed attempts
+# awk '{print $(NF-3)}' = extract IP address field
+# sort = alphabetically sort IPs
+# uniq -c = count unique IPs
+# sort -nr = numerical sort, reverse (highest first)
+sudo grep "Failed password" /var/log/auth.log | awk '{print $(NF-3)}' | sort | uniq -c | sort -nr
+# Expected output:
+#   423 185.220.101.45
+#   187 91.134.208.72
+#    54 198.98.57.207
+# Why: Identify most aggressive attackers
+# Use when: Manually blocking IPs, reporting to abuse contacts
+# Shows: Top attacking IPs ranked by attempt count
+# Note: These IPs should be banned by Fail2Ban</code></pre><h3>Active SSH Connections</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Show current SSH sessions
+who
+
+# More detailed
+w
+
+# Show SSH processes
+ps aux | grep sshd
+
+# Network connections to SSH port
+sudo netstat -tnpa | grep 'ESTABLISHED.*sshd'</code></pre>
+
+<h3>Automated Alerts</h3>
+
+<pre data-lang="bash"><code class="language-bash"># Create alert script
+sudo vi /usr/local/bin/ssh-login-alert.sh</code></pre>
+
+<pre data-lang="bash"><code class="language-bash">#!/bin/bash
+# Email alert on SSH login
+
+if [ "$PAM_TYPE" = "open_session" ]; then
+    echo "SSH Login Alert
+    
+User: $PAM_USER
+Host: $(hostname)
+IP: $PAM_RHOST
+Date: $(date)
+" | mail -s "SSH Login: $PAM_USER@$(hostname)" your-email@example.com
+fi</code></pre>
+
+<pre data-lang="bash"><code class="language-bash"># Make executable
+sudo chmod +x /usr/local/bin/ssh-login-alert.sh
+
+# Enable in PAM
+sudo vi /etc/pam.d/sshd
+
+# Add at end
+session optional pam_exec.so /usr/local/bin/ssh-login-alert.sh</code></pre>
+
+<h2>Testing Your Configuration</h2>
+
+        <h2>Testing and Verification</h2>
+
+        <h3>WireGuard Tests</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Test 1: Verify WireGuard handshake (confirms encryption working)
+# sudo wg show = display WireGuard status
+sudo wg show
+# Expected output:
+#   interface: wg0
+#   public key: abc123...
+#   listening port: 51820
+#   
+#   peer: def456...
+#     endpoint: 1.2.3.4:52143
+#     allowed ips: 10.200.200.2/32
+#     latest handshake: 45 seconds ago
+#     transfer: 15.23 MiB received, 8.45 MiB sent
+# Why: Verify WireGuard tunnel is active and encrypting
+# Success: "latest handshake" within last 2-3 minutes
+# Failure: "latest handshake" very old or missing = tunnel down
+# Note: Handshakes refresh every ~2 minutes when active
+
+# Test 2: Test VPN connectivity (ping VPN server)
+# ping = test network reachability
+# 10.200.200.1 = VPN server IP (from wg0 config)
+ping 10.200.200.1
+# Expected output: Replies from 10.200.200.1 with low latency (<50ms typical)
+# Why: Verify basic VPN tunnel works
+# Success: 64 bytes from 10.200.200.1: icmp_seq=1 ttl=64 time=12.3 ms
+# Failure: "Destination Host Unreachable" = tunnel not working
+# Troubleshooting: Check 'wg show' for handshake, firewall rules
+
+# Test 3: Test home network access through VPN (optional)
+# ping 192.168.10.1 = home router IP
+ping 192.168.10.1
+# Expected output: Replies from 192.168.10.1
+# Why: Verify VPN routes to home LAN (if AllowedIPs includes 192.168.10.0/24)
+# Use when: Want to access home network devices through VPN
+# Failure: No route = check server iptables, wg0 AllowedIPs
+
+# Test 4: Verify public IP change (confirms traffic routed through VPN)
+# curl ifconfig.me = check your public IP address
+curl ifconfig.me
+# Expected output: Server's public IP (not your actual location IP)
+# Why: Verify all traffic routed through VPN
+# Success: Shows server IP (your location hidden)
+# Use when: Testing full tunnel configuration (AllowedIPs = 0.0.0.0/0)
+# Note: If shows your real IP = split tunnel or VPN not routing all traffic
+
+# Test 5: DNS leak test (verify DNS goes through VPN)
+# Visit website: https://dnsleaktest.com
+# Should show VPN DNS servers (if configured)
+# Why: Ensure DNS queries don't reveal real location
+# Expected: DNS servers match what you configured in wg0.conf (1.1.1.1, 9.9.9.9)
+# Failure: Shows ISP DNS = DNS leak (add DNS line to client wg0.conf)
+# Security: DNS leaks reveal browsing even with VPN
+# Alternative test: curl https://cloudflare.com/cdn-cgi/trace | grep warp</code></pre>
+
+        <h3>SSH Tests</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Test 1: Verify password authentication disabled
+# ssh user@server-ip = attempt SSH connection
+ssh user@server-ip
+# Expected output: "Permission denied (publickey)"
+# Why: Verify passwords can't be used (only keys)
+# Success: Connection refused without SSH key
+# Failure: Prompts for password = PasswordAuthentication not disabled
+# Use: Confirms hardening applied correctly
+
+# Test 2: Test SSH key authentication with 2FA
+# ssh -i = specify identity file (private key)
+# ~/.ssh/id_ed25519 = your SSH private key
+ssh -i ~/.ssh/id_ed25519 user@server-ip
+# Expected output:
+#   1. Prompts for SSH key passphrase
+#   2. Prompts for 2FA verification code
+#   3. Logs in successfully
+# Why: Verify key-based auth + 2FA works
+# Success: Can log in with key + 2FA
+# Failure: Connection refused = check authorized_keys, sshd_config
+
+# Test 3: Verify root login disabled
+# ssh root@server-ip = attempt to SSH as root
+ssh root@server-ip
+# Expected output: "Permission denied (publickey)" or "Permission denied"
+# Why: Confirm root can't SSH directly
+# Success: Root login refused
+# Failure: Prompts for password/key = PermitRootLogin not set to 'no'
+# Security: Forces attackers to guess both username AND password/key
+
+# Test 4: Test Fail2Ban banning
+# From untrusted machine, try wrong password/key 3+ times
+# Then check if IP is banned:
+# sudo fail2ban-client status sshd = check SSH jail status
+sudo fail2ban-client status sshd
+# Expected output:
+#   Status for the jail: sshd
+#   |- Filter
+#   |  |- Currently failed: 0
+#   |  |- Total failed: 127
+#   |  `- File list: /var/log/auth.log
+#   `- Actions
+#      |- Currently banned: 3
+#      |- Total banned: 45
+#      `- Banned IP list: 185.220.101.45 91.134.208.72 198.98.57.207
+# Why: Verify Fail2Ban automatically bans after failed attempts
+# Success: Attacking IP appears in "Banned IP list"
+# Note: Test from different machine (not your main workstation!)
+
+# Test 5: Verify strong cipher usage
+# ssh -vvv = very verbose mode (shows all negotiation details)
+# grep "cipher" = filter for cipher negotiation
+ssh -vvv user@server-ip 2>&1 | grep "cipher"
+# Expected output:
+#   debug1: kex: server->client cipher: chacha20-poly1305@openssh.com
+#   debug1: kex: client->server cipher: chacha20-poly1305@openssh.com
+# Why: Confirm strong encryption algorithms in use
+# Success: chacha20-poly1305 or aes256-gcm (modern, secure)
+# Failure: 3des, arcfour, aes128-cbc (weak, outdated)
+# Note: Should match Ciphers line in sshd_config</code></pre>
+
+        <h2>Emergency Access Recovery</h2>
+
+        <h3>Locked Out of SSH</h3>
+
+        <p><strong>Prevention:</strong> Always test SSH configuration changes in a NEW terminal window while keeping your existing SSH session open. If new connection fails, you still have the old session to fix the problem.</p>
+
+        <p><strong>Common lockout causes:</strong></p>
+        <ul>
+            <li><strong>Wrong SSH port:</strong> Changed Port in sshd_config but forgot to allow it in firewall</li>
+            <li><strong>Broken sshd_config:</strong> Syntax error prevents SSH from starting (use <code>sshd -t</code> to test!)</li>
+            <li><strong>Wrong key permissions:</strong> authorized_keys or private key has incorrect permissions</li>
+            <li><strong>Fail2Ban self-ban:</strong> Banned your own IP after failed test attempts</li>
+            <li><strong>2FA misconfiguration:</strong> google-authenticator not set up correctly, lost phone</li>
+        </ul>
+
+        <p><strong>Recovery options (in order of preference):</strong></p>
+        <ul>
+            <li><strong>Physical access:</strong> Connect monitor/keyboard to server, login at console (home servers)
+                <ul>
+                    <li>Why: Direct physical access bypasses SSH entirely</li>
+                    <li>Use: Can edit sshd_config, check firewall, unban IP</li>
+                    <li>Limitation: Only works if you have physical access</li>
+                </ul>
+            </li>
+            <li><strong>VPS control panel console:</strong> Most VPS providers offer web-based console access
+                <ul>
+                    <li>Examples: DigitalOcean Droplet Console, Linode LISH, AWS EC2 Serial Console</li>
+                    <li>Why: Acts like physical keyboard/monitor over web</li>
+                    <li>Use: Login through provider's website, fix SSH config</li>
+                    <li>Benefit: Works from anywhere (don't need to be near server)</li>
+                </ul>
+            </li>
+            <li><strong>Serial console:</strong> Out-of-band management console
+                <ul>
+                    <li>Examples: IPMI, iDRAC, iLO, AWS Systems Manager Session Manager</li>
+                    <li>Why: Separate network connection independent of SSH</li>
+                    <li>Use: Enterprise/datacenter servers typically have this</li>
+                    <li>Benefit: Works even if networking completely broken</li>
+                </ul>
+            </li>
+            <li><strong>Backup SSH keys:</strong> Keep emergency SSH key pair on USB drive in safe place
+                <ul>
+                    <li>Why: If lose access to main key, can use backup</li>
+                    <li>Setup: Generate separate key, add to authorized_keys, store offline</li>
+                    <li>Security: Keep backup key on encrypted USB drive, not in cloud</li>
+                    <li>Note: Must have installed backup key BEFORE lockout</li>
+                </ul>
+            </li>
+            <li><strong>2FA emergency codes:</strong> Use scratch codes from google-authenticator setup
+                <ul>
+                    <li>Why: Lost/broken phone = can't generate 2FA codes</li>
+                    <li>Setup: Save emergency scratch codes during google-authenticator setup</li>
+                    <li>Storage: Password manager, printed paper in safe</li>
+                    <li>Note: Each code single-use only (generate new after use)</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>Lost WireGuard Keys</h3>
+
+        <pre data-lang="bash"><code class="language-bash"># Regenerate WireGuard server keys if lost/compromised
+# wg genkey = generate new private key
+# sudo tee = write to file with root privileges
+# /etc/wireguard/server_private_new.key = new private key file
+wg genkey | sudo tee /etc/wireguard/server_private_new.key
+# Expected output: New private key (base64 string)
+# Why: Generate new server private key
+# Use when: Key lost, compromised, or rotating for security
+
+# Derive public key from new private key
+# sudo cat = read private key file
+# wg pubkey = derive public key from private key
+sudo cat /etc/wireguard/server_private_new.key | wg pubkey | sudo tee /etc/wireguard/server_public_new.key
+# Expected output: New public key (base64 string)
+# Why: Public key derived from private key (cryptographic pair)
+# Note: Must distribute new public key to all clients
+
+# Update server WireGuard configuration with new private key
+# sudo vi = edit config with root privileges
+# /etc/wireguard/wg0.conf = WireGuard server config
+sudo vi /etc/wireguard/wg0.conf
+# Expected output: Opens wg0.conf in vi editor
+# Why: Replace old PrivateKey with new one
+# Steps: Find "PrivateKey = ..." line, replace with contents of server_private_new.key
+# CRITICAL: Keep [Peer] sections unchanged (client public keys still valid)
+
+# Update ALL client configurations with new server public key
+# Clients need new server public key in their [Peer] PublicKey line
+# Distribution: Email, secure file transfer, or manual entry
+# Why: Clients must know new server public key to connect
+# Note: Old key immediately stops working after restart
+
+# Restart WireGuard to apply new keys
+# sudo systemctl restart = restart service
+# wg-quick@wg0 = WireGuard systemd service for wg0 interface
+sudo systemctl restart wg-quick@wg0
+# Expected output: No output on success
+# Why: Load new keys into active WireGuard interface
+# Verify: sudo wg show (should show new public key)
+# Note: All clients disconnected until they update their configs with new server public key</code></pre>
+
+<div class="terminal-success not-prose">
+    <div class="terminal-success-header">
+        <i data-lucide="shield-check" class="terminal-success-icon"></i>
+        <h3 class="terminal-success-title">Defense in Depth</h3>
+    </div>
+    <p class="terminal-success-content">
+        Secure remote access is one layer. Combine with: network segmentation (Part 3), encrypted tunnels (Part 1-2), hardened endpoints (Circle 3), and monitoring (Part 5). A compromised SSH key on hardened system with 2FA and intrusion detection is detectable and containable.
+    </p>
+</div>
+
+<h2>Next Steps</h2>
+
+<p>You now have secure remote access via WireGuard VPN and hardened SSH. Part 5 covers intrusion detection and security monitoring: setting up centralized logging, analyzing suspicious activity, and responding to security incidents.</p>
+
+<blockquote>
+    "Remote access is a privilege, not a right. Every connection should be authenticated, encrypted, monitored, and time-limited."
+</blockquote>
+
+<div class="flex justify-between mt-12 pt-6 border-t border-shell-border">
+    <a href="#/posts/3.Network_Security/part3.html" class="text-shell-accent hover:underline">← Part 3: Segmentation & Firewall Rules</a>
+    <a href="#/posts/3.Network_Security/part5.html" class="text-shell-accent hover:underline">Part 5: NIDS, HIDS, IDS/IPS Systems →</a>
+</div>

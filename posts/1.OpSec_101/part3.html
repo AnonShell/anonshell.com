@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3. OpSec Pre-Flight Checklist</title>
+</head>
+<body>
+    <article>
+        
+        <h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+            <span class="text-gray-500">#</span> 3. OpSec Pre-Flight Checklist
+        </h1>
+
+        <p class="text-xl text-shell-accent/90 leading-relaxed">
+            You have read the theory. You understand the threats. Now it is time to act. This checklist breaks security implementation into five progressive levels, from basic hygiene to maximum operational security. Start where you are comfortable, then level up as your threat model evolves.
+        </p>
+
+        <div class="terminal-info not-prose">
+            <div class="terminal-info-header">
+                <i data-lucide="info" class="terminal-info-icon"></i>
+                <h3 class="terminal-info-title">How to Use This Checklist</h3>
+            </div>
+            <ul class="terminal-info-content">
+                <li><strong>Start at Level 1</strong> regardless of your technical skill. The fundamentals matter more than advanced techniques.</li>
+                <li><strong>Complete each level fully</strong> before moving to the next. Security is cumulative, not modular.</li>
+                <li><strong>Revisit quarterly</strong> to verify implementations are still active and up to date.</li>
+                <li><strong>Threat models change.</strong> A freelance writer facing data brokers (Level 1-2) has different needs than a journalist in an authoritarian regime (Level 4-5).</li>
+            </ul>
+        </div>
+
+        <h2>Level 1: The Everyday User</h2>
+        <p>
+            <strong>Who This Is For:</strong> Average internet users who want basic protection against common threats like phishing, credential stuffing, data breaches, and tracking. You use email, social media, online banking, and shopping sites. Your threat model includes opportunistic attackers, data brokers, and mass surveillance.
+        </p>
+        <p>
+            <strong>Time Investment:</strong> 2-4 hours initial setup, 30 minutes monthly maintenance.
+        </p>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="check-circle" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Level 1 Checklist</h3>
+            </div>
+            <div class="terminal-success-content" style="list-style: none; padding-left: 0;">
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Install a password manager (<a href="https://keepassxc.org" rel="noopener" target="_blank">KeePassXC</a> or <a href="https://bitwarden.com" rel="noopener" target="_blank">Bitwarden</a>)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Generate unique passwords (20+ characters) for every account</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Enable TOTP-based two-factor authentication on critical accounts (email, banking, social media)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Purchase a hardware security key (<a href="https://www.yubico.com" rel="noopener" target="_blank">YubiKey 5C</a> or <a href="https://solokeys.com" rel="noopener" target="_blank">SoloKeys</a>) for primary email and financial accounts</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Check if your email appeared in breaches at <a href="https://haveibeenpwned.com" rel="noopener" target="_blank">Have I Been Pwned</a></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Enable automatic OS updates (Windows Update, macOS Software Update, APT unattended-upgrades)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Enable automatic browser updates (Chrome, Firefox, Brave)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Install browser privacy extensions: <a href="https://ublockorigin.com" rel="noopener" target="_blank">uBlock Origin</a> and <a href="https://privacybadger.org" rel="noopener" target="_blank">Privacy Badger</a></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Enable full-disk encryption (BitLocker on Windows, FileVault on macOS, LUKS on Linux)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set strong device unlock PINs/passwords (10+ characters, no biometrics for high-value devices)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Enable "Find My Device" and practice triggering remote lock/wipe</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Install <a href="https://cryptomator.org" rel="noopener" target="_blank">Cryptomator</a> and create encrypted vaults for sensitive cloud files</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up encrypted backups with <a href="https://duplicati.com" rel="noopener" target="_blank">Duplicati</a> or <a href="https://restic.net" rel="noopener" target="_blank">restic</a></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Test backup restoration by recovering a random file</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Audit social media privacy settings (set profiles to private, disable location tagging)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use email aliases (<a href="https://simplelogin.io" rel="noopener" target="_blank">SimpleLogin</a> or <a href="https://anonaddy.com" rel="noopener" target="_blank">AnonAddy</a>) for throwaway signups</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Install <a href="https://signal.org" rel="noopener" target="_blank">Signal</a> for encrypted messaging and enable disappearing messages</div>
+            </div>
+        </div>
+
+        <h2>Level 2: The Power User</h2>
+        <p>
+            <strong>Who This Is For:</strong> Users managing multiple online identities (personal, work, side projects). You handle sensitive documents, communicate with clients, and want to minimize digital footprint. Your threat model adds targeted phishing, corporate surveillance, and persistent tracking.
+        </p>
+        <p>
+            <strong>Time Investment:</strong> 6-10 hours initial setup, 1 hour monthly maintenance.
+        </p>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="check-circle" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Level 2 Checklist</h3>
+            </div>
+            <div class="terminal-success-content" style="list-style: none; padding-left: 0;">
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Complete all Level 1 items first</strong></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Create separate browser profiles for work, personal, and shopping (or use <a href="https://www.mozilla.org/firefox/browsers/browser-container-tabs/" rel="noopener" target="_blank">Firefox Multi-Account Containers</a>)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Install <a href="https://www.veracrypt.fr" rel="noopener" target="_blank">VeraCrypt</a> for portable encrypted volumes</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Create a VeraCrypt standard volume (not hidden) for sensitive files at rest</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Enable encrypted DNS (DNS over HTTPS in browser settings or <a href="https://www.quad9.net" rel="noopener" target="_blank">Quad9</a> system-wide)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up a firewall (Windows Firewall with Advanced Security, macOS Firewall, or <a href="https://gufw.org" rel="noopener" target="_blank">GUFW</a> on Linux)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Install <a href="https://github.com/evilsocket/opensnitch" rel="noopener" target="_blank">OpenSnitch</a> (Linux) or <a href="https://www.obdev.at/products/littlesnitch/index.html" rel="noopener" target="_blank">Little Snitch</a> (macOS) for application-level firewall control</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Audit installed applications and remove unused software</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Disable unnecessary startup programs and background services</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up GPG keys with <a href="https://gnupg.org" rel="noopener" target="_blank">GnuPG</a> for email encryption (generate 4096-bit RSA or Ed25519)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Configure email client (<a href="https://www.thunderbird.net" rel="noopener" target="_blank">Thunderbird</a>) with GPG support</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Create email filters to quarantine suspicious attachments</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Install metadata removal tools (<a href="https://0xacab.org/jvoisin/mat2" rel="noopener" target="_blank">MAT2</a> or <a href="https://exiftool.org" rel="noopener" target="_blank">ExifTool</a>)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Strip metadata from photos before sharing online</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use a VPN for public Wi-Fi (<a href="https://mullvad.net" rel="noopener" target="_blank">Mullvad</a> or <a href="https://ivpn.net" rel="noopener" target="_blank">IVPN</a> with audited no-logs policies)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up network-wide ad blocking with <a href="https://pi-hole.net" rel="noopener" target="_blank">Pi-hole</a> (optional but recommended)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Rotate online identities annually (new email aliases, update security questions with random answers stored in password manager)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Enable audit logging on sensitive documents (track who accessed what, when)</div>
+            </div>
+        </div>
+
+        <h2>Level 3: The IT Professional</h2>
+        <p>
+            <strong>Who This Is For:</strong> IT specialists, system administrators, and technicians handling corporate proprietary data, ERP systems, or unclassified government work. You manage infrastructure, access production systems, and hold privileged credentials. Your threat model includes insider threats, supply chain attacks, and corporate espionage.
+        </p>
+        <p>
+            <strong>Time Investment:</strong> 12-20 hours initial setup, 2 hours monthly maintenance.
+        </p>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="check-circle" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Level 3 Checklist</h3>
+            </div>
+            <div class="terminal-success-content" style="list-style: none; padding-left: 0;">
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Complete all Level 1 and Level 2 items first</strong></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement LUKS2 full-disk encryption with TPM2 binding (<code>systemd-cryptenroll</code>)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Configure Secure Boot with custom keys (or <a href="https://github.com/osresearch/heads" rel="noopener" target="_blank">Heads firmware</a> for advanced users)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up VM isolation with <a href="https://www.qemu.org" rel="noopener" target="_blank">QEMU/KVM</a>, <a href="https://www.virtualbox.org" rel="noopener" target="_blank">VirtualBox</a>, or <a href="https://www.vmware.com" rel="noopener" target="_blank">VMware</a></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Create separate VMs for: work, personal browsing, risky downloads, testing</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Enable VM snapshots and practice reverting to clean states</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Disable VM shared folders and clipboard (use network file shares with encryption instead)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Install <a href="https://github.com/usbguard/usbguard" rel="noopener" target="_blank">USBGuard</a> to whitelist authorized USB devices</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement network segmentation (separate VLANs for work, IoT, guests)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Deploy IDS/IPS (<a href="https://suricata.io" rel="noopener" target="_blank">Suricata</a> or <a href="https://www.snort.org" rel="noopener" target="_blank">Snort</a>) on network perimeter</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up centralized logging with <a href="https://www.elastic.co/elk-stack" rel="noopener" target="_blank">ELK Stack</a> or <a href="https://graylog.org" rel="noopener" target="_blank">Graylog</a></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Harden SSH: disable password authentication, use Ed25519 keys, enable fail2ban</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Audit system with <a href="https://cisofy.com/lynis/" rel="noopener" target="_blank">Lynis</a> and fix critical findings</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Enable SELinux (RHEL/Fedora) or AppArmor (Debian/Ubuntu) in enforcing mode</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Configure kernel hardening (sysctl settings: disable IPv6 if unused, enable SYN cookies, randomize ports)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up WireGuard VPN for remote access to home/work networks</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement 3-2-1 backup strategy (3 copies, 2 different media types, 1 offsite)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Encrypt all backups with GPG or VeraCrypt before offsite storage</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use hardware tokens for SSH authentication (<code>ssh-keygen -t ed25519-sk</code> with YubiKey)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement certificate pinning for critical internal services</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Deploy DNSSEC validation with <a href="https://nlnetlabs.nl/projects/unbound/about/" rel="noopener" target="_blank">Unbound</a> recursive resolver</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up tamper-evident seals on physical hardware (glitter nail polish on screws)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Document incident response procedures (what to do if device is compromised)</div>
+            </div>
+        </div>
+
+        <h2>Level 4: The Cybersecurity Enthusiast</h2>
+        <p>
+            <strong>Who This Is For:</strong> Self-learners pursuing cybersecurity knowledge, privacy advocates, and individuals wanting military-grade personal security without being persons of interest. You experiment with security tools, run penetration tests on your own systems, and want defense-in-depth. Your threat model includes advanced persistent threats (APT) techniques but not nation-state targeting.
+        </p>
+        <p>
+            <strong>Time Investment:</strong> 30+ hours initial setup, 3-4 hours monthly maintenance.
+        </p>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="check-circle" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Level 4 Checklist</h3>
+            </div>
+            <div class="terminal-success-content" style="list-style: none; padding-left: 0;">
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Complete all Level 1, 2, and 3 items first</strong></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Migrate to <a href="https://www.qubes-os.org" rel="noopener" target="_blank">Qubes OS</a> for Xen-based security through isolation</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Configure Qubes disposable VMs for all untrusted browsing</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up Whonix Gateway + Workstation VMs for Tor-based anonymity</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement VeraCrypt hidden volumes with plausible deniability</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Create decoy data in outer volume, real data in hidden volume</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up LUKS nuke password to wipe encryption headers under duress</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Deploy <a href="https://www.coreboot.org" rel="noopener" target="_blank">Coreboot</a> or <a href="https://libreboot.org" rel="noopener" target="_blank">Libreboot</a> firmware (if hardware supports it)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Disable Intel Management Engine with <a href="https://github.com/corna/me_cleaner" rel="noopener" target="_blank">me_cleaner</a> (or purchase ME-disabled hardware)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement air-gapped cold storage for cryptocurrency keys and sensitive GPG keys</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use <a href="https://tails.boum.org" rel="noopener" target="_blank">Tails OS</a> (live amnesic system) for high-risk operations</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Configure MAT2 or ExifTool in automated workflows to strip all metadata by default</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up Tor Browser with custom bridges (obfs4) for censorship circumvention</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement rotating Tor circuits for different identities</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use <a href="https://getsession.org" rel="noopener" target="_blank">Session</a> or <a href="https://briarproject.org" rel="noopener" target="_blank">Briar</a> for metadata-resistant messaging</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Generate offline PGP master key, create subkeys for signing/encryption/authentication</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Store master key on air-gapped machine, use subkeys on YubiKey</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement key rotation schedule (subkeys every 2 years, master key every 5 years)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up canary tokens to detect unauthorized access attempts</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Deploy honeypot services on network to identify scanning activity</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Run regular vulnerability scans with <a href="https://www.openvas.org" rel="noopener" target="_blank">OpenVAS</a> or <a href="https://nmap.org" rel="noopener" target="_blank">Nmap NSE scripts</a></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Practice cold boot attack prevention (power off, not sleep; use encrypted swap)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Configure BIOS/UEFI passwords and disable boot from external media</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement Faraday bag procedures for devices storing sensitive data</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up kill switch scripts to wipe RAM and dismount encrypted volumes on trigger</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Test incident response plan quarterly (simulate compromise, practice recovery)</div>
+            </div>
+        </div>
+
+        <h2>Level 5: Maximum Operational Security</h2>
+        <p>
+            <strong>Who This Is For:</strong> Investigative journalists in hostile environments, whistleblowers, activists under state surveillance, and individuals facing nation-state adversaries. You operate under the assumption that all communications are monitored, all devices are potentially compromised, and physical security is paramount. Your threat model includes signals intelligence (SIGINT), human intelligence (HUMINT), and supply chain interdiction.
+        </p>
+        <p>
+            <strong>Time Investment:</strong> 50+ hours initial setup, ongoing lifestyle discipline, weekly maintenance.
+        </p>
+
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">Critical Warning</h3>
+            </div>
+            <p class="terminal-alert-content">
+                Level 5 security requires permanent behavioral changes. You cannot casually browse social media, reuse identities, or trust cloud services. Every action is scrutinized. Mistakes are permanent. If your life or freedom depends on operational security, consider professional security consultation. This level is not theoretical; it is survival protocol.
+            </p>
+        </div>
+
+        <div class="terminal-success not-prose">
+            <div class="terminal-success-header">
+                <i data-lucide="shield-check" class="terminal-success-icon"></i>
+                <h3 class="terminal-success-title">Level 5 Checklist</h3>
+            </div>
+            <div class="terminal-success-content" style="list-style: none; padding-left: 0;">
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> <strong>Complete all Level 1-4 items first</strong></div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Operational discipline: assume all communications are monitored, all devices are compromised</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Purchase hardware from random retailers with cash, never shipped to your address</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Run Qubes OS with Whonix for all internet access (no clearnet browsing from real identity)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use Tails OS exclusively for high-risk communications (boot from read-only media)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Maintain air-gapped machine (never connected to internet) for key storage and sensitive document creation</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Transfer files to/from air-gapped system using one-way data diodes or manual retyping (no USB)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement VeraCrypt triple-cascade encryption (AES-Twofish-Serpent) with hidden volumes</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Store decoy data in outer volume convincing enough to satisfy coercion</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use diceware passphrases (10+ words, 128+ bits entropy) for critical encryption keys</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Memorize all critical passwords; never write them down digitally or physically</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement dead man's switch for automatic data release if you are detained/disappeared</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Disable all biometrics (fingerprint, face unlock); use strong PIN/password only</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Apply glitter nail polish to all hardware screws for tamper detection</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Photograph hardware serial numbers; verify on each boot</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Store devices in locked containers when not in use; never leave unattended</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use Faraday bags for phones when traveling; remove batteries if possible</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Purchase burner phones with cash; register with fake identities; rotate every 30 days</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Never connect burner phone to home Wi-Fi or use near regular devices</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Communicate exclusively through Signal with disappearing messages (7 days max)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Verify safety numbers in person for all Signal contacts before sensitive discussions</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use Session (onion-routed messaging) or Briar (Tor + Bluetooth mesh) for highest anonymity</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> PGP-encrypt all emails; use ProtonMail or Tutanota with Tor access</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement key ceremony procedures (witnesses, multiple signing parties) for critical key generation</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Split GPG master key using Shamir's Secret Sharing (require 3 of 5 shares to reconstruct)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Store key shares in geographically distributed safe deposit boxes (different banks, different cities)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Run all internet traffic through Tor (Whonix Gateway or transparent Tor proxy)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use Tor bridges (obfs4, meek) to hide Tor usage from network observers</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Chain VPN → Tor → VPN for multi-hop anonymity (different jurisdictions, cash-paid VPNs)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Rotate Tor identities every 10 minutes; never reuse same identity across sessions</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use separate hardware for each identity (work, personal, pseudonymous)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Never mix identities on same device or same network</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Rewrite all writing with LLM tools to remove stylometric fingerprints</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Translate text through 3 languages before publishing (original → language A → language B → back to original)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Randomize sentence length, vocabulary complexity, punctuation patterns</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Strip all metadata from documents (ExifTool, MAT2) before upload</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Print documents, photocopy, scan back in to remove digital forensic artifacts</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use LibreOffice with randomized fonts/spacing instead of Microsoft Office (unique document fingerprinting)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Implement secure file deletion (shred -vfz -n 7 or DBAN for full disk)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Encrypt swap partition with random key on each boot</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Disable core dumps, crash reports, and hibernation (prevent RAM leakage)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Set up network kill switch to block all traffic if VPN/Tor disconnects</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Deploy MAC address randomization on every network connection</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use public Wi-Fi from coffee shops, libraries (never home network for sensitive ops)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Sit with back to wall, screen not visible to cameras or people</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Use privacy screen protectors to prevent shoulder surfing</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Conduct sensitive communications in noise-generating environments (busy cafes, public transit)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Practice counter-surveillance: detect if you are being followed or monitored</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Maintain cover story for all activities; never discuss real operations</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Establish duress code words with trusted contacts (signal compromise without alerting adversary)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Document emergency procedures: who to contact, how to destroy evidence, where to flee</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Keep go-bag ready (cash, burner phone, encrypted USB, emergency contacts)</div>
+                <div style="margin-bottom: 0.5rem;"><input type="checkbox"> Test full operational security quarterly: assume compromise, execute destruction plan, verify nothing recoverable</div>
+            </div>
+        </div>
+
+        <h2>Final Thoughts</h2>
+        <p>
+            Security is not a destination. It is a continuous process of assessment, implementation, and refinement. Most people will never need Level 5 security. Most will be well-served by Level 1-2. The key is matching your defenses to your actual threats, not your imagined ones.
+        </p>
+
+        <div class="terminal-warning not-prose">
+            <div class="terminal-warning-header">
+                <i data-lucide="alert-circle" class="terminal-warning-icon"></i>
+                <h3 class="terminal-warning-title">Remember</h3>
+            </div>
+            <ul class="terminal-warning-content">
+                <li>Perfect security does not exist. You are mitigating risk, not eliminating it.</li>
+                <li>The weakest link is usually human behavior, not technical controls.</li>
+                <li>Complexity is the enemy of security. Do not implement what you cannot maintain.</li>
+                <li>Test your defenses regularly. Untested security is wishful thinking.</li>
+                <li>Share knowledge freely. Collective security benefits everyone.</li>
+            </ul>
+        </div>
+
+        <blockquote>
+            "Security is not a product, but a process. It is not something you buy, but something you do."
+            <br>Bruce Schneier
+        </blockquote>
+
+        <p>
+            Start small. Build habits. Level up when ready. The adversaries are patient. So must we be.
+        </p>
+
+    </article>
+
+<div class="flex justify-between mt-12 pt-6 border-t border-shell-border">
+    <a href="#/posts/1.OpSec_101/part2.html" class="text-shell-accent hover:underline">← Part 2: The Advanced Privacy Guide</a>
+    <a href="#/posts/1.OpSec_101/part4.html" class="text-shell-accent hover:underline">Part 4: Hardware & Disposable OpSec →</a>
+</div>
+</body>
+</html>

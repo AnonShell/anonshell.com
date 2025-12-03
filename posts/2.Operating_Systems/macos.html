@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3. MacOS</title>
+</head>
+<body>
+    <article>
+        <h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+            <span class="text-gray-500">#</span> 3. MacOS Security Audit
+        </h1>
+
+        <p class="text-xl text-shell-accent/90 leading-relaxed">
+            MacOS occupies the middle ground between Windows surveillance and Linux freedom. Apple builds competent security architecture but wraps it in proprietary control systems that restrict user agency. The platform excels at protecting you from external threats while simultaneously tracking your behavior for Apple's benefit. This audit examines both sides of that trade-off.
+        </p>
+
+        <h2>Architecture and Kernel Security</h2>
+        <p>
+            MacOS runs on XNU, a hybrid kernel combining the Mach microkernel with FreeBSD components. This architecture provides strong memory protection and privilege separation. The kernel is partially open source through the Darwin project, enabling independent security research, but critical components remain proprietary.
+        </p>
+
+        <h3>Exploit Mitigation Technologies</h3>
+        <p>
+            Apple implements industry-leading exploit mitigations:
+        </p>
+        <ul>
+            <li><strong>Pointer Authentication Codes (PAC):</strong> Hardware-enforced on Apple Silicon, cryptographically validates function pointers to prevent ROP attacks</li>
+            <li><strong>Kernel Address Space Layout Randomization (KASLR):</strong> Randomizes kernel memory layout, making exploit development significantly harder</li>
+            <li><strong>System Integrity Protection (SIP):</strong> Prevents modification of system files even by root, isolating critical OS components</li>
+            <li><strong>Sandboxing:</strong> All App Store apps run in restrictive sandboxes limiting filesystem, network, and IPC access</li>
+            <li><strong>Hardened Runtime:</strong> Enforces code signing, library validation, and prevents runtime code injection</li>
+            <li><strong>Memory Tagging:</strong> Hardware memory tagging on M-series chips detects buffer overflows and use-after-free vulnerabilities</li>
+        </ul>
+
+        <p>
+            These mitigations work. MacOS kernel exploits command premium prices in the commercial spyware market because they are genuinely difficult to develop. NSO Group's Pegasus required zero-click iMessage exploits combined with kernel privilege escalation—a multi-million dollar exploit chain.
+        </p>
+
+        <h3>Apple Silicon Security</h3>
+        <p>
+            M-series chips integrate security into hardware:
+        </p>
+        <ul>
+            <li><strong>Secure Enclave:</strong> Isolated ARM coprocessor storing encryption keys, biometric data, and secure boot measurements</li>
+            <li><strong>Secure Boot:</strong> Cryptographically verified boot chain from iBoot through kernel initialization</li>
+            <li><strong>Memory Encryption:</strong> DRAM encryption keys managed by hardware, invisible to OS</li>
+            <li><strong>Kernel Integrity Protection:</strong> Hardware enforces W^X (write XOR execute) at page table level</li>
+        </ul>
+
+        <p>
+            This hardware-rooted security provides strong protection against bootkit installation and cold boot attacks. However, it also gives Apple complete control over what software runs on your hardware. The security boundary serves Apple's interests, not necessarily yours.
+        </p>
+
+        <h2>Privacy and Telemetry</h2>
+        <p>
+            Apple markets privacy as a differentiator, and their telemetry is less invasive than Windows. But "better than Microsoft" is not the same as "respects your privacy."
+        </p>
+
+        <h3>What MacOS Collects</h3>
+        <ul>
+            <li><strong>Crash reports:</strong> Full diagnostic data including memory dumps and process trees, uploaded automatically</li>
+            <li><strong>Analytics data:</strong> Application usage statistics, hardware configuration, and performance metrics</li>
+            <li><strong>Siri requests:</strong> All voice commands, transcriptions, and context sent to Apple servers (anonymized per Apple)</li>
+            <li><strong>App Store activity:</strong> Purchase history, search queries, and browsing patterns tied to Apple ID</li>
+            <li><strong>iCloud sync metadata:</strong> File sync timestamps, document names, and access patterns (content encrypted per Apple)</li>
+            <li><strong>Location services:</strong> Wi-Fi SSID mapping, cell tower triangulation, GPS coordinates for system services</li>
+            <li><strong>Gatekeeper checks:</strong> Developer certificate validation for every app launch, sending hash to Apple servers</li>
+            <li><strong>OCSP certificate revocation:</strong> MacOS contacts Apple servers to validate certificates, leaking which apps you use and when</li>
+        </ul>
+
+        <h3>The OCSP Problem</h3>
+        <p>
+            Every time you launch an application, MacOS contacts <code>ocsp.apple.com</code> to verify the developer certificate hasn't been revoked. This leaks your IP address, the app you launched, and the launch timestamp. Apple claimed this was anonymous but network analysis revealed app-specific identifiers in the requests.
+        </p>
+
+        <p>
+            In November 2020, an Apple server outage caused <code>ocsp.apple.com</code> to become unresponsive, blocking app launches globally for hours. The incident confirmed that MacOS cannot function without phoning home. Apple's response was to promise better server reliability, not to make OCSP checks optional.
+        </p>
+
+        <h3>Disabling Telemetry (Partially)</h3>
+        <pre data-lang="bash"><code class="language-bash"># Disable crash reporting and diagnostic submission to Apple
+# SubmitDiagInfo = service that uploads crash reports to Apple servers
+# launchctl unload = stop service from running
+# -w = disable permanently (writes to overrides database)
+# /System/Library/LaunchDaemons = system-wide services
+sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.SubmitDiagInfo.plist
+# Expected output: None (silent success)
+# Why: Prevents sending crash dumps (may contain sensitive data) to Apple
+# Use when: Privacy concerns outweigh automatic crash analysis benefits
+# Warning: Disabling makes it harder for Apple to fix bugs affecting you
+
+# Disable analytics daemon that collects usage statistics
+# analyticsd = background service collecting app usage, performance metrics
+sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.analyticsd.plist
+# Expected output: None (silent success)
+# Why: Stops collection of app launch times, feature usage, hardware stats
+# Use when: Want to minimize Apple's visibility into your usage patterns
+# Warning: SIP may prevent this on newer macOS versions
+
+# Disable Siri voice assistant (prevents voice data upload)
+# defaults = command-line interface to user preferences
+# write = set preference value
+# com.apple.assistant.support = Siri preference domain
+# "Assistant Enabled" = preference key (quoted for spaces)
+# -bool false = set boolean value to false (disabled)
+defaults write com.apple.assistant.support "Assistant Enabled" -bool false
+# Expected output: None (silent success)
+# Why: Siri sends voice recordings and transcriptions to Apple servers
+# Use when: Privacy more important than voice assistant convenience
+# Trade-off: Loses voice control, Siri suggestions, voice dictation
+
+# Remove Siri icon from menu bar
+defaults write com.apple.Siri StatusMenuVisible -bool false
+# Expected output: None (silent success)
+# Why: Removes visual reminder, ensures Siri stays disabled
+# Use when: Want clean menu bar without Siri icon
+
+# Disable personalized advertising based on Apple ID activity
+# AdLib = Apple's advertising framework
+# allowApplePersonalizedAdvertising = controls ad personalization
+defaults write com.apple.AdLib allowApplePersonalizedAdvertising -bool false
+# Expected output: None (silent success)
+# Why: Prevents Apple from building ad profile based on app usage
+# Use when: Want to minimize targeted advertising
+
+# Disable Identifier for Advertisers (IDFA) tracking
+# IDFA = unique ID that lets advertisers track you across apps
+defaults write com.apple.AdLib allowIdentifierForAdvertising -bool false
+# Expected output: None (silent success)
+# Why: Breaks cross-app tracking for ad networks
+# Use when: Want to prevent app behavior tracking
+# Note: iOS has this in Settings, macOS requires command line
+
+# Disable location services daemon (breaks Maps, Find My, etc.)
+# locationd = service providing location to apps
+# WARNING: This breaks many features requiring location
+sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.locationd.plist
+# Expected output: None (silent success)
+# Why: Prevents Wi-Fi SSID mapping, GPS data, cell tower triangulation
+# Use when: Complete location privacy required
+# Warning: Breaks Maps, Find My, location-based reminders, timezone detection
+# Trade-off: Better to disable per-app in System Preferences > Security & Privacy
+
+# Block OCSP certificate validation to Apple servers
+# OCSP = Online Certificate Status Protocol
+# ocsp.apple.com = Apple server that validates app certificates
+# 0.0.0.0 = routing to nowhere (blackhole)
+# WARNING: This breaks Gatekeeper security checks
+sudo sh -c 'echo "0.0.0.0 ocsp.apple.com" >> /etc/hosts'
+sudo sh -c 'echo "0.0.0.0 ocsp2.apple.com" >> /etc/hosts'
+# Expected output: Entries added to /etc/hosts file
+# Why: Prevents Apple from knowing which apps you launch and when
+# Use when: Privacy concerns outweigh security benefits
+# WARNING: Breaks app launch verification (may prevent new app installation)
+# WARNING: macOS updates clear /etc/hosts changes - must reapply
+# Trade-off: Significantly weakens malware protection
+
+# Disable network time synchronization (leaks timezone)
+# Network time sync connects to Apple servers revealing timezone/location
+# -setusingnetworktime off = disable automatic time from network
+sudo systemsetup -setusingnetworktime off
+# Expected output: "Network Time: Off"
+# Why: Prevents timezone fingerprinting and NTP server logging
+# Use when: Operating in sensitive jurisdictions or high anonymity requirement
+# Trade-off: Must manually set time/date, clock drift over time
+# Note: Set time manually with: sudo systemsetup -setdate MM:DD:YY -settime HH:MM:SS</code></pre>
+
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="alert-triangle" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">System Integrity Protection Warning</h3>
+            </div>
+            <p class="terminal-alert-content">
+                SIP prevents modifying system LaunchDaemons even with sudo. Disabling SIP to remove telemetry services weakens security significantly. The trade-off is rarely worth it. macOS updates also re-enable disabled services and clear /etc/hosts modifications.
+            </p>
+        </div>
+
+        <h2>Gatekeeper and Application Control</h2>
+        <p>
+            Gatekeeper enforces developer code signing and notarization requirements for all applications. This prevents casual malware distribution but gives Apple veto power over what software runs on your hardware.
+        </p>
+
+        <h3>Notarization Requirements</h3>
+        <p>
+            As of macOS Catalina, all applications must be notarized by Apple before users can run them without override. Notarization requires:
+        </p>
+        <ol>
+            <li>Developer uploads app to Apple servers for automated scanning</li>
+            <li>Apple analyzes binary for malware signatures and policy violations</li>
+            <li>Apple signs notarization ticket if app passes (or rejects it)</li>
+            <li>User's Mac checks notarization status on first launch</li>
+        </ol>
+
+        <p>
+            Apple can revoke notarization at any time, remotely disabling software they previously approved. This happened to Zoom in 2020 when Apple revoked its notarization due to a security vulnerability, breaking Zoom for all macOS users until a patch was released.
+        </p>
+
+        <h3>Bypassing Gatekeeper (Per-App)</h3>
+        <pre data-lang="bash"><code class="language-bash"># Remove quarantine flag from downloaded application
+# xattr = extended attribute manipulation tool
+# -d = delete attribute
+# com.apple.quarantine = flag macOS adds to downloaded files
+# /Applications/YourApp.app = path to application (adjust to your app)
+xattr -d com.apple.quarantine /Applications/YourApp.app
+# Expected output: None (silent success)
+# Why: Quarantine flag triggers Gatekeeper checks on first launch
+# Use when: App from trusted source isn't notarized but you trust it
+# Warning: Only use for apps from developers you personally trust
+# Alternative: Check quarantine status first: xattr -l /Applications/YourApp.app
+
+# Alternative GUI method: Right-click app, hold Option, click "Open"
+# This creates a one-time Gatekeeper exception
+# Process:
+#   1. Right-click (or Control+click) the app in Finder
+#   2. Hold Option key (changes "Open With" to "Open")
+#   3. Click "Open"
+#   4. Dialog appears: "macOS cannot verify the developer"
+#   5. Click "Open" again to create permanent exception
+# Expected result: App opens and Gatekeeper remembers this exception
+# Why: GUI equivalent of xattr removal, safer than terminal
+# Use when: Prefer GUI over command line, one-time app override
+
+# Disable Gatekeeper entirely (NOT RECOMMENDED)
+# spctl = Security Policy Control tool
+# --master-disable = turn off Gatekeeper system-wide
+sudo spctl --master-disable
+# Expected output: None (silent success, requires authentication)
+# Why: Allows ALL unsigned/un-notarized apps to run without warnings
+# WARNING: Removes important malware protection layer
+# Use when: NEVER (unless you know exactly what you're doing)
+# Consequence: Any malware can run without warning
+# Better: Use per-app overrides instead of disabling globally
+
+# Check Gatekeeper status (verify if enabled or disabled)
+# --status = query current Gatekeeper state
+spctl --status
+# Expected output: "assessments enabled" (good) or "assessments disabled" (bad)
+# Why: Verify Gatekeeper is protecting you
+# Use when: Auditing system security, verifying it wasn't disabled
+# If disabled: Re-enable with: sudo spctl --master-enable</code></pre>
+
+        <p>
+            Disabling Gatekeeper system-wide removes important malware protection. Use per-app overrides instead.
+        </p>
+
+        <h2>App Sandbox and Permissions</h2>
+        <p>
+            All App Store applications run in restrictive sandboxes. Sandboxed apps must request explicit permission for:
+        </p>
+        <ul>
+            <li>Files outside the app container (prompts file picker)</li>
+            <li>Camera and microphone access</li>
+            <li>Location services</li>
+            <li>Contacts and calendar data</li>
+            <li>Network connections</li>
+            <li>Bluetooth and USB device access</li>
+        </ul>
+
+        <p>
+            This provides strong protection against malicious apps. However, it also restricts legitimate power user tools. Many developer utilities, system monitors, and security tools cannot function within sandbox constraints, forcing users to bypass protections or avoid App Store distribution.
+        </p>
+
+        <h3>Transparency, Consent, and Control (TCC)</h3>
+        <p>
+            TCC manages privacy permissions. It stores decisions in a SQLite database at:
+        </p>
+        <pre data-lang="plaintext"><code class="language-plaintext">~/Library/Application Support/com.apple.TCC/TCC.db
+/Library/Application Support/com.apple.TCC/TCC.db</code></pre>
+
+        <p>
+            Administrators can audit which applications have been granted sensitive permissions:
+        </p>
+        <pre data-lang="bash"><code class="language-bash"># View current TCC permissions database (requires Full Disk Access)
+# sqlite3 = SQLite database command-line tool
+# TCC.db = Transparency, Consent, and Control database
+# SELECT * FROM access = query all granted permissions
+# Shows: service (Camera, Microphone, etc.), client (app bundle ID), allowed (0/1)
+sudo sqlite3 /Library/Application\ Support/com.apple.TCC/TCC.db "SELECT * FROM access"
+# Expected output: List of apps and permissions granted
+# Why: Audit what apps have access to sensitive data/hardware
+# Use when: Security audit, investigating suspicious app permissions
+# Requires: Terminal must have "Full Disk Access" in System Preferences
+# Note: User TCC.db at ~/Library/Application Support/com.apple.TCC/TCC.db
+
+# Reset ALL permissions for specific application
+# tccutil = TCC utility for managing permissions
+# reset All = clear all permission types
+# com.example.application = bundle ID of app (find with: osascript -e 'id of app "AppName"')
+tccutil reset All com.example.application
+# Expected output: None (silent success)
+# Why: Revoke all permissions forcing app to re-request them
+# Use when: App misbehaving, want to start fresh with permissions
+# Warning: App will prompt again for every permission it needs
+# Example: tccutil reset All com.google.Chrome
+
+# Reset specific service permissions for ALL apps
+# reset Camera = revoke camera access from all applications
+# Services: Camera, Microphone, Location, Contacts, Calendar, Reminders, Photos
+tccutil reset Camera
+# Expected output: None (silent success)
+# Why: Revoke camera access from all apps (paranoia mode)
+# Use when: Security concern, want to re-evaluate all camera permissions
+# Trade-off: Every app needs camera will prompt again
+# Alternative services:
+#   - Microphone (audio recording)
+#   - Accessibility (control computer)
+#   - ScreenCapture (screenshots)
+#   - SystemPolicyAllFiles (Full Disk Access)</code></pre>
+
+        <h2>FileVault Disk Encryption</h2>
+        <p>
+            FileVault provides XTS-AES-128 full-disk encryption integrated with the boot process. On Apple Silicon, encryption keys are protected by the Secure Enclave. On Intel Macs, keys derive from user password and are stored in the EFI firmware.
+        </p>
+
+        <h3>FileVault Strengths</h3>
+        <ul>
+            <li>Enabled by default on modern Macs</li>
+            <li>Hardware-accelerated encryption on Apple Silicon</li>
+            <li>Secure Enclave key storage prevents software key extraction</li>
+            <li>Integrated with boot flow for seamless user experience</li>
+        </ul>
+
+        <h3>FileVault Weaknesses</h3>
+        <ul>
+            <li>Recovery keys uploaded to iCloud by default (can be disabled)</li>
+            <li>Institutional recovery keys allow enterprise backdoors</li>
+            <li>Closed-source implementation prevents independent audit</li>
+            <li>T2 and M-series chips contain proprietary security coprocessor firmware</li>
+            <li>Apple holds signing keys for firmware updates, enabling potential interception</li>
+        </ul>
+
+        <h3>FileVault Best Practices</h3>
+        <pre data-lang="bash"><code class="language-bash"># Enable FileVault full-disk encryption
+# fdesetup = FileVault disk encryption setup utility
+# enable = turn on encryption for boot volume
+# Process: Prompts for admin password, generates recovery key, begins encryption
+# Encryption happens in background (takes 1-4 hours depending on disk size)
+sudo fdesetup enable
+# Expected output: Recovery key displayed (SAVE THIS IMMEDIATELY!)
+# Why: Encrypts entire disk with XTS-AES-128, protects data if Mac is stolen
+# Use when: Initial setup or if FileVault was disabled
+# Warning: SAVE RECOVERY KEY in password manager or secure offline location
+# Warning: Losing recovery key + forgetting password = permanent data loss
+# Note: Recovery key format: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX (24 characters)
+
+# Check FileVault encryption status
+# status = query current encryption state
+sudo fdesetup status
+# Expected output: "FileVault is On" or "FileVault is Off"
+# Why: Verify encryption is active and protecting your data
+# Use when: After enabling, periodic security audits, troubleshooting
+# Also shows: Encryption progress percentage if currently encrypting
+
+# Generate NEW personal recovery key (replaces old key)
+# changerecovery = change recovery credentials
+# -personal = generate personal recovery key (vs institutional key)
+# WARNING: Old recovery key stops working immediately
+sudo fdesetup changerecovery -personal
+# Expected output: New 24-character recovery key displayed
+# Why: Rotate recovery key if old key was compromised or uploaded to iCloud
+# Use when: Old key was saved insecurely, periodic key rotation
+# CRITICAL: Save new key immediately - old key no longer works!
+# Best practice: Save in KeePassXC, write on paper stored in safe
+
+# Disable iCloud recovery key escrow during initial setup
+# During Setup Assistant when enabling FileVault:
+# 1. Setup Assistant > FileVault encryption prompt
+# 2. Choose "Create a recovery key" (not "Use iCloud")
+# 3. Write down recovery key (never upload to iCloud)
+# Expected result: Recovery key stays on your device only
+# Why: iCloud-stored key can be accessed by Apple with subpoena
+# Use when: Initial Mac setup, reinstalling macOS
+# Trade-off: You're responsible for not losing recovery key
+# Note: Can't change this after setup - must disable and re-enable FileVault
+
+# Verify no institutional/enterprise recovery key is set
+# list = show all users authorized to unlock FileVault
+# Output shows: user accounts and whether institutional key exists
+sudo fdesetup list
+# Expected output: List of enabled users (e.g., "username,UUID")
+# Why: Enterprise Macs may have institutional recovery key (IT can decrypt)
+# Use when: Checking if employer has backdoor to your encryption
+# Look for: Lines not matching user accounts = institutional key present
+# If institutional key exists: Contact IT or reinstall macOS personally</code></pre>
+
+        <div class="terminal-info not-prose my-6">
+            <div class="terminal-info-header">
+                <i data-lucide="info" class="terminal-info-icon"></i>
+                <h3 class="terminal-info-title">Alternative: VeraCrypt Containers</h3>
+            </div>
+            <p class="terminal-info-content">
+                For sensitive data requiring plausible deniability, create VeraCrypt hidden volumes alongside FileVault. FileVault protects against casual theft; VeraCrypt hidden volumes protect against coerced decryption in jurisdictions with key disclosure laws.
+            </p>
+        </div>
+
+        <h2>System Integrity Protection (SIP)</h2>
+        <p>
+            SIP prevents modification of system files, kernel extensions, and critical processes even with root privileges. It operates at the kernel level and cannot be bypassed from within macOS.
+        </p>
+
+        <h3>What SIP Protects</h3>
+        <ul>
+            <li><code>/System</code>, <code>/usr</code>, <code>/bin</code>, <code>/sbin</code> directories</li>
+            <li>Apple-signed applications in <code>/Applications</code></li>
+            <li>Kernel extension loading (restricted to Apple-signed kexts)</li>
+            <li>System LaunchDaemons and LaunchAgents</li>
+            <li>NVRAM variable modification</li>
+        </ul>
+
+        <h3>Disabling SIP (Not Recommended)</h3>
+        <pre data-lang="bash"><code class="language-bash"># Boot into Recovery Mode to access csrutil command
+# 1. Shut down Mac completely
+# 2. Press and hold Command (⌘) + R during startup
+# 3. Release when Apple logo appears
+# 4. Wait for Recovery Mode to load (2-5 minutes)
+# 5. Click Utilities menu → Terminal
+# Why: SIP can only be modified from Recovery Mode (kernel security)
+
+# Disable System Integrity Protection
+# csrutil = Configure System Integrity Protection utility
+# disable = turn off SIP protections
+# WARNING: Exposes system to rootkits and persistent malware
+csrutil disable
+# Expected output: "Successfully disabled System Integrity Protection"
+# Why: Allows modification of /System, kernel extensions, protected processes
+# Use when: Installing kernel extensions, modifying system files
+# WARNING: Leaves Mac vulnerable to sophisticated attacks
+# WARNING: Some software requires SIP disabled (drivers, low-level tools)
+
+# Reboot to apply SIP changes
+reboot
+# Expected output: Mac restarts normally
+# Why: SIP changes only take effect after reboot
+
+# Check SIP status after reboot (from normal macOS, not Recovery)
+# status = query current SIP state
+csrutil status
+# Expected output: "System Integrity Protection status: disabled" (if disabled)
+# Why: Verify SIP was actually disabled
+# Use when: After disabling, to confirm current state
+# Enabled output: "System Integrity Protection status: enabled"
+
+# Re-enable SIP (STRONGLY RECOMMENDED after completing task)
+# Boot into Recovery Mode again (Command + R)
+# Open Terminal from Utilities menu
+csrutil enable
+# Expected output: "Successfully enabled System Integrity Protection"
+# Why: Restore critical security protection against rootkits
+# Use when: IMMEDIATELY after completing work that required SIP disabled
+
+# Reboot again to re-apply SIP protections
+reboot
+# Expected output: Mac restarts with SIP enforced
+# Why: SIP protection only active after reboot</code></pre>
+
+        <p>
+            Disabling SIP exposes the system to rootkits and persistent malware. Only disable temporarily for specific tasks, then immediately re-enable.
+        </p>
+
+        <h2>Network Security and Firewalls</h2>
+        <p>
+            MacOS includes two firewalls: the Application Firewall (simple, user-facing) and PF (powerful, BSD-derived packet filter). Most users rely on the Application Firewall, which operates at the application layer.
+        </p>
+
+        <h3>Application Firewall Configuration</h3>
+        <pre data-lang="bash"><code class="language-bash"># Enable Application Firewall (application-layer blocking)
+# socketfilterfw = Application Firewall control utility
+# --setglobalstate on = enable firewall globally
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
+# Expected output: "Firewall is enabled"
+# Why: Blocks incoming connections at application level
+# Use when: Initial security setup, public Wi-Fi, shared networks
+# Note: Different from PF (packet filter), this operates per-application
+
+# Block ALL incoming connections (paranoid mode)
+# --setblockall on = deny all incoming regardless of app
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setblockall on
+# Expected output: "Block all is enabled"
+# Why: Maximum protection, nothing can connect to your Mac
+# Use when: Public Wi-Fi, hostile networks, high-threat scenarios
+# Warning: Breaks screen sharing, file sharing, SSH, all network services
+# Trade-off: Most secure but inconvenient for legitimate services
+
+# Enable stealth mode (ignore ICMP ping requests)
+# --setstealthmode on = don't respond to ping/ICMP
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on
+# Expected output: "Stealth mode enabled"
+# Why: Makes Mac "invisible" to network scanners (doesn't respond to ping)
+# Use when: Hostile networks, want to minimize network presence
+# Trade-off: Harder to troubleshoot network issues (can't ping your Mac)
+
+# Enable firewall logging to track blocked connections
+# --setloggingmode on = log firewall events to system log
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setloggingmode on
+# Expected output: "Logging mode enabled"
+# Why: Audit what connections are being blocked, investigate suspicious activity
+# Use when: Troubleshooting, security monitoring, incident response
+# View logs with: log show --predicate 'process == "socketfilterfw"' --last 1h
+
+# Allow specific application through firewall
+# --add = add application to allowed list
+# /Applications/YourApp.app = path to app bundle (adjust to your app)
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add /Applications/YourApp.app
+# Expected output: Application added to firewall list
+# Why: Explicitly allow trusted app to accept incoming connections
+# Use when: App needs to accept connections (servers, sharing, remote access)
+
+# Unblock application (allow incoming connections)
+# --unblockapp = permit this app to receive connections
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp /Applications/YourApp.app
+# Expected output: Application unblocked
+# Why: After adding app, must also unblock it to allow connections
+# Use when: App shows "incoming connections blocked" message
+# Example: /Applications/Utilities/Screen\ Sharing.app</code></pre>
+
+        <h3>Advanced Firewall with PF</h3>
+        <p>
+            For granular control, configure PF rules in <code>/etc/pf.conf</code>:
+        </p>
+        <pre data-lang="bash"><code class="language-bash"># Create basic PF configuration that blocks common attack ports
+# cat << 'EOF' = heredoc syntax (multiline input)
+# tee = write to file (overwrites existing /etc/pf.conf)
+# /etc/pf.conf = PF packet filter configuration file
+cat << 'EOF' | sudo tee /etc/pf.conf
+# Default policy: block all incoming, allow all outgoing
+# set block-policy drop = silently drop blocked packets (no RST/ICMP response)
+# set skip on lo0 = don't filter loopback interface (required for localhost)
+set block-policy drop
+set skip on lo0
+
+# Scrub incoming packets (normalize, prevent fragmentation attacks)
+# scrub = clean up packets to prevent evasion techniques
+# in all = apply to all incoming traffic
+scrub in all
+
+# Block by default, allow outgoing with state tracking
+# block in all = deny all inbound by default (whitelist approach)
+# pass out all keep state = allow outbound, track connections for return traffic
+block in all
+pass out all keep state
+
+# Allow specific services (SSH on port 22, HTTPS on port 443)
+# pass in proto tcp = allow TCP connections inbound
+# to any port {22, 443} = only on ports 22 and 443
+# keep state = track connection state (allow return packets)
+pass in proto tcp to any port {22, 443} keep state
+
+# Allow ICMP (ping) inbound
+# pass in proto icmp all = permit all ICMP traffic (ping, traceroute)
+pass in proto icmp all
+
+# Create persistent blocklist table for known attackers
+# table <blocklist> persist = named table that survives reboots
+# block in quick from <blocklist> = immediately drop from these IPs
+table <blocklist> persist
+block in quick from <blocklist>
+EOF
+# Expected output: PF configuration file created/overwritten
+# Why: Enterprise-grade packet filtering at network layer (before app sees packets)
+# Use when: Need granular network control beyond Application Firewall
+# Warning: Incorrect rules can lock you out (test carefully!)
+
+# Load PF rules from configuration file
+# pfctl = PF control utility
+# -f = load rules from file
+# /etc/pf.conf = configuration file to load
+sudo pfctl -f /etc/pf.conf
+# Expected output: Rules loaded successfully (or syntax errors if config broken)
+# Why: Apply new firewall rules without reboot
+# Use when: After editing /etc/pf.conf
+# Warning: Loading rules doesn't enable PF (need pfctl -e)
+
+# Enable PF packet filter
+# -e = enable PF firewall
+sudo pfctl -e
+# Expected output: "pf enabled"
+# Why: Start filtering packets according to loaded rules
+# Use when: After loading rules for first time
+# Note: PF must be enabled AND rules loaded to function
+# Warning: Enabling with no rules = block everything!
+
+# Check PF status and statistics
+# -s info = show status information
+# Shows: enabled/disabled, packets filtered, bytes processed
+sudo pfctl -s info
+# Expected output: Status (Enabled/Disabled), Since (uptime), packet counts
+# Why: Verify PF is running and see how much traffic filtered
+# Use when: Troubleshooting, monitoring firewall effectiveness
+# Alternative: pfctl -s rules (show active rules), pfctl -s states (show connections)</code></pre>
+
+        <p>
+            PF provides enterprise-grade firewall capabilities but requires careful configuration to avoid breaking legitimate services.
+        </p>
+
+        <h2>DNS and Network Privacy</h2>
+        <p>
+            MacOS defaults to ISP-provided DNS, leaking browsing metadata. Configure encrypted DNS to regain privacy:
+        </p>
+
+        <h3>DNS over HTTPS (DoH) Configuration</h3>
+        <pre data-lang="bash"><code class="language-bash"># Install DNSCrypt-Proxy for encrypted DNS
+# DNSCrypt-Proxy = DNS client supporting DoH, DoT, DNSCrypt protocols
+# brew install = Homebrew package installation
+brew install dnscrypt-proxy
+# Expected output: Downloading, installing, "dnscrypt-proxy installed"
+# Why: ISP DNS leaks all domain lookups (browsing metadata)
+# Use when: Initial privacy setup, preventing ISP surveillance
+# Alternative: cloudflared (Cloudflare DoH), systemd-resolved on Linux
+
+# Configure DNSCrypt-Proxy with privacy-focused servers
+# /usr/local/etc/dnscrypt-proxy.toml = main configuration file
+# Edit with: nano, vim, or any text editor
+sudo nano /usr/local/etc/dnscrypt-proxy.toml
+# Find and set:
+# server_names = ['cloudflare', 'quad9-dnscrypt-ip4-nofilter-pri']
+# Why: Cloudflare (1.1.1.1) fast but centralized, Quad9 (9.9.9.9) malware blocking
+# Alternatives: 'cloudflare-security' (malware filter), 'mullvad-doh' (VPN provider)
+# Save file: Ctrl+O, Enter, Ctrl+X (in nano)
+# Expected output: File saved
+# Note: Can list multiple servers for redundancy
+# Verify config: dnscrypt-proxy -config /usr/local/etc/dnscrypt-proxy.toml -check
+
+# Start DNSCrypt-Proxy service and enable at boot
+# brew services start = launch service, enable auto-start
+# dnscrypt-proxy = service name
+sudo brew services start dnscrypt-proxy
+# Expected output: "Successfully started `dnscrypt-proxy`"
+# Why: Run DNS proxy in background, restart on boot
+# Use when: After initial configuration
+# Verify running: brew services list (should show "started")
+# Port: Listens on 127.0.0.1:53 (localhost DNS)
+
+# Configure system DNS to use local DNSCrypt-Proxy
+# networksetup = macOS network configuration utility
+# -setdnsservers = change DNS servers for interface
+# Wi-Fi = interface name (adjust for your connection)
+# 127.0.0.1 = localhost (where DNSCrypt-Proxy listens)
+sudo networksetup -setdnsservers Wi-Fi 127.0.0.1
+# Expected output: No output on success
+# Why: Route all DNS queries through encrypted DNSCrypt-Proxy
+# Use when: After starting dnscrypt-proxy service
+# Note: Configure ALL active interfaces (Wi-Fi, Ethernet, Thunderbolt Bridge)
+
+# Also configure Ethernet interface (if wired connection)
+sudo networksetup -setdnsservers Ethernet 127.0.0.1
+# Expected output: No output on success
+# Why: Encrypted DNS on wired connections too
+# Use when: Have Ethernet adapter
+# List interfaces: networksetup -listallnetworkservices
+
+# Verify DNS configuration points to localhost
+# scutil --dns = show current DNS configuration
+# grep "nameserver" = filter for DNS server lines
+scutil --dns | grep "nameserver"
+# Expected output: "nameserver[0] : 127.0.0.1" for each interface
+# Why: Confirm system using DNSCrypt-Proxy
+# Use when: After configuration, troubleshooting DNS issues
+# Test DNS: dig @127.0.0.1 example.com (should work)
+# Check encryption: dnscrypt-proxy logs show which servers used</code></pre>
+
+        <h3>Blocking Tracking Domains</h3>
+        <pre data-lang="bash"><code class="language-bash"># Download comprehensive tracker blocklist (StevenBlack unified hosts)
+# curl = download file from URL
+# -o /tmp/trackers.txt = save to temporary file
+# StevenBlack hosts = unified blocklist combining multiple sources
+curl -o /tmp/trackers.txt https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+# Expected output: Download progress bar, "100%" completion
+# Why: Block ads, trackers, malware domains at DNS level (system-wide)
+# Use when: Initial privacy setup, periodic blocklist updates
+# Contains: ~100,000+ domains from AdAway, yoyo.org, MVPs hosts, etc.
+# Alternative: https://someonewhocares.org/hosts/hosts (smaller list)
+# Note: List redirects blocked domains to 0.0.0.0 (null route)
+
+# Backup original /etc/hosts file before modification
+# cp = copy file
+# /etc/hosts = system DNS override file (maps hostnames to IPs)
+# /etc/hosts.backup = backup copy
+sudo cp /etc/hosts /etc/hosts.backup
+# Expected output: No output on success
+# Why: Preserve original configuration in case of issues
+# Use when: BEFORE modifying system files
+# Restore with: sudo cp /etc/hosts.backup /etc/hosts
+
+# Append tracker blocklist to /etc/hosts file
+# sh -c = execute shell command with sudo privileges
+# cat /tmp/trackers.txt >> /etc/hosts = append (>>) file contents
+sudo sh -c 'cat /tmp/trackers.txt >> /etc/hosts'
+# Expected output: No output on success
+# Why: Add ~100k tracker domains to system-wide block list
+# Use when: After downloading blocklist
+# Effect: All apps resolve blocked domains to 0.0.0.0 (blocked)
+# Warning: May break some websites that use blocked ad networks
+# Troubleshooting: Comment out lines in /etc/hosts with # if issues
+
+# Flush DNS cache to apply /etc/hosts changes immediately
+# dscacheutil -flushcache = clear Directory Service DNS cache
+sudo dscacheutil -flushcache
+# Expected output: No output on success
+# Why: Force system to re-read /etc/hosts file
+# Use when: After modifying /etc/hosts
+
+# Restart mDNSResponder to reload DNS configuration
+# killall -HUP = send SIGHUP signal (graceful reload)
+# mDNSResponder = macOS DNS resolution daemon
+sudo killall -HUP mDNSResponder
+# Expected output: No output on success
+# Why: Apply new /etc/hosts entries system-wide
+# Use when: After flushing DNS cache
+# Effect: All apps now blocked from connecting to tracker domains
+# Test: curl doubleclick.net (should fail/timeout if blocked)
+# Note: Updates require re-downloading blocklist and repeating process</code></pre>
+
+        <h2>Update Control and Patch Management</h2>
+        <p>
+            MacOS provides better update control than Windows but less than Linux. System updates can be deferred but not indefinitely.
+        </p>
+
+        <h3>Update Configuration</h3>
+        <pre data-lang="bash"><code class="language-bash"># Disable automatic update scheduling (still checks manually)
+# softwareupdate = macOS update utility
+# --schedule off = don't download/install automatically
+sudo softwareupdate --schedule off
+# Expected output: "Automatic check is off" or no output
+# Why: Prevent surprise updates, control when updates applied
+# Use when: Want manual update control
+# Trade-off: Must remember to check for security updates
+# Note: Rapid Security Responses may still auto-install (security)
+
+# Check current update configuration settings
+# defaults read = query macOS preferences
+# /Library/Preferences/com.apple.SoftwareUpdate = system update settings
+defaults read /Library/Preferences/com.apple.SoftwareUpdate
+# Expected output: Dictionary of settings (AutomaticCheckEnabled, etc.)
+# Why: Audit current update behavior
+# Use when: Verifying update configuration
+# Key settings:
+#   AutomaticCheckEnabled = check for updates
+#   AutomaticDownload = download updates automatically
+#   AutomaticallyInstallMacOSUpdates = install major OS updates
+#   CriticalUpdateInstall = install security patches
+
+# Enable automatic download but NOT installation
+# defaults write = modify macOS preference
+# AutomaticDownload -bool true = download updates in background
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload -bool true
+# Expected output: No output on success
+# Why: Updates ready to install when convenient (no waiting)
+# Use when: Want updates pre-downloaded but controlled install timing
+
+# Disable automatic installation of major macOS updates
+# AutomaticallyInstallMacOSUpdates -bool false = require manual install
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool false
+# Expected output: No output on success
+# Why: Major OS updates can break apps, need testing before install
+# Use when: Want to defer major updates (Ventura → Sonoma, etc.)
+# Note: Security patches may still auto-install (CriticalUpdateInstall)
+
+# Check for available updates without installing
+# softwareupdate --list = show available updates
+softwareupdate --list
+# Expected output: List of available updates or "No new software available"
+# Why: See what's available before committing to install
+# Use when: Regular maintenance, checking for security patches
+# Shows: Update name, size, whether restart required
+# Example output:
+#   * macOS Sonoma 14.2-23C64
+#       macOS Sonoma 14.2 (23C64), 5.2GB, restart
+
+# Install specific update by name
+# softwareupdate --install = install named update
+# "macOS Update Name" = exact name from --list output
+sudo softwareupdate --install "macOS Update Name"
+# Expected output: Download progress, installation progress, "restart required"
+# Why: Apply only specific updates (security patch but not major OS)
+# Use when: Want granular control over which updates install
+# Warning: Must match exact update name from --list
+# Example: sudo softwareupdate --install "Safari 17.2"
+# Install all: sudo softwareupdate --install --all</code></pre>
+
+        <p>
+            Apple regularly releases emergency security patches as Rapid Security Responses that install automatically even with automatic updates disabled. This is good for security but reduces user control.
+        </p>
+
+        <h2>Apple ID and iCloud Integration</h2>
+        <p>
+            MacOS aggressively pushes users toward Apple ID and iCloud integration. Many features require an Apple ID: App Store purchases, iMessage, FaceTime, iCloud Drive, Keychain sync, Find My, and system backups.
+        </p>
+
+        <h3>Privacy Implications</h3>
+        <ul>
+            <li>Apple ID ties all device activity to a central identity</li>
+            <li>iCloud stores encryption keys for most synced data (Apple can access)</li>
+            <li>Purchase history, app downloads, and media consumption tracked indefinitely</li>
+            <li>iMessage metadata (who you message, when, message size) stored by Apple</li>
+            <li>iCloud backups include unencrypted data accessible to law enforcement</li>
+        </ul>
+
+        <h3>Minimizing Apple ID Exposure</h3>
+        <ul>
+            <li>Use macOS without an Apple ID (limits App Store access)</li>
+            <li>Create Apple ID with alias email, not primary identity</li>
+            <li>Disable iCloud sync for sensitive data categories</li>
+            <li>Never enable iCloud Keychain (use local password manager instead)</li>
+            <li>Disable Find My to prevent location tracking</li>
+            <li>Use Advanced Data Protection in iCloud Settings (E2EE for most data)</li>
+        </ul>
+
+        <h2>Hardening Checklist</h2>
+        <p>
+            Execute these steps on fresh installs and after major updates:
+        </p>
+
+        <pre data-lang="bash"><code class="language-bash">#!/bin/bash
+# MacOS Hardening Script
+
+# Require password immediately after sleep/screensaver
+defaults write com.apple.screensaver askForPassword -int 1
+defaults write com.apple.screensaver askForPasswordDelay -int 0
+
+# Disable automatic login
+sudo defaults delete /Library/Preferences/com.apple.loginwindow autoLoginUser
+
+# Enable FileVault if not already enabled
+sudo fdesetup status | grep -q "FileVault is On" || sudo fdesetup enable
+
+# Enable firewall
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on
+
+# Disable guest account
+sudo dscl . -delete /Users/Guest
+
+# Disable remote login services
+sudo systemsetup -setremotelogin off
+sudo launchctl unload -w /System/Library/LaunchDaemons/ssh.plist
+
+# Disable Bluetooth if not needed
+sudo defaults write /Library/Preferences/com.apple.Bluetooth ControllerPowerState -int 0
+
+# Show all file extensions
+defaults write NSGlobalDomain AppleShowAllExtensions -bool true
+
+# Disable Siri
+defaults write com.apple.assistant.support "Assistant Enabled" -bool false
+
+# Disable Spotlight suggestions
+defaults write com.apple.safari UniversalSearchEnabled -bool false
+defaults write com.apple.safari SuppressSearchSuggestions -bool true
+
+# Disable crash reporter
+defaults write com.apple.CrashReporter DialogType none
+
+# Clear DNS cache
+sudo dscacheutil -flushcache
+sudo killall -HUP mDNSResponder
+
+# Show hidden files in Finder
+defaults write com.apple.finder AppleShowAllFiles -bool true
+
+# Disable analytics
+sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.analyticsd.plist 2>/dev/null
+
+# Restart Finder to apply changes
+killall Finder
+
+echo "Hardening complete. Review firewall and TCC permissions manually."</code></pre>
+
+        <h2>Commercial Monitoring Tools</h2>
+        <p>
+            MacOS privacy is undermined by employer and parental control software that Apple allows into the ecosystem:
+        </p>
+        <ul>
+            <li><strong>MDM (Mobile Device Management):</strong> Employers can remotely install profiles enabling location tracking, app monitoring, screen capture, and remote wipe</li>
+            <li><strong>Parental Controls:</strong> Apple's built-in Screen Time tracks app usage, web history, and communications</li>
+            <li><strong>Activation Lock:</strong> Ties hardware to Apple ID, preventing resale without original owner consent (anti-theft feature that becomes control mechanism)</li>
+        </ul>
+
+        <p>
+            Check for MDM profiles and remove them if not required:
+        </p>
+        <pre data-lang="bash"><code class="language-bash"># List installed profiles
+sudo profiles list
+
+# Remove specific profile (requires admin password)
+sudo profiles remove -identifier com.company.mdm
+
+# Check for certificate-based profiles
+security find-certificate -a /Library/Keychains/System.keychain | grep -i management</code></pre>
+
+        <h2>Open Source Alternatives</h2>
+        <p>
+            MacOS locks users into Apple's ecosystem. For maximum control, consider Asahi Linux on Apple Silicon or migrate to x86 Linux hardware. Asahi provides native Linux on M-series Macs but remains experimental with incomplete driver support as of late 2025.
+        </p>
+
+        <h2>Residual Risk Assessment</h2>
+        <p>
+            Even with aggressive hardening, macOS retains privacy and control limitations that cannot be fully eliminated:
+        </p>
+
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="shield-alert" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">Unavoidable MacOS Risks</h3>
+            </div>
+            <ul class="terminal-alert-content">
+                <li><strong>Proprietary core components:</strong> Security coprocessors, GPU drivers, and firmware remain closed source</li>
+                <li><strong>Persistent telemetry:</strong> OCSP checks, analytics, and crash reporting cannot be fully disabled without breaking functionality</li>
+                <li><strong>Apple ID integration:</strong> Many features require cloud identity, centralizing tracking</li>
+                <li><strong>Gatekeeper control:</strong> Apple can remotely revoke app notarization, disabling software</li>
+                <li><strong>Hardware restrictions:</strong> Secure Enclave and T2/M-series chips give Apple architectural control over your machine</li>
+                <li><strong>Update coercion:</strong> Security patches increasingly bundle feature changes and cannot be deferred indefinitely</li>
+            </ul>
+        </div>
+
+        <h2>Recommendations</h2>
+        <p>
+            MacOS is viable for users who:
+        </p>
+        <ul>
+            <li>Require specific macOS-only software (Final Cut, Logic Pro, Xcode)</li>
+            <li>Accept Apple's privacy model as reasonable compromise</li>
+            <li>Understand and accept that Apple has architectural control</li>
+            <li>Can afford Apple's premium hardware pricing</li>
+        </ul>
+
+        <p>
+            If your threat model demands full control over the software stack, verifiable security, or eliminates proprietary components, migrate to Linux or BSD. MacOS provides stronger security than Windows and better privacy hygiene, but the architecture remains fundamentally proprietary and user-hostile to advanced hardening.
+        </p>
+
+        <p>
+            For most users seeking privacy without Linux's learning curve, macOS with aggressive hardening offers reasonable security. Just understand the boundaries: you rent the platform from Apple, you do not own it.
+        </p>
+    </article>
+</body>
+</html>

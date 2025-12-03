@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>4. Linux</title>
+</head>
+<body>
+    <article>
+        <h1 class="font-mono border-b border-shell-border pb-2 mb-6">
+            <span class="text-gray-500">#</span> 4. Linux Security Audit
+        </h1>
+
+        <p class="text-xl text-shell-accent/90 leading-relaxed">
+            Linux is the only mainstream operating system that grants users complete architectural control. Every line of kernel code is auditable. Every service can be disabled. Every packet can be inspected. This transparency enables verifiable security but demands technical competence. Linux does not protect you from yourself—it empowers you to implement exactly the security model your threat model requires.
+        </p>
+
+        <h2>Architecture and Kernel Security</h2>
+        <p>
+            Linux uses a monolithic kernel architecture where device drivers, filesystems, and core services run in kernel space with full hardware access. This design provides excellent performance but concentrates risk: a single kernel vulnerability compromises the entire system. However, unlike Windows and macOS, you can audit the kernel source, apply custom patches, and rebuild with hardened configurations.
+        </p>
+
+        <h3>Kernel Hardening with Security Modules</h3>
+        <p>
+            Linux Security Modules (LSM) provide mandatory access control frameworks that restrict processes beyond traditional Unix permissions:
+        </p>
+
+        <h4>SELinux (Security-Enhanced Linux)</h4>
+        <p>
+            Developed by the NSA and open-sourced in 2000, SELinux implements mandatory access control through security policies. Every file, process, and system resource receives a security context, and policies define allowed interactions.
+        </p>
+        <ul>
+            <li><strong>Strengths:</strong> Extremely granular control, prevents privilege escalation, contains compromised processes</li>
+            <li><strong>Weaknesses:</strong> Complex policy language, steep learning curve, can break applications if misconfigured</li>
+            <li><strong>Best for:</strong> Red Hat, Fedora, CentOS environments requiring defense-in-depth</li>
+        </ul>
+
+        <pre data-lang="bash"><code class="language-bash"># Check current SELinux status and mode
+# Shows: enabled/disabled, enforcing/permissive/disabled, loaded policy
+sestatus
+# Expected output: SELinux status, current mode, policy version
+# Why: Verify SELinux is active and enforcing mandatory access control
+# Use when: Auditing system security, troubleshooting permission denials
+# Output explains: enabled=kernel support loaded, enforcing=actively blocking violations
+
+# View SELinux security context labels on files
+# -Z = display SELinux security context (user:role:type:level)
+# Security context format: user_u:object_r:httpd_sys_content_t:s0
+ls -Z /var/www/html
+# Expected output: Files with SELinux context labels showing type enforcement
+# Why: Verify files have correct SELinux type for application access
+# Use when: Troubleshooting "Permission denied" errors with correct UNIX permissions
+# Context parts: user_u=SELinux user, object_r=role, httpd_sys_content_t=type, s0=sensitivity
+
+# View SELinux security context of running processes
+# -Z = show SELinux context column
+# Context shows which domain/type the process runs in
+ps auxZ | grep nginx
+# Expected output: nginx processes with security context (e.g., system_u:system_r:httpd_t:s0)
+# Why: Verify process runs in correct SELinux domain with limited permissions
+# Use when: Confirming process confinement, debugging policy violations
+# Domain (httpd_t) defines what resources process can access
+
+# Enable SELinux in enforcing mode (blocks policy violations)
+# Edit /etc/selinux/config file to set SELINUX=enforcing
+# sed = stream editor for modifying files
+# -i = edit file in-place
+# s/old/new/ = substitute old text with new text
+sudo sed -i 's/SELINUX=disabled/SELINUX=enforcing/' /etc/selinux/config
+# Expected output: Config file modified (silent if successful)
+# Why: Activates mandatory access control on next boot
+# Use when: Enabling SELinux on systems where it's disabled
+# Warning: May break applications not designed for SELinux, test first!
+
+# Relabel entire filesystem with correct SELinux contexts after enabling
+# Creates /.autorelabel file that triggers relabeling on boot
+# Relabeling takes 5-30 minutes depending on disk size
+sudo touch /.autorelabel && sudo reboot
+# Expected output: System reboots, relabels filesystem, boots again
+# Why: Assigns correct SELinux labels to all files after enabling
+# Use when: First time enabling SELinux or after major filesystem changes
+# Warning: System will take longer to boot during relabel process
+# Note: Remove /.autorelabel file after successful relabel
+
+# Search audit logs for recent SELinux denials (troubleshooting)
+# ausearch = query audit daemon logs
+# -m avc = filter for Access Vector Cache denials (SELinux blocks)
+# -ts recent = timestamp search for recent events (last 10 minutes)
+sudo ausearch -m avc -ts recent
+# Expected output: List of recent SELinux policy violations with details
+# Why: Identify what SELinux blocked and why
+# Use when: Application not working after enabling SELinux
+# Shows: source context, target context, denied permissions, timestamp
+
+# Generate SELinux policy module from audit denials (allow blocked actions)
+# audit2allow = converts audit denials into policy rules
+# -a = process all audit logs
+# Generates policy rules that would allow the denied actions
+sudo audit2allow -a
+# Expected output: Proposed SELinux policy rules to allow blocked operations
+# Why: Create custom policy module to allow legitimate application behavior
+# Use when: Application legitimately needs access that policy blocks
+# Warning: Review rules carefully before applying - may weaken security!
+# To apply: audit2allow -a -M mypolicy && semodule -i mypolicy.pp</code></pre>
+
+        <h4>AppArmor</h4>
+        <p>
+            AppArmor provides path-based mandatory access control, simpler than SELinux but less granular. Profiles define which files and capabilities applications can access.
+        </p>
+        <ul>
+            <li><strong>Strengths:</strong> Easier to learn, human-readable profiles, good default profiles for common services</li>
+            <li><strong>Weaknesses:</strong> Path-based security can be bypassed with symlinks, less comprehensive than SELinux</li>
+            <li><strong>Best for:</strong> Ubuntu, Debian, SUSE environments prioritizing usability over maximum security</li>
+        </ul>
+
+        <pre data-lang="bash"><code class="language-bash"># Check AppArmor status
+sudo aa-status
+
+# Load profile
+sudo apparmor_parser -r /etc/apparmor.d/usr.sbin.nginx
+
+# Set profile to enforce mode
+sudo aa-enforce /etc/apparmor.d/usr.sbin.nginx
+
+# Set profile to complain mode (logs violations but allows)
+sudo aa-complain /etc/apparmor.d/usr.sbin.nginx
+
+# Generate profile from logs
+sudo aa-logprof
+
+# Disable profile
+sudo ln -s /etc/apparmor.d/usr.sbin.nginx /etc/apparmor.d/disable/
+sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.nginx</code></pre>
+
+        <h3>Kernel Exploit Mitigations</h3>
+        <p>
+            Modern Linux kernels implement multiple exploit mitigation technologies:
+        </p>
+
+        <div style="overflow-x:auto; margin-bottom:2rem;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                <thead>
+                    <tr style="background-color:#111;">
+                        <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid #333;">Mitigation</th>
+                        <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid #333;">Description</th>
+                        <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid #333;">Kernel Version</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">KASLR</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Randomizes kernel memory layout to prevent reliable exploitation</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">3.14+</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">SMEP/SMAP</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Prevents kernel from executing/accessing user space memory</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">3.0+ (hardware dependent)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Kernel Page Table Isolation</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Mitigates Meltdown and similar CPU vulnerabilities</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">4.15+</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Stack Canaries</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Detects stack buffer overflows before exploitation</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">All modern kernels</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Hardened Usercopy</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Validates data copies between kernel and user space</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">4.8+</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Control Flow Integrity</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Validates function pointers to prevent ROP attacks</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">5.13+ (Clang CFI)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem;">Kernel Lockdown</td>
+                        <td style="padding:0.5rem 0.75rem;">Restricts kernel modification from userspace</td>
+                        <td style="padding:0.5rem 0.75rem;">5.4+</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>Kernel Hardening Configuration</h3>
+        <p>
+            Verify and enable kernel hardening features:
+        </p>
+        <pre data-lang="bash"><code class="language-bash"># Check current ASLR (Address Space Layout Randomization) setting
+# Value 2 = full randomization (stack, heap, libraries, exec)
+# Value 1 = partial (heap, stack, libraries)
+# Value 0 = disabled (DANGEROUS)
+grep -r "" /proc/sys/kernel/randomize_va_space  # Should be 2 (full ASLR)
+# Expected output: "2"
+# Why: ASLR randomizes memory addresses, making exploits unreliable
+# Use when: Auditing kernel security settings
+# Warning: If shows 0 or 1, system is vulnerable to memory exploits!
+
+# Check if kernel pointers are hidden from unprivileged users
+# Value 2 = hide pointers from all users (most secure)
+# Value 1 = hide from non-root only
+# Value 0 = expose to all (DANGEROUS - aids attackers)
+grep -r "" /proc/sys/kernel/kptr_restrict        # Should be 2 (hide kernel pointers)
+# Expected output: "2"
+# Why: Prevents attackers from learning kernel memory layout
+# Use when: Security audit, hardening new systems
+# Kernel pointers reveal memory addresses used for exploitation
+
+# Check if dmesg (kernel log) access is restricted
+# Value 1 = only root can read dmesg (prevents info leakage)
+# Value 0 = anyone can read (leaks kernel addresses, device info)
+grep -r "" /proc/sys/kernel/dmesg_restrict       # Should be 1 (restrict dmesg)
+# Expected output: "1"
+# Why: dmesg contains sensitive kernel information useful to attackers
+# Use when: Auditing information disclosure vulnerabilities
+# Attackers use dmesg for KASLR bypass and hardware enumeration
+
+# Apply comprehensive kernel hardening settings permanently
+# Creates new sysctl config file that loads on boot
+cat << 'EOF' | sudo tee /etc/sysctl.d/99-hardening.conf
+# Kernel hardening settings
+
+# Kernel pointer restriction (hide from all users)
+kernel.kptr_restrict = 2
+# Why: Prevents kernel address leakage used in exploit development
+# Value 2 = most restrictive, even root via non-/proc methods
+
+# Restrict dmesg access to root only
+kernel.dmesg_restrict = 1
+# Why: Prevents unprivileged users from reading kernel logs
+# Kernel logs contain addresses and hardware info useful to attackers
+
+# Disable unprivileged eBPF (Berkeley Packet Filter)
+kernel.unprivileged_bpf_disabled = 1
+# Why: eBPF is powerful, recent vulnerabilities enable privilege escalation
+# Only root should load eBPF programs into kernel
+
+# Disable unprivileged user namespaces (container escape prevention)
+kernel.unprivileged_userns_clone = 0
+# Why: User namespaces enable container creation, used in escape exploits
+# Disable unless using rootless containers
+# Warning: Breaks some containerized applications (Chromium sandboxing)
+
+# Restrict ptrace to child processes only (anti-debugging)
+kernel.yama.ptrace_scope = 2
+# Why: Prevents processes from attaching debuggers to arbitrary processes
+# Value 2 = only parent can ptrace child (stops process injection)
+# Breaks: debuggers like gdb unless run as root
+
+# Network hardening
+
+# Enable Reverse Path Filtering (anti-spoofing)
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+# Why: Drops packets with source addresses not routable back through arrival interface
+# Prevents IP spoofing attacks
+
+# Disable source routing (routing specified by packet sender)
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+# Why: Source routing allows attacker to specify packet path, bypass firewalls
+# Legitimate use cases are extremely rare
+
+# Disable ICMP redirects (prevents routing table manipulation)
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv4.conf.all.secure_redirects = 0
+net.ipv4.conf.default.secure_redirects = 0
+# Why: ICMP redirects can redirect traffic to attacker-controlled router
+# Used in man-in-the-middle attacks on local network
+
+# Ignore ICMP echo requests (prevent ping)
+net.ipv4.icmp_echo_ignore_all = 1
+# Why: Prevents network reconnaissance via ping sweeps
+# Disables responding to ping, makes system less visible
+# Warning: Breaks network diagnostics using ping
+
+# Disable IPv6 router advertisements (if not using IPv6)
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0
+# Why: Prevents IPv6 routing table manipulation
+
+# Filesystem hardening
+
+# Enable symlink protection (prevent symlink attacks)
+fs.protected_symlinks = 1
+# Why: Prevents following symlinks in sticky world-writable dirs (/tmp)
+# Stops privilege escalation via /tmp symlink attacks
+
+# Enable hardlink protection
+fs.protected_hardlinks = 1
+# Why: Prevents creating hardlinks to files you don't own
+# Stops hardlink-based privilege escalation
+
+# Disable core dumps for setuid programs
+fs.suid_dumpable = 0
+# Why: Prevents core dumps containing sensitive data (passwords, keys)
+# SUID core dumps can leak privileged process memory
+EOF
+# Expected output: Configuration written to /etc/sysctl.d/99-hardening.conf
+# Why: Persistent kernel hardening across reboots
+# Use when: Hardening new systems or after security audit
+
+# Apply sysctl settings immediately without reboot
+# -p = load settings from specified file
+sudo sysctl -p /etc/sysctl.d/99-hardening.conf
+# Expected output: Each setting confirmed with "setting = value"
+# Why: Activates hardening settings immediately
+# Use when: After creating/modifying sysctl configuration
+# Verify with: sysctl kernel.kptr_restrict (should show 2)</code></pre>
+
+        <h2>Distribution Security Comparison</h2>
+        <p>
+            Not all Linux distributions prioritize security equally. Choose based on your threat model and expertise:
+        </p>
+
+        <div style="overflow-x:auto; margin-bottom:2rem;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                <thead>
+                    <tr style="background-color:#111;">
+                        <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid #333;">Distribution</th>
+                        <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid #333;">Security Focus</th>
+                        <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid #333;">Best For</th>
+                        <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid #333;">Drawbacks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;"><strong>Qubes OS</strong></td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Security by compartmentalization via Xen VMs</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Journalists, activists, high-threat environments</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Steep learning curve, requires 16GB+ RAM</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;"><strong>Tails</strong></td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Amnesic OS, routes all traffic through Tor</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Anonymous communications, no persistence</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Not suitable for daily use, limited software</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;"><strong>Whonix</strong></td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Tor-isolated workstation, prevents IP leaks</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Anonymous research, whistleblowing</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Two-VM architecture, Tor performance limits</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;"><strong>Arch Linux</strong></td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Minimal, user controls everything</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Advanced users wanting full control</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">No default hardening, requires manual setup</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;"><strong>Debian</strong></td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Stability, reproducible builds</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Servers, long-term stability needs</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Conservative package versions</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;"><strong>Fedora</strong></td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">SELinux enforcing by default, modern features</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Developers wanting cutting-edge security</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Shorter support lifecycle (13 months)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;"><strong>Alpine Linux</strong></td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Minimal attack surface, musl libc, PIE binaries</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Containers, embedded systems, servers</td>
+                        <td style="padding:0.5rem 0.75rem; border-bottom:1px solid #222;">Limited desktop software, package differences</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.5rem 0.75rem;"><strong>OpenBSD</strong></td>
+                        <td style="padding:0.5rem 0.75rem;">Not Linux but BSD; proactive security, code audits</td>
+                        <td style="padding:0.5rem 0.75rem;">Security purists, firewalls, network appliances</td>
+                        <td style="padding:0.5rem 0.75rem;">Limited hardware support, fewer packages</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>No Telemetry—Complete Control</h2>
+        <p>
+            Unlike Windows and macOS, mainstream Linux distributions collect zero telemetry by default. Ubuntu briefly attempted opt-out telemetry in 2018 but community backlash forced them to make it strictly opt-in. Fedora and Debian never implemented telemetry. You control what runs on your system.
+        </p>
+
+        <h3>Verifying Zero Telemetry</h3>
+        <pre data-lang="bash"><code class="language-bash"># List all active network connections
+sudo ss -tunap
+
+# Monitor DNS queries
+sudo tcpdump -i any -n port 53
+
+# Check for unexpected cron jobs
+cat /etc/crontab
+ls /etc/cron.*
+systemctl list-timers
+
+# Audit system services
+systemctl list-units --type=service --state=running
+
+# Check for cloud-init (common in VPS, can phone home)
+systemctl status cloud-init
+sudo systemctl disable cloud-init
+sudo touch /etc/cloud/cloud-init.disabled</code></pre>
+
+        <p>
+            If you find unexpected network activity, the source code is available. Audit it, submit patches, or switch distributions.
+        </p>
+
+        <h2>Disk Encryption: LUKS</h2>
+        <p>
+            Linux Unified Key Setup (LUKS) provides transparent full-disk encryption using dm-crypt. It's open source, well-audited, and integrates cleanly with the boot process.
+        </p>
+
+        <h3>LUKS Strengths</h3>
+        <ul>
+            <li>Open source implementation auditable by anyone</li>
+            <li>Supports multiple key slots for key rotation and recovery</li>
+            <li>Strong defaults: XTS-AES-256 with Argon2 KDF</li>
+            <li>Hardware acceleration via AES-NI on modern CPUs</li>
+            <li>No vendor backdoors or key escrow</li>
+        </ul>
+
+        <h3>LUKS Setup and Best Practices</h3>
+        <pre data-lang="bash"><code class="language-bash"># Check if partition is encrypted
+sudo cryptsetup luksDump /dev/sda2
+
+# Create encrypted partition (destroys data)
+sudo cryptsetup luksFormat --type luks2 --cipher aes-xts-plain64 --key-size 512 --hash sha512 --use-random /dev/sdb1
+
+# Open encrypted partition
+sudo cryptsetup luksOpen /dev/sdb1 encrypted_data
+
+# Format and mount
+sudo mkfs.ext4 /dev/mapper/encrypted_data
+sudo mount /dev/mapper/encrypted_data /mnt/secure
+
+# Backup LUKS header (CRITICAL for recovery)
+sudo cryptsetup luksHeaderBackup /dev/sdb1 --header-backup-file ~/luks_header_sdb1.img
+
+# Add additional key slot (enables key rotation)
+sudo cryptsetup luksAddKey /dev/sdb1
+
+# Remove key slot
+sudo cryptsetup luksRemoveKey /dev/sdb1
+
+# Change existing key
+sudo cryptsetup luksChangeKey /dev/sdb1
+
+# Close encrypted volume
+sudo umount /mnt/secure
+sudo cryptsetup luksClose encrypted_data</code></pre>
+
+        <h3>TPM and LUKS Integration</h3>
+        <p>
+            Modern Linux supports binding LUKS to TPM 2.0 for automatic decryption on trusted boot:
+        </p>
+        <pre data-lang="bash"><code class="language-bash"># Install systemd-cryptenroll
+sudo apt install systemd-cryptenroll  # Debian/Ubuntu
+sudo dnf install systemd             # Fedora
+
+# Enroll LUKS volume with TPM
+sudo systemd-cryptenroll --tpm2-device=auto /dev/sda2
+
+# Enroll with TPM + PIN (recommended)
+sudo systemd-cryptenroll --tpm2-device=auto --tpm2-with-pin=yes /dev/sda2
+
+# List enrolled tokens
+sudo systemd-cryptenroll /dev/sda2
+
+# Remove TPM enrollment
+sudo systemd-cryptenroll --wipe-slot=tpm2 /dev/sda2</code></pre>
+
+        <div class="terminal-info not-prose my-6">
+            <div class="terminal-info-header">
+                <i data-lucide="info" class="terminal-info-icon"></i>
+                <h3 class="terminal-info-title">TPM Security Model</h3>
+            </div>
+            <p class="terminal-info-content">
+                TPM-bound LUKS protects against offline attacks (stolen drive) but not against Evil Maid attacks where an attacker modifies the bootloader. For defense against Evil Maid, use Heads firmware with measured boot or keep critical systems air-gapped.
+            </p>
+        </div>
+
+        <h2>Secure Boot and Bootloader Hardening</h2>
+        <p>
+            Secure Boot validates bootloader and kernel signatures before execution. Linux supports Secure Boot through shim, a Microsoft-signed bootloader that chains to GRUB.
+        </p>
+
+        <h3>Secure Boot Configuration</h3>
+        <pre data-lang="bash"><code class="language-bash"># Check Secure Boot status
+mokutil --sb-state
+
+# Enroll custom keys (for self-signed kernels)
+sudo mokutil --import /path/to/your_key.der
+
+# List enrolled keys
+sudo mokutil --list-enrolled
+
+# Password protect GRUB bootloader
+sudo grub-mkpasswd-pbkdf2
+# Add output to /etc/grub.d/40_custom:
+# set superusers="admin"
+# password_pbkdf2 admin <hash>
+sudo update-grub</code></pre>
+
+        <h3>Alternative: Heads Firmware</h3>
+        <p>
+            Heads is an open-source firmware replacement that implements measured boot using TPM or Librem Key. It detects bootloader tampering and refuses to boot compromised systems. Available for ThinkPad X230, T430, Librem laptops, and select Chromebooks.
+        </p>
+
+        <h2>Firewall and Network Security</h2>
+        <p>
+            Linux provides multiple firewall frameworks. Modern systems use nftables, older systems use iptables. UFW and firewalld offer user-friendly frontends.
+        </p>
+
+        <h3>UFW (Uncomplicated Firewall)</h3>
+        <pre data-lang="bash"><code class="language-bash"># Enable UFW
+sudo ufw enable
+
+# Default policies
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+# Allow specific services
+sudo ufw allow ssh
+sudo ufw allow 443/tcp
+
+# Allow from specific IP
+sudo ufw allow from 192.168.1.100
+
+# Deny specific port
+sudo ufw deny 23/tcp
+
+# Delete rule
+sudo ufw delete allow 80/tcp
+
+# Check status
+sudo ufw status verbose
+
+# Enable logging
+sudo ufw logging on</code></pre>
+
+        <h3>Nftables (Advanced)</h3>
+        <pre data-lang="bash"><code class="language-bash"># Example nftables ruleset
+cat << 'EOF' | sudo tee /etc/nftables.conf
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet filter {
+    chain input {
+        type filter hook input priority 0; policy drop;
+        
+        # Allow loopback
+        iif lo accept
+        
+        # Allow established connections
+        ct state established,related accept
+        
+        # Allow SSH (change port as needed)
+        tcp dport 22 accept
+        
+        # Allow HTTPS
+        tcp dport 443 accept
+        
+        # Drop invalid packets
+        ct state invalid drop
+        
+        # Rate limit SSH
+        tcp dport 22 ct state new limit rate 3/minute accept
+    }
+    
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+    }
+    
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
+EOF
+
+# Load rules
+sudo nft -f /etc/nftables.conf
+
+# Enable nftables service
+sudo systemctl enable nftables
+sudo systemctl start nftables
+
+# List current rules
+sudo nft list ruleset</code></pre>
+
+        <h2>Application Sandboxing</h2>
+        <p>
+            Linux offers multiple sandboxing technologies beyond SELinux and AppArmor:
+        </p>
+
+        <h3>Firejail</h3>
+        <p>
+            Firejail creates lightweight sandboxes using Linux namespaces and seccomp-bpf:
+        </p>
+        <pre data-lang="bash"><code class="language-bash"># Install firejail
+sudo apt install firejail      # Debian/Ubuntu
+sudo dnf install firejail      # Fedora
+sudo pacman -S firejail        # Arch
+
+# Run application in sandbox
+firejail firefox
+
+# Sandbox with no network access
+firejail --net=none /usr/bin/application
+
+# Restrict filesystem access
+firejail --private=/tmp/sandbox --noroot application
+
+# Check running sandboxes
+firejail --list
+
+# Create custom profile
+cat << 'EOF' > ~/.config/firejail/custom.profile
+include /etc/firejail/default.profile
+noroot
+net none
+private-tmp
+EOF
+
+firejail --profile=~/.config/firejail/custom.profile application</code></pre>
+
+        <h3>Flatpak Sandboxing</h3>
+        <p>
+            Flatpak packages include sandbox permissions built into the application:
+        </p>
+        <pre data-lang="bash"><code class="language-bash"># Install Flatpak
+sudo apt install flatpak
+
+# Add Flathub repository
+flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+# Install application
+flatpak install flathub org.mozilla.firefox
+
+# View application permissions
+flatpak info --show-permissions org.mozilla.firefox
+
+# Override permissions (remove network access)
+flatpak override --user --unshare=network org.mozilla.firefox
+
+# Reset permissions
+flatpak override --user --reset org.mozilla.firefox</code></pre>
+
+        <h2>Mandatory Access Control in Practice</h2>
+        <p>
+            Implement defense-in-depth by layering multiple security mechanisms:
+        </p>
+
+        <h3>Hardening Nginx with AppArmor</h3>
+        <pre data-lang="bash"><code class="language-bash"># Create restrictive AppArmor profile for nginx
+cat << 'EOF' | sudo tee /etc/apparmor.d/usr.sbin.nginx
+#include <tunables/global>
+
+/usr/sbin/nginx {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+  #include <abstractions/openssl>
+
+  capability dac_override,
+  capability net_bind_service,
+  capability setgid,
+  capability setuid,
+
+  /etc/nginx/** r,
+  /etc/ssl/certs/** r,
+  /var/log/nginx/* w,
+  /var/www/** r,
+  /run/nginx.pid rw,
+  /run/nginx/*.sock rw,
+  
+  # Deny everything else
+  deny /** wx,
+}
+EOF
+
+# Load profile
+sudo apparmor_parser -r /etc/apparmor.d/usr.sbin.nginx
+
+# Restart nginx
+sudo systemctl restart nginx
+
+# Check for violations
+sudo journalctl -xe | grep apparmor</code></pre>
+
+        <h2>Audit and Intrusion Detection</h2>
+        <p>
+            Monitor system activity to detect compromises:
+        </p>
+
+        <h3>Linux Audit Framework</h3>
+        <pre data-lang="bash"><code class="language-bash"># Install auditd
+sudo apt install auditd audispd-plugins
+
+# Enable auditd
+sudo systemctl enable auditd
+sudo systemctl start auditd
+
+# Watch sensitive files
+sudo auditctl -w /etc/passwd -p wa -k passwd_changes
+sudo auditctl -w /etc/shadow -p wa -k shadow_changes
+sudo auditctl -w /etc/sudoers -p wa -k sudoers_changes
+
+# Monitor privilege escalation
+sudo auditctl -a always,exit -F arch=b64 -S execve -F euid=0 -k root_exec
+
+# Monitor network connections
+sudo auditctl -a always,exit -F arch=b64 -S socket -k network_socket
+
+# Search audit logs
+sudo ausearch -k passwd_changes
+sudo ausearch -ts recent -k root_exec
+
+# Generate audit report
+sudo aureport --summary</code></pre>
+
+        <h3>AIDE (Advanced Intrusion Detection Environment)</h3>
+        <pre data-lang="bash"><code class="language-bash"># Install AIDE
+sudo apt install aide
+
+# Initialize database
+sudo aideinit
+
+# Move database to protected location
+sudo mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+
+# Check for changes
+sudo aide --check
+
+# Update database after legitimate changes
+sudo aide --update
+sudo mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+
+# Schedule daily checks
+echo "0 3 * * * root /usr/bin/aide --check | mail -s 'AIDE Report' admin@example.com" | sudo tee -a /etc/crontab</code></pre>
+
+        <h2>Kernel Live Patching</h2>
+        <p>
+            Apply critical kernel security patches without rebooting:
+        </p>
+
+        <h3>KernelCare (Commercial)</h3>
+        <pre data-lang="bash"><code class="language-bash"># Install KernelCare
+curl -s https://repo.cloudlinux.com/kernelcare/kernelcare_install.sh | sudo bash
+
+# Check patch status
+sudo kcarectl --info
+
+# Apply patches
+sudo kcarectl --update</code></pre>
+
+        <h3>Canonical Livepatch (Ubuntu)</h3>
+        <pre data-lang="bash"><code class="language-bash"># Enable Ubuntu Livepatch (requires Ubuntu One account)
+sudo snap install canonical-livepatch
+sudo canonical-livepatch enable <token>
+
+# Check status
+canonical-livepatch status</code></pre>
+
+        <h2>Hardening SSH</h2>
+        <p>
+            SSH is the primary remote access vector. Harden it aggressively:
+        </p>
+        <pre data-lang="bash"><code class="language-bash"># Edit /etc/ssh/sshd_config
+sudo tee /etc/ssh/sshd_config.d/hardening.conf << 'EOF'
+# Disable root login
+PermitRootLogin no
+
+# Disable password authentication (use keys only)
+PasswordAuthentication no
+ChallengeResponseAuthentication no
+UsePAM no
+
+# Protocol 2 only
+Protocol 2
+
+# Strong ciphers only
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512
+
+# Limit authentication attempts
+MaxAuthTries 3
+MaxSessions 2
+
+# Disconnect idle sessions
+ClientAliveInterval 300
+ClientAliveCountMax 2
+
+# Restrict users (whitelist)
+AllowUsers admin deploy
+
+# Enable strict mode
+StrictModes yes
+
+# Disable unnecessary features
+X11Forwarding no
+AllowTcpForwarding no
+AllowAgentForwarding no
+PermitTunnel no
+EOF
+
+# Test configuration
+sudo sshd -t
+
+# Restart SSH
+sudo systemctl restart sshd</code></pre>
+
+        <h3>SSH Key Management</h3>
+        <pre data-lang="bash"><code class="language-bash"># Generate ED25519 key (preferred over RSA)
+ssh-keygen -t ed25519 -a 100 -C "user@host"
+
+# Generate RSA 4096 if ED25519 not supported
+ssh-keygen -t rsa -b 4096 -a 100 -C "user@host"
+
+# Copy public key to server
+ssh-copy-id -i ~/.ssh/id_ed25519.pub user@server
+
+# Use SSH agent with timeout
+eval $(ssh-agent -t 3600)
+ssh-add ~/.ssh/id_ed25519
+
+# Configure client settings
+cat << 'EOF' > ~/.ssh/config
+Host *
+    HashKnownHosts yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+    VerifyHostKeyDNS yes
+    ControlMaster auto
+    ControlPath ~/.ssh/sockets/%r@%h:%p
+    ControlPersist 600
+EOF
+
+chmod 600 ~/.ssh/config
+mkdir -p ~/.ssh/sockets</code></pre>
+
+        <h2>Container Security</h2>
+        <p>
+            Containers provide process isolation but share the host kernel. Secure them appropriately:
+        </p>
+
+        <h3>Docker Hardening</h3>
+        <pre data-lang="bash"><code class="language-bash"># Run containers as non-root
+docker run --user 1000:1000 image
+
+# Drop all capabilities, add only necessary ones
+docker run --cap-drop=ALL --cap-add=NET_BIND_SERVICE image
+
+# Read-only root filesystem
+docker run --read-only --tmpfs /tmp image
+
+# Limit resources
+docker run --memory=512m --cpus=1 --pids-limit=100 image
+
+# Enable AppArmor/SELinux
+docker run --security-opt apparmor=docker-default image
+
+# Use seccomp profile
+docker run --security-opt seccomp=/path/to/profile.json image
+
+# Scan images for vulnerabilities
+docker scan image_name
+
+# Enable Docker Content Trust (signed images only)
+export DOCKER_CONTENT_TRUST=1</code></pre>
+
+        <h2>Minimal Attack Surface: Alpine Linux Example</h2>
+        <p>
+            Alpine Linux demonstrates minimal attack surface philosophy:
+        </p>
+        <ul>
+            <li>Base system: ~5MB, ~30 packages</li>
+            <li>Musl libc instead of glibc (smaller, simpler)</li>
+            <li>BusyBox instead of GNU coreutils (fewer dependencies)</li>
+            <li>All packages built as Position Independent Executables (PIE)</li>
+            <li>Stack-smashing protection enabled by default</li>
+            <li>No systemd (uses OpenRC for simplicity)</li>
+        </ul>
+
+        <pre data-lang="bash"><code class="language-bash"># Install Alpine minimal
+# Download from https://alpinelinux.org/downloads/
+
+# Post-install hardening
+apk update
+apk upgrade
+
+# Install only required packages
+apk add openssh sudo
+
+# Harden kernel
+cat << 'EOF' >> /etc/sysctl.conf
+kernel.kptr_restrict = 2
+kernel.dmesg_restrict = 1
+kernel.unprivileged_bpf_disabled = 1
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.icmp_echo_ignore_all = 1
+EOF
+
+sysctl -p</code></pre>
+
+        <h2>Vulnerability Management</h2>
+        <p>
+            Stay informed about security updates:
+        </p>
+        <pre data-lang="bash"><code class="language-bash"># Debian/Ubuntu: check for security updates
+sudo apt update
+sudo apt list --upgradable | grep security
+
+# Automatic security updates (unattended-upgrades)
+sudo apt install unattended-upgrades
+sudo dpkg-reconfigure -plow unattended-upgrades
+
+# Fedora: check for updates
+sudo dnf check-update --security
+
+# Arch: check for updates
+sudo pacman -Syu
+
+# Subscribe to security mailing lists
+# Debian: debian-security-announce@lists.debian.org
+# Ubuntu: ubuntu-security-announce@lists.ubuntu.com
+# Red Hat: rhsa-announce@redhat.com</code></pre>
+
+        <h2>Privacy-Focused DNS</h2>
+        <pre data-lang="bash"><code class="language-bash"># Install DNSCrypt-Proxy
+sudo apt install dnscrypt-proxy  # Debian/Ubuntu
+sudo dnf install dnscrypt-proxy  # Fedora
+
+# Configure /etc/dnscrypt-proxy/dnscrypt-proxy.toml
+cat << 'EOF' | sudo tee /etc/dnscrypt-proxy/dnscrypt-proxy.toml
+server_names = ['cloudflare', 'quad9-dnscrypt-ip4-nofilter-pri']
+listen_addresses = ['127.0.0.1:53']
+max_clients = 250
+ipv4_servers = true
+ipv6_servers = false
+dnscrypt_servers = true
+doh_servers = true
+require_dnssec = true
+require_nolog = true
+require_nofilter = true
+force_tcp = false
+timeout = 5000
+keepalive = 30
+cert_refresh_delay = 240
+fallback_resolvers = ['9.9.9.9:53', '1.1.1.1:53']
+netprobe_timeout = 60
+log_level = 2
+use_syslog = true
+cache = true
+cache_size = 4096
+cache_min_ttl = 2400
+cache_max_ttl = 86400
+cache_neg_min_ttl = 60
+cache_neg_max_ttl = 600
+EOF
+
+# Enable and start service
+sudo systemctl enable dnscrypt-proxy
+sudo systemctl start dnscrypt-proxy
+
+# Configure system to use local DNS
+echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf
+sudo chattr +i /etc/resolv.conf  # Make immutable</code></pre>
+
+        <h2>Residual Risks</h2>
+        <p>
+            Even hardened Linux systems face inherent risks:
+        </p>
+
+        <div class="terminal-alert not-prose">
+            <div class="terminal-alert-header">
+                <i data-lucide="shield-alert" class="terminal-alert-icon"></i>
+                <h3 class="terminal-alert-title">Remaining Linux Attack Vectors</h3>
+            </div>
+            <ul class="terminal-alert-content">
+                <li><strong>Kernel vulnerabilities:</strong> 0-days exist. No amount of hardening prevents unknown exploits.</li>
+                <li><strong>Supply chain attacks:</strong> Compromised packages can infect systems before detection. Verify signatures.</li>
+                <li><strong>Firmware vulnerabilities:</strong> UEFI, Intel ME, AMD PSP operate below OS control.</li>
+                <li><strong>Side-channel attacks:</strong> Spectre, Meltdown, and similar CPU vulnerabilities affect all x86 systems.</li>
+                <li><strong>Physical access:</strong> Cold boot attacks, DMA attacks, hardware implants bypass software security.</li>
+                <li><strong>User error:</strong> Misconfigured permissions, weak passwords, and social engineering remain effective.</li>
+            </ul>
+        </div>
+
+        <h2>Recommendations</h2>
+        <p>
+            Linux is the only operating system that grants complete architectural control. Use it when:
+        </p>
+        <ul>
+            <li>Your threat model requires verifiable security through source code audit</li>
+            <li>You need zero telemetry and complete privacy control</li>
+            <li>You want to implement custom security policies (SELinux, AppArmor)</li>
+            <li>You require full control over updates, services, and kernel configuration</li>
+            <li>You value software freedom and reject vendor lock-in</li>
+        </ul>
+
+        <p>
+            <strong>Distribution recommendations by use case:</strong>
+        </p>
+        <ul>
+            <li><strong>Maximum security:</strong> Qubes OS with Whonix integration</li>
+            <li><strong>General desktop:</strong> Fedora Workstation (SELinux enforcing, modern security)</li>
+            <li><strong>Server workloads:</strong> Debian Stable or Alpine Linux</li>
+            <li><strong>Advanced users:</strong> Arch Linux (full control, minimal bloat)</li>
+            <li><strong>Anonymous operations:</strong> Tails or Whonix</li>
+            <li><strong>Containers:</strong> Alpine Linux</li>
+        </ul>
+
+        <p>
+            Linux security is a process, not a product. Stay subscribed to security mailing lists, audit your configurations quarterly, apply updates promptly, and never trust that "secure enough" stays secure. The only truly secure system is one that's actively defended.
+        </p>
+    </article>
+</body>
+</html>
