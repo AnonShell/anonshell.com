@@ -220,3 +220,4 @@ AnonShell exists thanks to:
 **Built by the community, for the community.**
 
 *Last updated: December 2025*
+
