@@ -632,13 +632,13 @@ function displayQuestion() {
         const isSelected = answers[currentQuestionIndex] === originalIndex;
         
         answerDiv.innerHTML = `
-            <label class="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+            <label class="flex items-start gap-3 p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${
                 isSelected 
                     ? 'border-shell-accent bg-shell-accent/10' 
                     : 'border-shell-border hover:border-shell-accent/50'
             }">
-                <input type="radio" name="answer" value="${originalIndex}" class="mt-1" ${isSelected ? 'checked' : ''}>
-                <span class="text-gray-300">${answer.text}</span>
+                <input type="radio" name="answer" value="${originalIndex}" class="mt-1 flex-shrink-0" ${isSelected ? 'checked' : ''}>
+                <span class="text-gray-300 text-sm sm:text-base break-words">${answer.text}</span>
             </label>
         `;
         
@@ -665,9 +665,9 @@ function selectAnswer(answerIndex) {
     document.querySelectorAll('.answer-option label').forEach((label) => {
         const radio = label.querySelector('input[type="radio"]');
         if (radio && parseInt(radio.value) === answerIndex) {
-            label.className = 'flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all border-shell-accent bg-shell-accent/10';
+            label.className = 'flex items-start gap-3 p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all border-shell-accent bg-shell-accent/10';
         } else {
-            label.className = 'flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all border-shell-border hover:border-shell-accent/50';
+            label.className = 'flex items-start gap-3 p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all border-shell-border hover:border-shell-accent/50';
         }
     });
 }
