@@ -177,18 +177,19 @@ The site is designed to deploy anywhere static files are served. No build proces
 
 ## License
 
-This project is released under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0)**. See the [LICENSE](LICENSE) file for details.
 
 You are free to:
-- Use the content for educational purposes
-- Fork and modify the codebase
-- Deploy your own version of the site
-- Distribute and share freely
+- **Share**: Copy and redistribute the material in any medium or format
+- **Adapt**: Remix, transform, and build upon the material
 
-We only ask that you:
-- Provide attribution to AnonShell
-- Share improvements back to the community
-- Use the knowledge responsibly and ethically
+Under the following terms:
+- **Attribution**: Give appropriate credit to AnonShell and indicate if changes were made
+- **NonCommercial**: Do not use the material for commercial purposes (paid courses, commercial products, revenue generation)
+- **ShareAlike**: Distribute your contributions under the same license
+- **No additional restrictions**: Do not apply legal terms or technological measures that restrict others from doing anything the license permits
+
+For the full legal text, visit: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 ## Support
 
