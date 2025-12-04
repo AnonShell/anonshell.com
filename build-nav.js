@@ -46,18 +46,6 @@ function getTitle(content, filename) {
 }
 
 /**
- * Get clean text content from HTML
- */
-function getCleanContent(content) {
-    // Remove script and style tags
-    let cleaned = content.replace(/<(script|style)\b[^>]*>.*?<\/\1>/gis, '');
-    // Remove all HTML tags
-    cleaned = cleaned.replace(/<[^>]*>/g, '');
-    // Normalize whitespace
-    return cleaned.replace(/\s+/g, ' ').trim();
-}
-
-/**
  * Recursively scan directory and build file tree
  */
 function scanDirectory(dirPath, relativePath) {
@@ -116,7 +104,6 @@ function scanDirectory(dirPath, relativePath) {
             }
             
             const title = getTitle(content, file);
-            const cleanContent = getCleanContent(content);
             const isHidden = HIDDEN_FROM_NAV.includes(file);
             
             items.push({
@@ -124,7 +111,6 @@ function scanDirectory(dirPath, relativePath) {
                 path: relPath.replace(/\\/g, '/'),
                 type: 'file',
                 title: title,
-                content: cleanContent.substring(0, 500),
                 hidden: isHidden
             });
         }
