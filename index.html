@@ -191,11 +191,11 @@
         </div>
 
         <div class="p-3 border-t border-shell-border bg-shell-dark text-[11px] text-gray-400 flex justify-center gap-4">
-            <a href="#/posts/privacy.html" class="text-shell-accent hover:underline">Privacy Policy</a>
+            <a href="#/posts/privacy.html" class="text-shell-accent hover:underline sidebar-link">Privacy Policy</a>
             <span class="text-gray-600">·</span>
-            <a href="#/posts/tos.html" class="text-shell-accent hover:underline">Terms of Service</a>
+            <a href="#/posts/tos.html" class="text-shell-accent hover:underline sidebar-link">Terms of Service</a>
             <span class="text-gray-600">·</span>
-            <a href="#/posts/contact.html" class="text-shell-accent hover:underline">Contact</a>
+            <a href="#/posts/contact.html" class="text-shell-accent hover:underline sidebar-link">Contact</a>
         </div>
     </aside>
 
@@ -853,6 +853,15 @@
         menuToggle.addEventListener('click', toggleSidebar);
         if(menuClose) menuClose.addEventListener('click', toggleSidebar);
         overlay.addEventListener('click', toggleSidebar);
+
+        // Close sidebar when clicking footer links on mobile
+        document.querySelectorAll('.sidebar-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth < 768) {
+                    toggleSidebar();
+                }
+            });
+        });
 
         // Check for hash-based deep linking on page load
         function checkDeepLink() {
