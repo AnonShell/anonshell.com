@@ -2,28 +2,56 @@
     <span class="text-gray-500">#</span> Contact Us
 </h1>
 
-<p class="text-xl text-shell-accent/90 leading-relaxed mb-8">
-    We're currently exploring secure contact options for AnonShell. This page will be updated soon with verified communication channels.
+<p class="text-lg leading-relaxed mb-6">
+    We believe in practicing what we preach. Just as we teach operational security and privacy protection, we apply those same principles to our own communications. That is why we have chosen to remain anonymous and use privacy-respecting tools for contact.
+</p>
+
+<p class="text-lg leading-relaxed mb-8">
+    You can never be too safe in today's digital landscape. By maintaining operational anonymity, we protect not only ourselves but also the integrity of this project and the community around it. We chose SimpleX Chat as our primary communication channel because it is a fully open-source platform, both client and server side, that respects your privacy as much as we value our own. SimpleX does not require phone numbers, email addresses, or any personal identifiers. It provides true end-to-end encryption with no metadata collection.
 </p>
 
 <div class="terminal-info not-prose my-8">
     <div class="terminal-info-header">
-        <i data-lucide="info" class="terminal-info-icon"></i>
-        <h3 class="terminal-info-title">Under Development</h3>
+        <i data-lucide="message-circle" class="terminal-info-icon"></i>
+        <h3 class="terminal-info-title">Contact via SimpleX Chat</h3>
     </div>
     <div class="terminal-info-content">
-        <p class="mb-3">
-            We're evaluating secure communication methods that align with our privacy principles. Options being considered include:
+        <p class="mb-4">
+            To reach us securely, scan the QR code below with the SimpleX Chat app or click the link on your mobile device. SimpleX is available for iOS, Android, Linux, macOS, and Windows.
+        </p>
+        <div class="flex flex-col items-center my-6">
+            <img src="../img/simplex-qr.png" alt="SimpleX Chat Contact QR Code" class="w-64 h-64 rounded-lg border-2 border-shell-accent/30 shadow-lg mb-4">
+            <p class="text-sm text-gray-400 text-center">
+                Scan this code with SimpleX Chat to connect with us
+            </p>
+        </div>
+        <p class="text-sm mb-3">
+            <strong>Why SimpleX?</strong>
         </p>
         <ul class="list-disc pl-5 space-y-2 text-sm">
-            <li><strong>End-to-end encrypted messaging</strong> (SimpleX, Signal, etc.)</li>
-            <li><strong>PGP-encrypted email</strong> for sensitive disclosures</li>
-            <li><strong>GitHub Issues</strong> for technical discussions and contributions</li>
+            <li>Fully open-source client and server implementations</li>
+            <li>No phone numbers, emails, or user identifiers required</li>
+            <li>True end-to-end encryption with minimal metadata</li>
+            <li>Decentralized architecture with no central servers</li>
+            <li>Audited cryptography and security protocols</li>
         </ul>
         <p class="mt-4 text-sm">
-            Once we've implemented proper verification mechanisms to prevent impersonation, this page will be updated with official contact methods.
+            Download SimpleX Chat: <a href="https://simplex.chat" target="_blank" rel="noopener noreferrer" class="text-shell-accent hover:underline">https://simplex.chat</a>
         </p>
     </div>
+</div>
+
+<div class="terminal-success not-prose my-8">
+    <div class="terminal-success-header">
+        <i data-lucide="github" class="terminal-success-icon"></i>
+        <h3 class="terminal-success-title">GitHub Issues</h3>
+    </div>
+    <p class="terminal-success-content mb-3">
+        For technical discussions, bug reports, content suggestions, or contribution ideas, please use GitHub Issues on our repository:
+    </p>
+    <p class="terminal-success-content">
+        <a href="https://github.com/AnonShell/anonshell.com/issues" target="_blank" rel="noopener noreferrer" class="text-shell-accent hover:underline font-semibold">github.com/AnonShell/anonshell.com/issues</a>
+    </p>
 </div>
 
 <div class="terminal-warning not-prose mt-8">
@@ -32,7 +60,7 @@
         <h3 class="terminal-warning-title">Security Disclosure</h3>
     </div>
     <p class="terminal-warning-content">
-        If you've discovered a security vulnerability in content on this site (dangerous commands, insecure configurations, privacy issues), please note it for now. We'll establish a proper responsible disclosure process soon. In the meantime, you can use GitHub Issues on our repository once it's public.
+        If you have discovered a security vulnerability in the content on this site (dangerous commands, insecure configurations, or privacy issues), please contact us via SimpleX Chat or create a GitHub Issue. We take security seriously and will address legitimate concerns promptly.
     </p>
 </div>
 
@@ -41,5 +69,4 @@ document.addEventListener('DOMContentLoaded', function() {
     lucide.createIcons();
 });
 </script>
-
 
